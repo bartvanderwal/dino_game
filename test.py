@@ -10,6 +10,9 @@ last_event = "none"
 wheel_dx = 0
 wheel_dy = 0
 is_dragging = False
+console_last = "none"
+console_error = "none"
+asked_count = 0
 
 # Visual style state
 fill_on = True
@@ -96,12 +99,20 @@ def draw():
     text("key: " + str(key), 500, 270)
     text("keyCode: " + str(keyCode), 500, 295)
     text("keyPressed: " + str(keyPressed), 500, 320)
+    text("input_pending: " + str(input_pending()), 500, 345)
+    text("input_last: " + str(console_last), 500, 370)
+    text("input_error: " + str(console_error), 500, 395)
+    text("input_requests_started: " + str(asked_count), 500, 420)
+
+    text("Input test:", 20, 370)
+    text("Press I to request async console input", 20, 395)
+    text("Type in terminal and press Enter", 20, 420)
 
 
 # Keyboard handlers
 
 def key_pressed(key):
-    global last_key, last_event, fill_on, stroke_on, stroke_w
+    global last_key, last_event, fill_on, stroke_on, stroke_w, asked_count
     last_key = key
     last_event = "key_pressed"
 
@@ -115,6 +126,21 @@ def key_pressed(key):
         stroke_w += 1
     elif key in (45, 95, 1073741910):
         stroke_w = max(1, stroke_w - 1)
+    elif key == 105:
+        if request_input("snelheid? "):
+            asked_count += 1
+
+
+def input_received(text_line):
+    global console_last, last_event
+    console_last = text_line
+    last_event = "input_received"
+
+
+def input_error(err):
+    global console_error, last_event
+    console_error = str(err)
+    last_event = "input_error"
 
 
 def key_released(key):

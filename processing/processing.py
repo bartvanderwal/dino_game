@@ -1,4 +1,6 @@
 import inspect
+import queue
+import threading
 import pygame
 
 
@@ -19,6 +21,11 @@ _stroke_weight = 1
 _text_size = 12
 _font = None
 _sketch_globals = None
+
+# async console input state (explicit API: request_input + callbacks)
+_input_events = queue.Queue()
+_input_lock = threading.Lock()
+_input_pending = False
 
 # Public Processing-like globals
 width = _width
@@ -182,6 +189,25 @@ def text(txt, x, y):
     surf = _font.render(str(txt), True, _fill_color if _fill_enabled else _stroke_color)
     _screen.blit(surf, _apply_coords((x, y)))
 
+def request_input(prompt="> "):
+    """
+    Start een asynchrone console input request.
+    Returnt True als een nieuwe request gestart is, False als er al één pending is.
+    """
+    global _input_pending
+    with _input_lock:
+        if _input_pending:
+            return False
+        _input_pending = True
+
+    thread = threading.Thread(target=_input_worker, args=(str(prompt),), daemon=True)
+    thread.start()
+    return True
+
+def input_pending():
+    with _input_lock:
+        return _input_pending
+
 def arc(x, y, w, h, start, stop):
     _require_screen("arc")
     rect = pygame.Rect(_apply_coords((x - w/2, y - h/2, w, h)))
@@ -259,6 +285,31 @@ def _invoke_handler(sketch, name, *args):
     else:
         handler(*args[:len(positional)])
 
+def _input_worker(prompt):
+    global _input_pending
+    try:
+        text_line = input(prompt)
+        _input_events.put(("received", text_line))
+    except EOFError as err:
+        _input_events.put(("error", err))
+    except Exception as err:
+        _input_events.put(("error", err))
+    finally:
+        with _input_lock:
+            _input_pending = False
+
+def _dispatch_input_events(sketch):
+    while True:
+        try:
+            kind, payload = _input_events.get_nowait()
+        except queue.Empty:
+            break
+
+        if kind == "received":
+            _invoke_handler(sketch, "input_received", payload)
+        elif kind == "error":
+            _invoke_handler(sketch, "input_error", payload)
+
 def _make_sketch_from_caller():
     global _sketch_globals
     caller_globals = inspect.stack()[2].frame.f_globals
@@ -305,7 +356,8 @@ def run(mode=None):
                  key_pressed(key), key_released(key), key_typed(char),
                  mouse_pressed(x, y, button), mouse_released(x, y, button),
                  mouse_clicked(x, y, button), mouse_moved(x, y, dx, dy),
-                 mouse_dragged(x, y, dx, dy), mouse_wheel(dx, dy)
+                 mouse_dragged(x, y, dx, dy), mouse_wheel(dx, dy),
+                 input_received(text), input_error(err)
 
     Je kunt mode forceren met mode="static" of mode="interactive".
     """
@@ -399,6 +451,7 @@ def run(mode=None):
                     elif event.type == pygame.MOUSEWHEEL:
                         _invoke_handler(sketch, "mouse_wheel", event.x, event.y)
 
+                _dispatch_input_events(sketch)
                 _set_public_global("frameCount", frameCount + 1)
                 sketch.draw()
 
@@ -423,6 +476,8 @@ def run(mode=None):
                         _set_public_global("focused", True)
                     elif event.type == getattr(pygame, "WINDOWFOCUSLOST", -1):
                         _set_public_global("focused", False)
+
+                _dispatch_input_events(sketch)
                 _clock.tick(30)
 
     finally:
