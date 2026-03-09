@@ -5,6 +5,7 @@ speed = 1
 
 def setup():
     size(800,500)
+    title("Voorbeeld met input")
 
 def draw():
     global x

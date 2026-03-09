@@ -73,6 +73,9 @@ def frame_rate(fps):
 def title(t):
     global _title
     _title = str(t)
+    # Also apply immediately when the window already exists (e.g. title() in setup()).
+    if _screen is not None:
+        pygame.display.set_caption(_title)
 
 def window_icon(path="icon.png"):
     """
