@@ -8,6 +8,7 @@ from .core.constants import LEFT, RIGHT, CENTER, TOP, BOTTOM, BASELINE
 from .core.public_globals import PUBLIC_GLOBAL_NAMES
 from .core.dispatch import invoke_handler
 from .core.input_async import AsyncInputManager
+from .core.runtime import run_app
 
 
 _width = 800
@@ -475,137 +476,37 @@ def run(mode=None):
     """
     sketch = _make_sketch_from_caller()
     _sync_public_globals_to_sketch()
+
     global _run_thread, _draw_call_depth
     _run_thread = threading.current_thread()
     _draw_call_depth = 0
 
-    has_setup = hasattr(sketch, "setup")
-    has_draw = hasattr(sketch, "draw")
+    def _get_public_global(name):
+        return globals()[name]
 
-    if mode is None:
-        mode = "interactive" if has_draw else "static"
-    else:
-        mode = mode.lower().strip()
+    def _begin_draw():
+        global _draw_call_depth
+        _draw_call_depth += 1
 
-    if mode not in ("static", "interactive"):
-        raise ValueError('mode must be None, "static", or "interactive"')
+    def _end_draw():
+        global _draw_call_depth
+        _draw_call_depth -= 1
 
-    _init_window()
-    _input_manager.patch_input_guard(lambda: _draw_call_depth, lambda: _run_thread)
-
-    try:
-        if mode == "interactive":
-            # minimaal vereist
-            if not has_setup or not has_draw:
-                raise RuntimeError(
-                    "Interactive mode requires both setup() and draw(). "
-                    "Either define them, or remove draw() to use static mode."
-                )
-
-            # setup één keer
-            sketch.setup()
-            pygame.key.start_text_input()
-            current_mouse_x, current_mouse_y = pygame.mouse.get_pos()
-            _set_public_global("mouse_x", int(current_mouse_x))
-            _set_public_global("mouse_y", int(current_mouse_y))
-            _set_public_global("pmouse_x", int(current_mouse_x))
-            _set_public_global("pmouse_y", int(current_mouse_y))
-
-            # loop
-            running = True
-            while running:
-                for event in pygame.event.get():
-                    if event.type == pygame.QUIT:
-                        running = False
-                    elif event.type == getattr(pygame, "WINDOWFOCUSGAINED", -1):
-                        _set_public_global("focused", True)
-                    elif event.type == getattr(pygame, "WINDOWFOCUSLOST", -1):
-                        _set_public_global("focused", False)
-                    elif event.type == pygame.KEYDOWN:
-                        key_value = event.unicode if getattr(event, "unicode", "") else event.key
-                        _set_public_global("key", key_value)
-                        _set_public_global("key_code", event.key)
-                        _set_public_global("is_key_pressed", True)
-                        invoke_handler(sketch, "key_pressed", event.key)
-                        if event.key == pygame.K_ESCAPE:
-                            running = False
-                    elif event.type == pygame.KEYUP:
-                        key_value = event.unicode if getattr(event, "unicode", "") else event.key
-                        _set_public_global("key", key_value)
-                        _set_public_global("key_code", event.key)
-                        _set_public_global("is_key_pressed", False)
-                        invoke_handler(sketch, "key_released", event.key)
-                    elif event.type == pygame.TEXTINPUT:
-                        _set_public_global("key", event.text)
-                        invoke_handler(sketch, "key_typed", event.text)
-                    elif event.type == pygame.MOUSEBUTTONDOWN:
-                        _set_public_global("pmouse_x", mouse_x)
-                        _set_public_global("pmouse_y", mouse_y)
-                        _set_public_global("mouse_x", event.pos[0])
-                        _set_public_global("mouse_y", event.pos[1])
-                        _set_public_global("is_mouse_pressed", True)
-                        _set_public_global("mouse_button", event.button)
-                        invoke_handler(sketch, "mouse_pressed", event.pos[0], event.pos[1], event.button)
-                    elif event.type == pygame.MOUSEBUTTONUP:
-                        _set_public_global("pmouse_x", mouse_x)
-                        _set_public_global("pmouse_y", mouse_y)
-                        _set_public_global("mouse_x", event.pos[0])
-                        _set_public_global("mouse_y", event.pos[1])
-                        _set_public_global("is_mouse_pressed", False)
-                        _set_public_global("mouse_button", event.button)
-                        invoke_handler(sketch, "mouse_released", event.pos[0], event.pos[1], event.button)
-                        invoke_handler(sketch, "mouse_clicked", event.pos[0], event.pos[1], event.button)
-                    elif event.type == pygame.MOUSEMOTION:
-                        _set_public_global("pmouse_x", mouse_x)
-                        _set_public_global("pmouse_y", mouse_y)
-                        _set_public_global("mouse_x", event.pos[0])
-                        _set_public_global("mouse_y", event.pos[1])
-                        if any(event.buttons):
-                            _set_public_global("is_mouse_pressed", True)
-                            invoke_handler(sketch, "mouse_dragged", event.pos[0], event.pos[1], event.rel[0], event.rel[1])
-                        else:
-                            _set_public_global("is_mouse_pressed", False)
-                            invoke_handler(sketch, "mouse_moved", event.pos[0], event.pos[1], event.rel[0], event.rel[1])
-                    elif event.type == pygame.MOUSEWHEEL:
-                        invoke_handler(sketch, "mouse_wheel", event.x, event.y)
-
-                _input_manager.dispatch_events(sketch, invoke_handler)
-                _set_public_global("frame_count", frame_count + 1)
-                _draw_call_depth += 1
-                try:
-                    sketch.draw()
-                finally:
-                    _draw_call_depth -= 1
-
-                pygame.display.flip()
-                _clock.tick(_fps)
-
-        else:  # static
-            # In static mode mag setup() bestaan, draw() wordt genegeerd
-            if has_setup:
-                sketch.setup()
-
-            # 1 frame renderen
-            pygame.display.flip()
-
-            # window openhouden
-            running = True
-            while running:
-                for event in pygame.event.get():
-                    if event.type == pygame.QUIT:
-                        running = False
-                    elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-                        running = False
-                    elif event.type == getattr(pygame, "WINDOWFOCUSGAINED", -1):
-                        _set_public_global("focused", True)
-                    elif event.type == getattr(pygame, "WINDOWFOCUSLOST", -1):
-                        _set_public_global("focused", False)
-
-                _input_manager.dispatch_events(sketch, invoke_handler)
-                _clock.tick(30)
-
-    finally:
-        _input_manager.restore_input_guard()
-        if mode == "interactive":
-            pygame.key.stop_text_input()
-        _shutdown()
+    run_app(
+        mode,
+        sketch,
+        pygame=pygame,
+        init_window=_init_window,
+        patch_input_guard=lambda: _input_manager.patch_input_guard(lambda: _draw_call_depth, lambda: _run_thread),
+        restore_input_guard=_input_manager.restore_input_guard,
+        dispatch_input_events=lambda s: _input_manager.dispatch_events(s, invoke_handler),
+        invoke_handler=invoke_handler,
+        set_public_global=_set_public_global,
+        get_public_global=_get_public_global,
+        begin_draw=_begin_draw,
+        end_draw=_end_draw,
+        call_draw=lambda s: s.draw(),
+        tick=lambda hz: _clock.tick(hz),
+        fps_getter=lambda: _fps,
+        shutdown=_shutdown,
+    )
