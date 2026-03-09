@@ -13,17 +13,6 @@ The goal is to let you write simple sketches with minimal setup:
 
 You can use functions like `size()`, `background()`, `circle()`, `text()`, `image()`, and input callbacks.
 
-## First Steps
-
-1. Open a terminal in this repository root.
-2. Run the example test sketch:
-
-```powershell
-.\python\python.exe test.py
-```
-
-If everything is set up correctly, a sketch window opens and renders animated content.
-
 ## Create Your First Sketch
 
 Create a file like `my_sketch.py`:
