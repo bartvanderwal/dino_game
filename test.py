@@ -215,7 +215,7 @@ def key_pressed(key):
     elif key in (45, 95, 1073741910):
         stroke_w = max(1, stroke_w - 1)
     elif key == 105:
-        if request_input("snelheid? "):
+        if request_input("speed? "):
             asked_count += 1
 
 

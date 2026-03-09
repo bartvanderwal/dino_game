@@ -71,116 +71,145 @@ is_key_pressed = False
 
 
 # --------------------
-# Processing-achtige API
+# Processing-like API
 # --------------------
 
 def _state():
     return globals()
 
 def size(w, h):
+    """Set the sketch window size in pixels."""
     _system_api.size(_state(), _set_public_global, w, h)
 
 def full_screen():
+    """Switch the sketch window to fullscreen mode."""
     _system_api.full_screen(_state(), pygame, _set_public_global)
 
 def frame_rate(fps):
+    """Set the target frame rate for interactive mode."""
     _system_api.frame_rate(_state(), fps)
 
 def title(t):
+    """Set the window title."""
     _system_api.title(_state(), pygame, t)
 
 def window_icon(path="icon.png"):
     """
-    Stel het venster-icoon in. Standaard zoekt dit naar processing/icon.png.
+    Set the window icon. By default this looks for processing/icon.png.
     """
     _system_api.window_icon(_state(), _apply_window_icon, path)
 
 def background(*args):
+    """Clear the screen with a grayscale or RGB color."""
     _drawing_api.background(_state(), _require_screen, *args)
 
 def rect(x, y, w, h):
+    """Draw a rectangle."""
     _drawing_api.rect(_state(), _require_screen, x, y, w, h)
 
 def circle(x, y, d):
+    """Draw a circle using center and diameter."""
     _drawing_api.circle(_state(), _require_screen, x, y, d)
 
 # additional primitives
 
 def point(x, y):
+    """Draw a single point."""
     _drawing_api.point(_state(), _require_screen, x, y)
 
 def line(x1, y1, x2, y2):
+    """Draw a line segment between two points."""
     _drawing_api.line(_state(), _require_screen, _apply_coords, x1, y1, x2, y2)
 
 def triangle(x1, y1, x2, y2, x3, y3):
+    """Draw a triangle from three vertices."""
     _drawing_api.triangle(_state(), _require_screen, _apply_coords, x1, y1, x2, y2, x3, y3)
 
 def quad(x1, y1, x2, y2, x3, y3, x4, y4):
+    """Draw a quadrilateral from four vertices."""
     _drawing_api.quad(_state(), _require_screen, _apply_coords, x1, y1, x2, y2, x3, y3, x4, y4)
 
 def ellipse(x, y, w, h):
+    """Draw an ellipse centered at x,y."""
     _drawing_api.ellipse(_state(), _require_screen, x, y, w, h)
 
 # style functions
 
 def fill(r, g=None, b=None):
+    """Set the fill color."""
     _style_api.fill(_state(), r, g, b)
 
 def no_fill():
+    """Disable fill for subsequent shapes."""
     _style_api.no_fill(_state())
 
 def stroke(r, g=None, b=None):
+    """Set the stroke color."""
     _style_api.stroke(_state(), r, g, b)
 
 def no_stroke():
+    """Disable stroke for subsequent shapes."""
     _style_api.no_stroke(_state())
 
 def stroke_weight(w):
+    """Set the stroke thickness."""
     _style_api.stroke_weight(_state(), w)
 
 # helpers for colors and text
 
 def color(r, g=None, b=None, a=None):
+    """Create a color tuple."""
     return _style_api.color(r, g, b, a)
 
 def text_size(sz):
+    """Set the text size."""
     _style_api.text_size(_state(), sz)
 
 def text(txt, x, y):
+    """Draw text at the given position."""
     _drawing_api.text(_state(), _require_screen, _ensure_font, txt, x, y)
 
 def text_align(align_x, align_y=None):
+    """Set horizontal and optional vertical text alignment."""
     _style_api.text_align(_state(), align_x, align_y)
 
 def random(low=None, high=None):
+    """Return a random float in the requested range."""
     return _utils_api.random_value(low, high, _random_module)
 
 def millis():
+    """Return elapsed milliseconds since window initialization."""
     return _utils_api.millis_value(_state(), pygame, time)
 
 def nf(value, left=0, right=0):
+    """Format a number with zero-padded digits."""
     return _utils_api.nf_format(value, left, right)
 
 def load_image(path):
+    """Load and return an image surface from disk."""
     return _drawing_api.load_image(_state(), _resolve_icon_path, path)
 
 def image(img, x, y, w=None, h=None):
+    """Draw an image, optionally scaled to width and height."""
     _drawing_api.image(_state(), _require_screen, _apply_coords, _resolve_icon_path, img, x, y, w, h)
 
 def request_input(prompt="> "):
     """
-    Start een asynchrone console input request.
-    Returnt True als een nieuwe request gestart is, False als er al één pending is.
+    Start an asynchronous console input request.
+    Returns True when a new request is started, False when one is already pending.
     """
     return _system_api.request_input(_input_manager, prompt)
 
 def input_pending():
+    """Return whether an async input request is currently pending."""
     return _system_api.input_pending(_input_manager)
 
 def arc(x, y, w, h, start, stop):
+    """Draw an arc on an ellipse defined by center and size."""
     _drawing_api.arc(_state(), _require_screen, _apply_coords, x, y, w, h, start, stop)
 
 def bezier(x1, y1, x2, y2, x3, y3, x4, y4, segments=20):
+    """Draw a cubic bezier curve."""
     _drawing_api.bezier(_state(), _require_screen, _apply_coords, x1, y1, x2, y2, x3, y3, x4, y4, segments)
 
 
@@ -225,26 +254,7 @@ def _shutdown():
 # --------------------
 
 def run(mode=None):
-    """
-    Processing-achtige runner met 2 modes:
-
-    1) Static mode (default als er GEEN draw() is):
-       - Je tekent direct (top-level) of in setup()
-       - Geen animatieloop
-       - Window blijft open tot sluiten
-
-    2) Interactive mode (default als er draw() is):
-       - Vereist: setup() én draw()
-       - draw() wordt ~fps keer per seconde aangeroepen
-             - Optionele handlers:
-                 key_pressed(key), key_released(key), key_typed(char),
-                 mouse_pressed(x, y, button), mouse_released(x, y, button),
-                 mouse_clicked(x, y, button), mouse_moved(x, y, dx, dy),
-                 mouse_dragged(x, y, dx, dy), mouse_wheel(dx, dy),
-                 input_received(text), input_error(err)
-
-    Je kunt mode forceren met mode="static" of mode="interactive".
-    """
+    """Start the sketch loop in auto, static, or interactive mode."""
     sketch = _make_sketch_from_caller()
     _sync_public_globals_to_sketch()
 
