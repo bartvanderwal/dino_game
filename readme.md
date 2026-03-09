@@ -49,7 +49,7 @@ run()
 Run it with:
 
 ```powershell
-.\python\python.exe my_sketch.py
+python my_sketch.py
 ```
 
 ## API Documentation
