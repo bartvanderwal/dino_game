@@ -17,6 +17,14 @@ console_error = "none"
 asked_count = 0
 image_test_status = "not-run"
 image_test_surface = None
+random_test_status = "not-run"
+random_last_value = 0.0
+millis_start_value = 0
+millis_now_value = 0
+millis_test_status = "not-run"
+nf_test_value = ""
+nf_test_status = "not-run"
+text_align_status = "not-run"
 
 # Visual style state
 fill_on = True
@@ -35,6 +43,9 @@ def _write_test_png(path):
 
 def setup():
     global image_test_status, image_test_surface
+    global random_test_status, random_last_value
+    global millis_start_value, millis_test_status
+    global nf_test_value, nf_test_status, text_align_status
     size(900, 600)
     frame_rate(60)
     title("processing.py API + Event Handler Test")
@@ -49,9 +60,27 @@ def setup():
     else:
         image_test_status = "failed-size-" + str(image_test_surface.get_size())
 
+    random_last_value = random(10, 20)
+    if 10 <= random_last_value < 20:
+        random_test_status = "ok"
+    else:
+        random_test_status = "failed-range"
+
+    millis_start_value = millis()
+    millis_test_status = "ok"
+
+    nf_test_value = nf(7.25, 4, 2)
+    if nf_test_value == "0007.25":
+        nf_test_status = "ok"
+    else:
+        nf_test_status = "failed-value-" + nf_test_value
+
+    textAlign(LEFT, TOP)
+    text_align_status = "ok"
+
 
 def draw():
-    global frame_count
+    global frame_count, millis_now_value, millis_test_status
     frame_count += 1
 
     # Base background
@@ -136,6 +165,26 @@ def draw():
         stroke(20)
         strokeWeight(1)
         rect(20, 460, 90, 90)
+
+    millis_now_value = millis()
+    if millis_now_value < millis_start_value:
+        millis_test_status = "failed-monotonic"
+
+    fill(20)
+    noStroke()
+    text("random(10,20) status: " + random_test_status + " value=" + nf(random_last_value, 2, 3), 500, 445)
+    text("millis() status: " + millis_test_status + " start=" + str(millis_start_value) + " now=" + str(millis_now_value), 500, 470)
+    text("nf() status: " + nf_test_status + " value=" + nf_test_value, 500, 495)
+    text("textAlign() status: " + text_align_status, 500, 520)
+
+    # textAlign() visual test: all labels should line up around the anchors.
+    textAlign(LEFT, TOP)
+    text("LEFT", 20, 560)
+    textAlign(CENTER, TOP)
+    text("CENTER", 450, 560)
+    textAlign(RIGHT, TOP)
+    text("RIGHT", 880, 560)
+    textAlign(LEFT, TOP)
 
 
 # Keyboard handlers

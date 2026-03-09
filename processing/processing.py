@@ -2,7 +2,9 @@ import builtins
 import inspect
 import os
 import queue
+import random as _random_module
 import threading
+import time
 import pygame
 
 
@@ -23,7 +25,10 @@ _stroke_color = (0, 0, 0)
 _stroke_weight = 1
 _text_size = 12
 _font = None
+_text_align_x = "LEFT"
+_text_align_y = "TOP"
 _sketch_globals = None
+_millis_start = None
 
 # async console input state (explicit API: request_input + callbacks)
 _input_events = queue.Queue()
@@ -52,6 +57,14 @@ mouseButton = None
 key = None
 keyCode = None
 keyPressed = False
+
+# text alignment constants
+LEFT = "LEFT"
+CENTER = "CENTER"
+RIGHT = "RIGHT"
+TOP = "TOP"
+BOTTOM = "BOTTOM"
+BASELINE = "BASELINE"
 
 
 # --------------------
@@ -208,7 +221,71 @@ def text(txt, x, y):
     _require_screen("text")
     _ensure_font()
     surf = _font.render(str(txt), True, _fill_color if _fill_enabled else _stroke_color)
-    _screen.blit(surf, _apply_coords((x, y)))
+    x = int(x)
+    y = int(y)
+
+    if _text_align_x == CENTER:
+        x -= surf.get_width() // 2
+    elif _text_align_x == RIGHT:
+        x -= surf.get_width()
+
+    if _text_align_y == CENTER:
+        y -= surf.get_height() // 2
+    elif _text_align_y == BOTTOM:
+        y -= surf.get_height()
+    elif _text_align_y == BASELINE:
+        y -= _font.get_ascent()
+
+    _screen.blit(surf, (x, y))
+
+def textAlign(align_x, align_y=None):
+    global _text_align_x, _text_align_y
+
+    ax = str(align_x).upper()
+    if ax not in (LEFT, CENTER, RIGHT):
+        raise ValueError("textAlign() x alignment must be LEFT, CENTER, or RIGHT")
+
+    _text_align_x = ax
+
+    if align_y is not None:
+        ay = str(align_y).upper()
+        if ay not in (TOP, CENTER, BOTTOM, BASELINE):
+            raise ValueError("textAlign() y alignment must be TOP, CENTER, BOTTOM, or BASELINE")
+        _text_align_y = ay
+
+def random(low=None, high=None):
+    if low is None and high is None:
+        return _random_module.random()
+    if high is None:
+        return _random_module.uniform(0.0, float(low))
+    return _random_module.uniform(float(low), float(high))
+
+def millis():
+    if _millis_start is not None:
+        return int(pygame.time.get_ticks() - _millis_start)
+    return int(time.perf_counter() * 1000)
+
+def nf(value, left=0, right=0):
+    left = int(left)
+    right = int(right)
+
+    number = float(value)
+    sign = "-" if number < 0 else ""
+    abs_number = abs(number)
+    formatted = f"{abs_number:.{max(0, right)}f}"
+
+    if "." in formatted:
+        int_part, frac_part = formatted.split(".", 1)
+        if left > 0:
+            int_part = int_part.zfill(left)
+        if right > 0:
+            formatted = f"{int_part}.{frac_part}"
+        else:
+            formatted = int_part
+    elif left > 0:
+        formatted = formatted.zfill(left)
+
+    return sign + formatted
 
 def loadImage(path):
     resolved = _resolve_icon_path(str(path))
@@ -412,13 +489,14 @@ def _make_sketch_from_caller():
     return type("Sketch", (object,), caller_globals)
 
 def _init_window():
-    global _screen, _clock
+    global _screen, _clock, _millis_start
     pygame.init()
     pygame.font.init()
     info = pygame.display.Info()
     _set_public_global("displayWidth", int(info.current_w))
     _set_public_global("displayHeight", int(info.current_h))
     _screen = pygame.display.set_mode((_width, _height))
+    _millis_start = pygame.time.get_ticks()
     _apply_window_icon()
     pygame.display.set_caption(_title)
     _clock = pygame.time.Clock()
