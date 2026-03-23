@@ -44,6 +44,9 @@ def init_window(state, pygame, set_public_global, apply_window_icon_func):
     pygame.display.set_caption(state["_title"])
     state["_clock"] = pygame.time.Clock()
 
+    # Set default background to light gray (Processing default)
+    state["_screen"].fill((200, 200, 200))
+
     set_public_global("width", state["_width"])
     set_public_global("height", state["_height"])
     set_public_global("pixel_width", state["_width"])

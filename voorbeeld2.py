@@ -7,6 +7,7 @@ def setup():
 
 
 def draw(): 
+  background(255)
   global xPos  
   xPos = xPos + 1
   circle(xPos, 550, 100)

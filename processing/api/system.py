@@ -7,6 +7,7 @@ def size(state, pygame, set_public_global, w, h):
 
     if state["_screen"] is not None:
         state["_screen"] = pygame.display.set_mode((state["_width"], state["_height"]))
+        state["_screen"].fill((200, 200, 200))
 
 
 def full_screen(state, pygame, set_public_global):
