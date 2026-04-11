@@ -68,6 +68,7 @@ PLAYER_SHOOT_COOLDOWN_MS = 180
 CACTUS_SHOT_VERTICAL_BOOST = 1.45
 CACTUS_SHOT_UPWARD_OFFSET_PX = 12
 BOSS_INTRO_DURATION_MS = 1700
+BOSS_PLAYER_SPEED = 5.5
 BOSS_LEVEL_ORDER = (4, 7, 10)
 BOSS_REWARD_POINTS = {
     4: 8,
@@ -257,7 +258,9 @@ game_over = False
 game_started = False
 score = 0
 coin_count = 0
+player_x = float(DINO_X)
 JUMP_SOUND = None
+ROADRUNNER_JUMP_SOUND = None
 CRASH_SOUND = None
 HISS_SOUND = None
 SPLASH_SOUND = None
@@ -297,6 +300,8 @@ fly_left_pressed = False
 fly_right_pressed = False
 fly_up_pressed = False
 fly_down_pressed = False
+boss_left_pressed = False
+boss_right_pressed = False
 snake_hiss_played_for_current = False
 player_projectiles = [{"active": False} for _ in range(MAX_PROJECTILES_PER_SIDE)]
 player_shot_cooldown_until_ms = 0
@@ -319,6 +324,7 @@ announcement_font_cache = {}
 
 def reset_game(show_splash=False):
     global dino_y, velocity_y, on_ground, score, coin_count, game_over, game_started
+    global player_x
     global is_ducking, game_paused, bird_duck_scored, duck_jump_expires_ms, is_fast_falling
     global current_level, scroll_speed, next_level_score, level_blink_until_ms
     global high_jump_warning_until_ms, high_jump_powerup_warning_until_ms
@@ -329,6 +335,7 @@ def reset_game(show_splash=False):
     global coin_spawn_y
     global flight_mode, flight_plane_x, flight_plane_y, flight_pipe_spawn_due_ms, flight_pipes
     global fly_left_pressed, fly_right_pressed, fly_up_pressed, fly_down_pressed
+    global boss_left_pressed, boss_right_pressed
     global snake_hiss_played_for_current
     global player_projectiles, player_shot_cooldown_until_ms
     global boss_state, boss_intro_until_ms, boss_completed
@@ -338,6 +345,7 @@ def reset_game(show_splash=False):
     dino_y = DINO_Y
     velocity_y = 0
     on_ground = True
+    player_x = float(DINO_X)
     score = 0
     coin_count = 0
     game_over = False
@@ -372,6 +380,8 @@ def reset_game(show_splash=False):
     fly_right_pressed = False
     fly_up_pressed = False
     fly_down_pressed = False
+    boss_left_pressed = False
+    boss_right_pressed = False
     snake_hiss_played_for_current = False
     player_projectiles = [{"active": False} for _ in range(MAX_PROJECTILES_PER_SIDE)]
     player_shot_cooldown_until_ms = 0
@@ -453,8 +463,19 @@ def play_sfx(sound):
         pass
 
 
+def get_jump_sound():
+    if (
+        get_current_character_key() == "roadrunner"
+        and ROADRUNNER_JUMP_SOUND is not None
+    ):
+        return ROADRUNNER_JUMP_SOUND
+    return JUMP_SOUND
+
+
 def setup():
-    global JUMP_SOUND, CRASH_SOUND, HISS_SOUND, SPLASH_SOUND, FIRE_PLAYER_SOUND, FIRE_ENEMY_SOUND, BOSS_EXPLOSION_SOUND
+    global JUMP_SOUND, ROADRUNNER_JUMP_SOUND, CRASH_SOUND, HISS_SOUND
+    global SPLASH_SOUND, FIRE_PLAYER_SOUND, FIRE_ENEMY_SOUND
+    global BOSS_EXPLOSION_SOUND
     global COIN_SOUND
     size(800, 500)
     frame_rate(60)
@@ -471,6 +492,11 @@ def setup():
         JUMP_SOUND = pygame.mixer.Sound("assets/audio/jump.wav")
     except Exception:
         JUMP_SOUND = None
+
+    try:
+        ROADRUNNER_JUMP_SOUND = pygame.mixer.Sound("assets/audio/weeh.wav")
+    except Exception:
+        ROADRUNNER_JUMP_SOUND = None
 
     try:
         CRASH_SOUND = pygame.mixer.Sound("assets/audio/crash.wav")
@@ -510,6 +536,10 @@ def setup():
     update_background_music(force=True)
 
 
+def get_player_x():
+    return player_x
+
+
 def get_dino_hitbox():
     dino_draw_y = get_dino_draw_y()
     if is_ducking and on_ground and not game_over:
@@ -527,8 +557,9 @@ def get_dino_hitbox():
         inset_bottom = DINO_HITBOX_INSET_BOTTOM
         y_offset = DINO_HITBOX_Y_OFFSET
 
+    player_draw_x = get_player_x()
     return (
-        DINO_X + inset_left,
+        player_draw_x + inset_left,
         dino_draw_y + inset_top + y_offset,
         DINO_W - inset_left - inset_right,
         dino_h - inset_top - inset_bottom,
@@ -628,8 +659,6 @@ def spawn_obstacle(force_type=None):
     if obstacle_type == "airplane_pickup":
         pending_airplane_spawn = False
         airplane_warning_until_ms = millis() + AIRPLANE_WARNING_DURATION_MS
-    if obstacle_type == "high_jump_powerup":
-        high_jump_powerup_warning_until_ms = millis() + HIGH_JUMP_POWERUP_NOTICE_MS
     if obstacle_type == "weapon_powerup":
         weapon_powerup_warning_until_ms = millis() + WEAPON_POWERUP_NOTICE_MS
     if obstacle_type == "coin":
@@ -676,7 +705,7 @@ def start_flight_mode():
 def is_snake_extended():
     if obstacle_type != "snake":
         return False
-    return obstacle_x < DINO_X + 220
+    return obstacle_x < get_player_x() + 220
 
 
 def get_obstacle_draw_rect():
@@ -863,8 +892,9 @@ def fire_player_weapon():
     dino_draw_y = get_dino_draw_y()
     dino_h = DUCK_H if (is_ducking and on_ground and not game_over) else DINO_H
     projectile_y = dino_draw_y + (dino_h // 2) - (profile["h"] // 2)
+    projectile_x = get_player_x() + DINO_W - 4
     projectile.update({
-        "x": DINO_X + DINO_W - 4,
+        "x": projectile_x,
         "y": projectile_y,
         "w": profile["w"],
         "h": profile["h"],
@@ -875,6 +905,7 @@ def fire_player_weapon():
         "enemy": False,
     })
     if boss_state is not None:
+        target_x = boss_state["x"] + (boss_state["w"] * 0.5)
         target_y = boss_state["y"] + (boss_state["h"] * 0.5)
         vertical_boost = 1.0
 
@@ -888,12 +919,14 @@ def fire_player_weapon():
             ]
             if living_branches:
                 top_branch = min(living_branches, key=lambda r: r[1])
+                target_x = top_branch[0] + (top_branch[2] * 0.6)
                 target_y = top_branch[1] + (top_branch[3] * 0.45)
             target_y -= CACTUS_SHOT_UPWARD_OFFSET_PX
             vertical_boost = CACTUS_SHOT_VERTICAL_BOOST
 
-        travel_px = max(80.0, width - (DINO_X + DINO_W))
-        base_vy = (target_y - projectile_y) / (travel_px / max(0.1, profile["speed"]))
+        travel_px = max(40.0, target_x - projectile_x)
+        travel_time = travel_px / max(0.1, profile["speed"])
+        base_vy = (target_y - projectile_y) / max(0.1, travel_time)
         projectile["vy"] = base_vy * vertical_boost
     play_sfx(FIRE_PLAYER_SOUND)
     player_shot_cooldown_until_ms = now + PLAYER_SHOOT_COOLDOWN_MS
@@ -1143,12 +1176,16 @@ def draw_boss_meter(boss, theme):
 
 def finish_boss_if_defeated(boss):
     global boss_state, score, weapon_powerup_ready, weapon_powerup_level
+    global player_x, boss_left_pressed, boss_right_pressed
     if boss["hits_taken"] < boss["hits_required"]:
         return
     boss_completed[boss["level"]] = True
     boss_state = None
     weapon_powerup_ready = False
     weapon_powerup_level = 0
+    player_x = float(DINO_X)
+    boss_left_pressed = False
+    boss_right_pressed = False
     reset_projectile_pool(player_projectiles)
     score += BOSS_REWARD_POINTS.get(boss["level"], 0)
     update_level_from_score()
@@ -1266,12 +1303,24 @@ def spawn_boss_attack_if_needed(boss):
 
 
 def update_and_draw_boss_mode(theme, update_world=True):
-    global dino_y, velocity_y, on_ground, is_fast_falling, game_over
+    global dino_y, velocity_y, on_ground, is_fast_falling, game_over, player_x
     boss = boss_state
     if boss is None:
         return
 
     if update_world:
+        move_dir = int(boss_right_pressed) - int(boss_left_pressed)
+        if move_dir != 0:
+            min_player_x = 36.0
+            max_player_x = max(
+                min_player_x,
+                get_boss_hitbox(boss)[0] - DINO_W - 18,
+            )
+            player_x = max(
+                min_player_x,
+                min(max_player_x, player_x + (move_dir * BOSS_PLAYER_SPEED)),
+            )
+
         # Player jump physics stays active during boss fights.
         if not on_ground:
             gravity_now = GRAVITY + (FAST_FALL_EXTRA_GRAVITY if is_fast_falling else 0)
@@ -1324,10 +1373,10 @@ def update_and_draw_boss_mode(theme, update_world=True):
     text(f"Wapen: {weapon_label} (SPACE)", 20, 66)
 
     if millis() < boss_intro_until_ms:
-        if boss["type"] == "cactus_miniboss":
+        if boss["type"] in ("bird_miniboss", "cactus_miniboss"):
             fill(200, 40, 40)
             text_size(34)
-            text("Watch out! Giant cactus!!", width // 2 - 220, 34)
+            text("Mini boss coming...", width // 2 - 168, 34)
         fill(*theme["accent"])
         text_size(24)
         text(boss["name"], width // 2 - 150, 112)
@@ -1370,29 +1419,31 @@ def draw_transparent_blink_text(message, y, base_size=96, base_color=(255, 74, 5
     surface = pygame.display.get_surface()
     if surface is None:
         return
-    msg_len = len(message)
-    if msg_len > 58:
+    lines = str(message).split("\n")
+    max_len = max((len(line) for line in lines), default=0)
+    if max_len > 58:
         base_size = 56
-    elif msg_len > 42:
+    elif max_len > 42:
         base_size = 66
-    elif msg_len > 28:
+    elif max_len > 28:
         base_size = 80
 
     blink_on = int(millis() / 180) % 2 == 0
     alpha_main = 235 if blink_on else 110
     alpha_outline = 200 if blink_on else 95
     font = get_announcement_font(base_size)
-
-    outline = font.render(message, True, (255, 255, 255))
-    outline.set_alpha(alpha_outline)
-    main = font.render(message, True, base_color)
-    main.set_alpha(alpha_main)
-
-    x = (width - main.get_width()) // 2
+    line_height = int(base_size * 1.02)
     oy = int(y)
-    for dx, dy in ((-3, 0), (3, 0), (0, -3), (0, 3), (-2, -2), (2, 2)):
-        surface.blit(outline, (x + dx, oy + dy))
-    surface.blit(main, (x, oy))
+    for line in lines:
+        outline = font.render(line, True, (255, 255, 255))
+        outline.set_alpha(alpha_outline)
+        main = font.render(line, True, base_color)
+        main.set_alpha(alpha_main)
+        x = (width - main.get_width()) // 2
+        for dx, dy in ((-3, 0), (3, 0), (0, -3), (0, 3), (-2, -2), (2, 2)):
+            surface.blit(outline, (x + dx, oy + dy))
+        surface.blit(main, (x, oy))
+        oy += line_height
 
 
 def draw_big_announcement_overlay(theme):
@@ -1405,7 +1456,7 @@ def draw_big_announcement_overlay(theme):
     if millis() < high_jump_warning_until_ms:
         message = "HIGH JUMP!"
     elif millis() < high_jump_powerup_warning_until_ms:
-        message = "HIGH JUMP POWERUP!"
+        message = "HIGH JUMP\nPOWERUP!"
     elif millis() < weapon_powerup_warning_until_ms:
         message = "WEAPON POWERUP!"
     elif millis() < water_warning_until_ms:
@@ -2003,6 +2054,7 @@ def key_pressed():
     global game_paused, selected_character_idx, active_character_key
     global duck_jump_expires_ms, is_fast_falling, high_jump_powerup_charges
     global fly_left_pressed, fly_right_pressed, fly_up_pressed, fly_down_pressed
+    global boss_left_pressed, boss_right_pressed
     global quit_confirm_active
     pressed_key = key.lower() if isinstance(key, str) else key
     shared.handle_common_keys(
@@ -2081,6 +2133,14 @@ def key_pressed():
     if game_paused:
         return
 
+    if game_started and boss_state is not None and not game_over:
+        if key_code == pygame.K_LEFT:
+            boss_left_pressed = True
+            return
+        if key_code == pygame.K_RIGHT:
+            boss_right_pressed = True
+            return
+
     if game_started and not game_over and key == " " and boss_state is not None:
         fire_player_weapon()
         return
@@ -2122,12 +2182,13 @@ def key_pressed():
         on_ground = False
         is_fast_falling = False
         duck_jump_expires_ms = 0
-        play_sfx(JUMP_SOUND)
+        play_sfx(get_jump_sound())
 
 
 def key_released(released_key):
     global is_ducking, duck_jump_expires_ms, is_fast_falling
     global fly_left_pressed, fly_right_pressed, fly_up_pressed, fly_down_pressed
+    global boss_left_pressed, boss_right_pressed
     if flight_mode:
         if released_key == pygame.K_LEFT:
             fly_left_pressed = False
@@ -2138,6 +2199,11 @@ def key_released(released_key):
         elif released_key == pygame.K_DOWN:
             fly_down_pressed = False
         return
+
+    if released_key == pygame.K_LEFT:
+        boss_left_pressed = False
+    elif released_key == pygame.K_RIGHT:
+        boss_right_pressed = False
 
     if released_key == pygame.K_DOWN:
         if on_ground:
@@ -2249,14 +2315,14 @@ def draw_main_character():
     dino_h = DUCK_H if (is_ducking and on_ground and not game_over) else DINO_H
     dino_y_draw = get_dino_draw_y()
     character = CHARACTER_CONFIG[get_current_character_key()]
-    draw_x = DINO_X
+    draw_x = int(get_player_x())
     draw_w = DINO_W
     draw_h = dino_h
     if game_over:
         dino_sprite = character["oops"]
         if get_current_character_key() == "cowboy":
             # Cowboy falls backward and lies on the ground.
-            draw_x = DINO_X - 10
+            draw_x -= 10
             draw_w = 88
             draw_h = 40
             dino_y_draw = GROUND_Y - draw_h

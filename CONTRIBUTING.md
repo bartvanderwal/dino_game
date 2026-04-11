@@ -50,3 +50,19 @@ Deze codebase gebruikt een eigen Python Processing-implementatie. Controleer alt
 - `processing/`
 
 Ga niet uit van Java Processing-functies die niet in deze repo bestaan.
+
+## Audio conversie met ffmpeg
+
+Voor het converteren van audio (zoals m4a naar mp3) kun je [ffmpeg](https://ffmpeg.org/) gebruiken. Installeer ffmpeg via Homebrew:
+
+```bash
+brew install ffmpeg
+```
+
+Voorbeeld: converteer een m4a-bestand naar mp3:
+
+```bash
+ffmpeg -i input.m4a output.mp3
+```
+
+Zie de [officiële ffmpeg website](https://ffmpeg.org/) voor meer informatie en documentatie.
