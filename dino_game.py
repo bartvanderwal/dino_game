@@ -20,6 +20,11 @@ ROADRUNNER_DUCK_IMG = load_image("assets/roadrunner-duck-transparant.png")
 AIRPLANE_IMG = load_image("assets/airplane-transparant.png")
 BIRD_IMG = load_image("assets/bird-transparant.png")
 SNAKE_IMG = load_image("assets/snake-transparant.png")
+EXPLOSION_IMG = load_image("assets/explosion.png")
+EXPLOSION_FRAMES = [
+    load_image(f"assets/explosion-frame-{idx:02d}.png")
+    for idx in range(12)
+]
 CACTUS_IMGS = [
     load_image("assets/cactus-transparant.png"),
     load_image("assets/3Cacti-transparant.png")
@@ -57,9 +62,12 @@ BOSS_REWARD_POINTS = {
     7: 12,
     10: 20,
 }
+FINAL_BOSS_DEFEAT_DURATION_MS = 2600
+FINAL_BOSS_BLAST_INTERVAL_MS = 110
+FINAL_BOSS_BLAST_LIFE_MS = 620
 MAX_PROJECTILES_PER_SIDE = 10
 MENU_MUSIC_PATH = "assets/audio/loading-atmosphere.wav"
-GAME_MUSIC_PATH = "assets/audio/pixel-leap.m4a"
+GAME_MUSIC_PATH = "assets/audio/pixel-leap.wav"
 MUSIC_VOLUME = 0.35
 GROUND_Y = 460
 
