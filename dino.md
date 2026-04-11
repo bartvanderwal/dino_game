@@ -154,3 +154,7 @@ Sprite vliegtuig
 ![alt text](assets/explosion.png)
 
 Bron: `https://www.pngarts.com/explore/35406`
+
+De player die heeft uitgespeeld krijgt een kroontje
+
+![Kroon](assets/crown.png)

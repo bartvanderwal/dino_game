@@ -33,6 +33,25 @@ CACTUS_IMGS = [
 ]
 
 
+def load_optional_image(path_candidates):
+    for candidate in path_candidates:
+        if not os.path.exists(candidate):
+            continue
+        try:
+            return load_image(candidate)
+        except Exception:
+            continue
+    return None
+
+
+CROWN_BADGE_IMG = load_optional_image((
+    "assets/crown.png",
+    "assets/crown-transparant.png",
+    "assets/kroon.png",
+    "assets/pc/crown.png",
+))
+
+
 def extract_plane_sprite_rows(sheet, cols=3, rows=3):
     if sheet is None:
         return {}
@@ -427,6 +446,9 @@ selected_character_idx = 0
 active_character_key = "dino"
 checkpoint_level_by_character = {
     character_key: 1 for character_key in CHARACTER_ORDER
+}
+character_completed = {
+    character_key: False for character_key in CHARACTER_ORDER
 }
 duck_jump_expires_ms = 0
 is_fast_falling = False
@@ -2137,6 +2159,7 @@ def finish_boss_if_defeated(boss):
         final_boss_snapshot = boss_snapshot
         final_boss_defeat_until_ms = now + FINAL_BOSS_DEFEAT_DURATION_MS
         final_boss_next_blast_ms = now
+        character_completed[active_character_key] = True
         game_completed = True
         pending_credits_after_victory = True
         return
@@ -2884,6 +2907,51 @@ def draw_explain_button(theme):
     text("Explain", btn_x + 44, btn_y + 29)
 
 
+def draw_crown_badge_on_card(x, card_y, card_w, card_h):
+    crown_w = 40
+    crown_h = 28
+    crown_x = int(x + (card_w / 2) - (crown_w / 2))
+    crown_y = int(card_y - (crown_h / 2) - 8)
+
+    if CROWN_BADGE_IMG is not None:
+        image(CROWN_BADGE_IMG, crown_x, crown_y, crown_w, crown_h)
+        return
+
+    # Fallback: simple pixel-style crown.
+    fill(252, 214, 52)
+    rect(crown_x + 2, crown_y + 13, crown_w - 4, crown_h - 14)
+    fill(236, 182, 36)
+    rect(crown_x + 2, crown_y + 13, 8, 7)
+    rect(crown_x + crown_w - 10, crown_y + 13, 8, 7)
+    fill(252, 214, 52)
+    rect(crown_x + 3, crown_y + 7, 8, 6)
+    rect(crown_x + 16, crown_y + 2, 8, 11)
+    rect(crown_x + 29, crown_y + 7, 8, 6)
+
+
+def crown_menu_card_decorator(draw_fn):
+    def wrapped(idx, x, card_y, card_w, card_h, character_key, character, theme):
+        draw_fn(idx, x, card_y, card_w, card_h, character_key, character, theme)
+        if character_completed.get(character_key, False):
+            draw_crown_badge_on_card(x, card_y, card_w, card_h)
+    return wrapped
+
+
+@crown_menu_card_decorator
+def draw_menu_character_card(idx, x, card_y, card_w, card_h, character_key, character, theme):
+    fill(255, 255, 255)
+    no_stroke()
+    rect(x, card_y, card_w, card_h)
+    draw_rounded_rect_outline(x, card_y, card_w, card_h, 14, theme["ground_line"], 2)
+
+    preview = character["stand"]
+    image(preview, x + 28, card_y + 16, 114, 96)
+
+    fill(*theme["text"])
+    text_size(20)
+    text(character["label"], x + 46, card_y + 140)
+
+
 def draw_character_select(theme):
     text_size(22)
     fill(*theme["text"])
@@ -2896,18 +2964,7 @@ def draw_character_select(theme):
     for idx, x, card_y, card_w, card_h in get_character_select_layout():
         character_key = CHARACTER_ORDER[idx]
         character = CHARACTER_CONFIG[character_key]
-
-        fill(255, 255, 255)
-        no_stroke()
-        rect(x, card_y, card_w, card_h)
-        draw_rounded_rect_outline(x, card_y, card_w, card_h, 14, theme["ground_line"], 2)
-
-        preview = character["stand"]
-        image(preview, x + 28, card_y + 16, 114, 96)
-
-        fill(*theme["text"])
-        text_size(20)
-        text(character["label"], x + 46, card_y + 140)
+        draw_menu_character_card(idx, x, card_y, card_w, card_h, character_key, character, theme)
 
         if idx == selected_character_idx:
             draw_rounded_rect_outline(
