@@ -1,58 +1,76 @@
-# Dino game in Python Processing
+# Dino Game in Python Processing
 
-Dit is een kleine Dino game, een variant van de bekende Chrome game..
+Deze game is een variant op de Chrome Dino game, met meerdere speelbare karakters, verschillende obstakels en level-progressie.
 
-![**alt text**](dino-image/dino-chrome-game.png)
+![Dino](assets/dino-chrome-game.png)
 
-## Speluitleg
+## Speloverzicht
 
-In deze game bestuur je een dino die automatisch naar rechts loopt. Je doel is om over cactussen te springen die op je pad verschijnen. De game is geïnspireerd op de bekende Chrome offline dino game.
+- De speler kiest op het startscherm een karakter: dino, cowboy of roadrunner.
+- De speler start met `SPACE` (of `A`).
+- Het karakter beweegt horizontaal niet zelf; obstakels bewegen van rechts naar links.
+- Bij een botsing eindigt het spel en verschijnt een game-over scherm.
 
-### Besturing
+## Besturing
 
-- Springen: druk op de spatiebalk om te springen.
+- `Pijl omhoog`: springen.
+- `Pijl omlaag`: bukken; in de lucht activeert dit snelle val.
+- `P`: pauze toggle.
+- `D`: debug mode toggle (rode hitbox-visualisatie).
+- `I`: info/instructiescherm toggle.
+- `Q` of `ESC`: afsluiten.
 
-### Afbeeldingen
+## Gameplay en score
 
-- De dino wordt getekend met een afbeelding (`dino-image/dino.png`).
-- Obstakels zijn cactussen, afwisselend getoond met `cacti.png` en `3cacti.png`.
+- Elk obstakel heeft eigen puntenwaarde.
+- Voorbeelden:
+  - Lage cactus: 1 punt.
+  - Hoge cactus: 2 punten.
+  - Torencactus: 4 punten.
+  - Vogel (laag, succesvol gedukt): 3 punten.
+  - Slang (uitklappend dichtbij): 5 punten.
+- Elke 10 punten stijgt het level en neemt de snelheid toe met factor 1.1.
+- Bij level-up knipperen score en level-indicator kort.
 
-### Gameplay
+## Obstakels en speciale acties
 
-- De dino beweegt niet horizontaal, maar springt omhoog als je op spatie drukt.
-- Cactussen bewegen van rechts naar links over het scherm.
-- Als de dino een cactus raakt, is het game over.
-- Je score wordt verhoogd elke keer dat je een cactus ontwijkt.
+- De slang klapt uit wanneer hij dicht bij de speler komt.
+- De lage vogel vereist bukken om punten te krijgen.
+- High jump activeert wanneer de speler eerst bukt en binnen 0,5 seconde springt.
+- Torencactus verschijnt vanaf level 3 en vereist doorgaans high jump.
+- Bij een naderende torencactus verschijnt kort:
+  - `Prepare for high jump: duck first then quickly jump.`
 
-### Collision systeem
+## Level 5: vliegtuig en flight mode
 
-Er wordt gecontroleerd of de dino en een cactus elkaar overlappen. Als dat gebeurt, stopt het spel en verschijnt "Game Over!" in beeld.
+- In level 5 verschijnt een vliegtuig.
+- De speler springt bovenop het vliegtuig om flight mode te starten.
+- Na activatie speelt de game in een extra vliegsegment:
+  - De speler bestuurt het vliegtuig in de linkerhelft van het scherm.
+  - Beweging werkt met pijltjes links/rechts/omhoog/omlaag.
+  - Er verschijnt een extra level met Flappy Bird-achtige pijpen aan boven- en onderkant.
 
-*Figuur 1*: Botsing
+## Levelprogressie tot level 10
 
-![Botsing](dino-botsing-oops.png)
+- De game heeft 10 levels.
+- In elk nieuw level verschijnt minstens één nieuw vijandtype of een nieuwe variant/aanvalsvorm.
+- Moeilijkheid neemt per level toe via snelheid, spawnmix en patrooncomplexiteit.
 
-## Speler en obstakels/tegenstanders
+## Assets
+Sprite vliegtuig
 
-Er komen ... Dit zijn ook afbeeldingen.... We delen deze in
+![Plane still](assets/plane-still.png)
 
-### Spelkarakter: Dino
 
-![Playing character: Dino](dino.png)
+![Plane still](assets/plane-sprite2.png)
 
-### NPC's: Cactus en 3 cacti
 
-![Obstacle: Cactus](cactus.png)
-![3Cacti](3Cacti.png)
-
-## TODO: Birds, oplopende moeilijkheidsgraad en (high)score
-
-Vogels nog toevoegen, die op een gegeven moment ook verschijnen waar de dino onder door moet bukken.
-
-We moeten ook moeilijkheidsgraad instellen. Er zijn geen discrete levels, maar de game voert de moeilijkheid heel geleidelijk op, doordat de game steeds iets sneller scrollt (Dino lijkt harder te gaan lopen), en er verschijnen meer vijanden en met iets meer varieteit. Het moet wel altijd 'springbaar/duikbaar' blijven, dus nooit zoveel obstakels achter elkaar dat de dino er niet overheen kan springen.
-
-Ook moet de score langzaam oplopen, bv per gepasseerd obstakel, en de game moet de highscore tot nu toe bijhouden.
-
-## Wanna have/Won't have
-
-Je zou bijvoorbeeld ook met andere karakters dan een dino kunnen spelen, zoals Mario, oh nee, trademark, eh bv. een cowboy in de woestijn of een roadrunner. De roadrunner kan bv. ook zelf sneller gaan rennen en heeft nog een coyote die af en toe achter hem verschijnt als hij te langzaam gaat. En de cowboy can bijvoorbeeld als level op een paard pakken onderweg en daarmee hoger springen.
+- Speler- en obstakelassets staan in `assets/`.
+- Belangrijke sprites:
+  - `assets/dino-transparant.png`
+  - `assets/cowboy-transparant.png`
+  - `assets/roadrunner-transparant.png`
+  - `assets/airplane-transparant.png`
+  - `assets/cactus-transparant.png`
+  - `assets/bird-transparant.png`
+  - `assets/snake-transparant.png`
