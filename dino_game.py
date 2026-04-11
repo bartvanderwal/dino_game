@@ -5,6 +5,7 @@ from processing import PI, TWO_PI
 import pygame
 import shared
 import math
+import os
 
 # Dino game assets
 DINO_IMG = load_image("assets/dino-transparant.png")
@@ -30,6 +31,10 @@ CACTUS_IMGS = [
     load_image("assets/3Cacti-transparant.png")
 ]
 
+# Richtingsvarianten (naar rechts kijken) voor specifieke enemies/bosses.
+BIRD_RIGHT_IMG = pygame.transform.flip(BIRD_IMG, True, False)
+GIANT_DINO_RIGHT_IMG = pygame.transform.flip(DINO_IMG, True, False)
+
 # Dino properties
 DINO_X = 100
 DINO_Y = 400
@@ -39,6 +44,8 @@ DUCK_H = 30
 GRAVITY = 1.2
 JUMP_VELOCITY = -18
 HIGH_JUMP_VELOCITY = -22
+POWERUP_HIGH_JUMP_VELOCITY = -26
+HIGH_JUMP_POWERUP_MAX_CHARGES = 3
 HIGH_JUMP_WINDOW_MS = 500
 FAST_FALL_EXTRA_GRAVITY = 2.0
 BASE_SCROLL_SPEED = 6.0
@@ -48,6 +55,9 @@ LEVEL_BLINK_DURATION_MS = 1200
 LEVEL_BLINK_INTERVAL_MS = 120
 MAX_LEVEL = 10
 HIGH_JUMP_WARNING_DURATION_MS = 1800
+HIGH_JUMP_POWERUP_NOTICE_MS = 1400
+WEAPON_POWERUP_NOTICE_MS = 1600
+WATER_WARNING_DURATION_MS = 1800
 AIRPLANE_WARNING_DURATION_MS = 1800
 FLIGHT_PIPE_GAP_H = 150
 FLIGHT_PIPE_WIDTH = 72
@@ -55,6 +65,8 @@ FLIGHT_PIPE_SPAWN_BASE_MS = 1500
 FLIGHT_PLANE_SPEED = 5.0
 FLIGHT_PIPE_POINTS = 2
 PLAYER_SHOOT_COOLDOWN_MS = 180
+CACTUS_SHOT_VERTICAL_BOOST = 1.45
+CACTUS_SHOT_UPWARD_OFFSET_PX = 12
 BOSS_INTRO_DURATION_MS = 1700
 BOSS_LEVEL_ORDER = (4, 7, 10)
 BOSS_REWARD_POINTS = {
@@ -65,10 +77,14 @@ BOSS_REWARD_POINTS = {
 FINAL_BOSS_DEFEAT_DURATION_MS = 2600
 FINAL_BOSS_BLAST_INTERVAL_MS = 110
 FINAL_BOSS_BLAST_LIFE_MS = 620
+JACKET_BONUS_HP = 3
+PLAYER_DAMAGE_COOLDOWN_MS = 750
 MAX_PROJECTILES_PER_SIDE = 10
+COIN_SCORE_VALUE = 1
 MENU_MUSIC_PATH = "assets/audio/loading-atmosphere.wav"
 GAME_MUSIC_PATH = "assets/audio/pixel-leap.wav"
 MUSIC_VOLUME = 0.35
+SCREENSHOT_NOTICE_MS = 2200
 GROUND_Y = 460
 
 # Collision hitbox tuning (smaller than visual sprite for fair gameplay)
@@ -110,6 +126,38 @@ OBSTACLE_CONFIG = {
         "hitbox_insets": (10, 10, 8, 4),
         "points": 4,
     },
+    "high_jump_powerup": {
+        "img": None,
+        "w": 28,
+        "h": 28,
+        "y": 408,
+        "hitbox_insets": (3, 3, 3, 3),
+        "points": 0,
+    },
+    "weapon_powerup": {
+        "img": None,
+        "w": 34,
+        "h": 26,
+        "y": 404,
+        "hitbox_insets": (3, 3, 3, 3),
+        "points": 0,
+    },
+    "coin": {
+        "img": None,
+        "w": 20,
+        "h": 20,
+        "y": 360,
+        "hitbox_insets": (2, 2, 2, 2),
+        "points": 0,
+    },
+    "water_lily": {
+        "img": None,
+        "w": 184,
+        "h": 34,
+        "y": 426,
+        "hitbox_insets": (0, 0, 0, 0),
+        "points": 3,
+    },
     "snake": {
         "img": SNAKE_IMG,
         "w": 54,
@@ -121,7 +169,7 @@ OBSTACLE_CONFIG = {
         "points": 5,
     },
     "bird_low": {
-        "img": BIRD_IMG,
+        "img": BIRD_RIGHT_IMG,
         "w": 56,
         "h": 34,
         "y": 390,
@@ -140,22 +188,17 @@ OBSTACLE_CONFIG = {
 }
 
 INFO_TEXT = [
-    "SPACE of A: start / herstart",
-    "Pijl omhoog: springen",
-    "Pijl omlaag: duiken / sneller vallen in de lucht",
-    "High jump: buk en spring binnen 0.5s",
-    "Pijl links/rechts: character kiezen",
-    "Punten: lage cactus +1, hoge cactus +2, torencactus +4",
-    "Punten: bukken onder lage vogel +3, slang +5",
-    "Vanaf level 5: spring op vliegtuig voor flight mode",
-    "Flight mode: pijltjes bewegen, ontwijk pijpen",
-    "Boss fights (lvl 4, 7, 10): SPACE = schieten",
-    "Startscherm: klik character of klik Start",
-    "P: pauze",
-    "D: debug hitboxen",
-    "L (debug): level +1, Shift+L: level -1",
-    "I: dit infoscherm",
-    "Q of ESC: afsluiten",
+    "i -> instructiescherm",
+    "m -> muziek aan/uit",
+    "s -> sound effects aan/uit",
+    "q -> in game: menu, in menu: quit prompt",
+    "d -> debug modus (toon hitbox)",
+    "l -> level omhoog (debug mode)",
+    "L -> level omlaag (debug mode)",
+    "p -> pauze",
+    "space/a -> start of schieten (boss)",
+    "k -> screenshot opslaan",
+    "pijltjes -> bewegen / springen / duiken",
 ]
 
 CHARACTER_ORDER = ["dino", "cowboy", "roadrunner"]
@@ -213,11 +256,15 @@ on_ground = True
 game_over = False
 game_started = False
 score = 0
+coin_count = 0
 JUMP_SOUND = None
 CRASH_SOUND = None
 HISS_SOUND = None
+SPLASH_SOUND = None
 FIRE_PLAYER_SOUND = None
 FIRE_ENEMY_SOUND = None
+BOSS_EXPLOSION_SOUND = None
+COIN_SOUND = None
 isDebugMode = False
 is_ducking = False
 game_paused = False
@@ -230,8 +277,17 @@ scroll_speed = BASE_SCROLL_SPEED
 next_level_score = LEVEL_SCORE_STEP
 level_blink_until_ms = 0
 high_jump_warning_until_ms = 0
+high_jump_powerup_warning_until_ms = 0
+weapon_powerup_warning_until_ms = 0
+water_warning_until_ms = 0
 airplane_warning_until_ms = 0
 pending_airplane_spawn = False
+queued_obstacle_after_powerup = None
+high_jump_powerup_charges = 0
+pending_weapon_powerup_level = 0
+weapon_powerup_ready = False
+weapon_powerup_level = 0
+coin_spawn_y = 360
 flight_mode = False
 flight_plane_x = 0.0
 flight_plane_y = 0.0
@@ -252,22 +308,38 @@ boss_completed = {
     10: False,
 }
 current_music_mode = None
+player_max_hp = 1
+player_hp = 1
+player_damage_cooldown_until_ms = 0
+screenshot_notice_until_ms = 0
+screenshot_notice_text = ""
+quit_confirm_active = False
+announcement_font_cache = {}
 
 
 def reset_game(show_splash=False):
-    global dino_y, velocity_y, on_ground, score, game_over, game_started
+    global dino_y, velocity_y, on_ground, score, coin_count, game_over, game_started
     global is_ducking, game_paused, bird_duck_scored, duck_jump_expires_ms, is_fast_falling
     global current_level, scroll_speed, next_level_score, level_blink_until_ms
-    global high_jump_warning_until_ms, airplane_warning_until_ms, pending_airplane_spawn
+    global high_jump_warning_until_ms, high_jump_powerup_warning_until_ms
+    global weapon_powerup_warning_until_ms, water_warning_until_ms
+    global airplane_warning_until_ms, pending_airplane_spawn, queued_obstacle_after_powerup
+    global high_jump_powerup_charges
+    global pending_weapon_powerup_level, weapon_powerup_ready, weapon_powerup_level
+    global coin_spawn_y
     global flight_mode, flight_plane_x, flight_plane_y, flight_pipe_spawn_due_ms, flight_pipes
     global fly_left_pressed, fly_right_pressed, fly_up_pressed, fly_down_pressed
     global snake_hiss_played_for_current
     global player_projectiles, player_shot_cooldown_until_ms
     global boss_state, boss_intro_until_ms, boss_completed
+    global player_max_hp, player_hp, player_damage_cooldown_until_ms
+    global screenshot_notice_until_ms, screenshot_notice_text
+    global quit_confirm_active
     dino_y = DINO_Y
     velocity_y = 0
     on_ground = True
     score = 0
+    coin_count = 0
     game_over = False
     game_started = not show_splash
     is_ducking = False
@@ -280,8 +352,17 @@ def reset_game(show_splash=False):
     next_level_score = LEVEL_SCORE_STEP
     level_blink_until_ms = 0
     high_jump_warning_until_ms = 0
+    high_jump_powerup_warning_until_ms = 0
+    weapon_powerup_warning_until_ms = 0
+    water_warning_until_ms = 0
     airplane_warning_until_ms = 0
     pending_airplane_spawn = False
+    queued_obstacle_after_powerup = None
+    high_jump_powerup_charges = 0
+    pending_weapon_powerup_level = 0
+    weapon_powerup_ready = False
+    weapon_powerup_level = 0
+    coin_spawn_y = 360
     flight_mode = False
     flight_plane_x = 0.0
     flight_plane_y = 0.0
@@ -301,6 +382,12 @@ def reset_game(show_splash=False):
         7: False,
         10: False,
     }
+    player_max_hp = 1
+    player_hp = 1
+    player_damage_cooldown_until_ms = 0
+    screenshot_notice_until_ms = 0
+    screenshot_notice_text = ""
+    quit_confirm_active = False
     spawn_obstacle("cactus_low")
 
 
@@ -333,8 +420,42 @@ def update_background_music(force=False):
         current_music_mode = None
 
 
+def capture_screenshot():
+    global screenshot_notice_until_ms, screenshot_notice_text
+    surface = pygame.display.get_surface()
+    if surface is None:
+        screenshot_notice_text = "Screenshot mislukt (geen actieve surface)"
+        screenshot_notice_until_ms = millis() + SCREENSHOT_NOTICE_MS
+        return None
+    os.makedirs("assets/screenshots", exist_ok=True)
+    stamp = int(millis())
+    filename = f"level-{current_level:02d}-score-{int(score):03d}-{stamp}.png"
+    path = os.path.join("assets", "screenshots", filename)
+    try:
+        pygame.image.save(surface, path)
+    except Exception:
+        screenshot_notice_text = "Screenshot mislukt (opslaan)"
+        screenshot_notice_until_ms = millis() + SCREENSHOT_NOTICE_MS
+        return None
+    screenshot_notice_text = f"Screenshot: {path}"
+    screenshot_notice_until_ms = millis() + SCREENSHOT_NOTICE_MS
+    return path
+
+
+def play_sfx(sound):
+    if sound is None:
+        return
+    if not shared.sound_enabled:
+        return
+    try:
+        sound.play()
+    except Exception:
+        pass
+
+
 def setup():
-    global JUMP_SOUND, CRASH_SOUND, HISS_SOUND, FIRE_PLAYER_SOUND, FIRE_ENEMY_SOUND
+    global JUMP_SOUND, CRASH_SOUND, HISS_SOUND, SPLASH_SOUND, FIRE_PLAYER_SOUND, FIRE_ENEMY_SOUND, BOSS_EXPLOSION_SOUND
+    global COIN_SOUND
     size(800, 500)
     frame_rate(60)
     title("Dino Game")
@@ -362,6 +483,11 @@ def setup():
         HISS_SOUND = None
 
     try:
+        SPLASH_SOUND = pygame.mixer.Sound("assets/audio/splash.wav")
+    except Exception:
+        SPLASH_SOUND = None
+
+    try:
         FIRE_PLAYER_SOUND = pygame.mixer.Sound("assets/audio/fire-player.wav")
     except Exception:
         FIRE_PLAYER_SOUND = None
@@ -370,6 +496,16 @@ def setup():
         FIRE_ENEMY_SOUND = pygame.mixer.Sound("assets/audio/fire-enemy.wav")
     except Exception:
         FIRE_ENEMY_SOUND = None
+
+    try:
+        BOSS_EXPLOSION_SOUND = pygame.mixer.Sound("assets/audio/boss-explosion.wav")
+    except Exception:
+        BOSS_EXPLOSION_SOUND = None
+
+    try:
+        COIN_SOUND = pygame.mixer.Sound("assets/audio/ping.wav")
+    except Exception:
+        COIN_SOUND = None
 
     update_background_music(force=True)
 
@@ -400,44 +536,90 @@ def get_dino_hitbox():
 
 
 def choose_obstacle_type():
+    global queued_obstacle_after_powerup
+    if pending_weapon_powerup_level > 0 and not weapon_powerup_ready:
+        return "weapon_powerup"
+
     if pending_airplane_spawn:
         return "airplane_pickup"
+
+    if queued_obstacle_after_powerup is not None:
+        queued_type = queued_obstacle_after_powerup
+        queued_obstacle_after_powerup = None
+        return queued_type
+
+    chosen = "cactus_low"
 
     # Level 1: nog geen slang.
     if current_level < 2:
         roll = int(random(0, 100))
         if roll < 52:
-            return "cactus_low"
-        if roll < 84:
-            return "cactus_high"
-        return "bird_low"
+            chosen = "cactus_low"
+        elif roll < 84:
+            chosen = "cactus_high"
+        else:
+            chosen = "bird_low"
 
     # Level 2: slang komt erbij.
-    if current_level < 3:
+    elif current_level < 3:
         roll = int(random(0, 100))
         if roll < 36:
-            return "cactus_low"
-        if roll < 66:
-            return "cactus_high"
-        if roll < 84:
-            return "snake"
-        return "bird_low"
+            chosen = "cactus_low"
+        elif roll < 66:
+            chosen = "cactus_high"
+        elif roll < 84:
+            chosen = "snake"
+        else:
+            chosen = "bird_low"
 
-    roll = int(random(0, 100))
-    if roll < 35:
-        return "cactus_low"
-    if roll < 58:
-        return "cactus_high"
-    if roll < 68:
-        return "cactus_tower"
-    if roll < 82:
-        return "snake"
-    return "bird_low"
+    else:
+        roll = int(random(0, 100))
+        if current_level == 6:
+            # Vrij level-slot: water met leliebladen verschijnt hier als extra mechanic.
+            if roll < 18:
+                chosen = "water_lily"
+            elif roll < 45:
+                chosen = "cactus_low"
+            elif roll < 62:
+                chosen = "cactus_high"
+            elif roll < 72:
+                chosen = "cactus_tower"
+            elif roll < 86:
+                chosen = "snake"
+            else:
+                chosen = "bird_low"
+        else:
+            if roll < 35:
+                chosen = "cactus_low"
+            elif roll < 58:
+                chosen = "cactus_high"
+            elif roll < 68:
+                chosen = "cactus_tower"
+            elif roll < 82:
+                chosen = "snake"
+            else:
+                chosen = "bird_low"
+
+    # Laat vóór grotere cactussen eerst een High Jump powerup verschijnen.
+    if chosen in ("cactus_high", "cactus_tower") and high_jump_powerup_charges <= 0:
+        queued_obstacle_after_powerup = chosen
+        return "high_jump_powerup"
+
+    # Muntje kan vóór een normaal obstakel spawnen en gebruikt dezelfde collision flow.
+    if chosen in ("cactus_low", "cactus_high", "cactus_tower", "snake", "bird_low"):
+        if int(random(0, 100)) < 18:
+            queued_obstacle_after_powerup = chosen
+            return "coin"
+
+    return chosen
 
 
 def spawn_obstacle(force_type=None):
     global obstacle_x, obstacle_type, bird_duck_scored
-    global high_jump_warning_until_ms, airplane_warning_until_ms, pending_airplane_spawn
+    global high_jump_warning_until_ms, high_jump_powerup_warning_until_ms
+    global weapon_powerup_warning_until_ms, water_warning_until_ms
+    global airplane_warning_until_ms, pending_airplane_spawn
+    global coin_spawn_y
     global snake_hiss_played_for_current
     obstacle_type = force_type or choose_obstacle_type()
     obstacle_x = width + random(100, 300)
@@ -446,6 +628,15 @@ def spawn_obstacle(force_type=None):
     if obstacle_type == "airplane_pickup":
         pending_airplane_spawn = False
         airplane_warning_until_ms = millis() + AIRPLANE_WARNING_DURATION_MS
+    if obstacle_type == "high_jump_powerup":
+        high_jump_powerup_warning_until_ms = millis() + HIGH_JUMP_POWERUP_NOTICE_MS
+    if obstacle_type == "weapon_powerup":
+        weapon_powerup_warning_until_ms = millis() + WEAPON_POWERUP_NOTICE_MS
+    if obstacle_type == "coin":
+        coin_ys = [332, 360, 392]
+        coin_spawn_y = coin_ys[int(random(0, len(coin_ys)))]
+    if obstacle_type == "water_lily":
+        water_warning_until_ms = millis() + WATER_WARNING_DURATION_MS
     if obstacle_type == "cactus_tower":
         high_jump_warning_until_ms = millis() + HIGH_JUMP_WARNING_DURATION_MS
 
@@ -491,7 +682,10 @@ def is_snake_extended():
 def get_obstacle_draw_rect():
     cfg = OBSTACLE_CONFIG[obstacle_type]
     draw_x = obstacle_x
-    draw_y = cfg["y"]
+    if obstacle_type == "coin":
+        draw_y = coin_spawn_y
+    else:
+        draw_y = cfg["y"]
     draw_w = cfg["w"]
     draw_h = cfg["h"]
 
@@ -657,6 +851,8 @@ def fire_player_weapon():
     global player_shot_cooldown_until_ms
     if boss_state is None or game_over or game_paused or shared.show_info:
         return
+    if not weapon_powerup_ready:
+        return
     now = millis()
     if now < player_shot_cooldown_until_ms:
         return
@@ -680,10 +876,26 @@ def fire_player_weapon():
     })
     if boss_state is not None:
         target_y = boss_state["y"] + (boss_state["h"] * 0.5)
+        vertical_boost = 1.0
+
+        if boss_state["type"] == "cactus_miniboss":
+            # Mik hoger op de bovenste nog levende tak zodat top-armen beter raakbaar zijn.
+            branch_rects = get_cactus_branch_rects(boss_state)
+            living_branches = [
+                branch_rects[idx]
+                for idx, hp in enumerate(boss_state["branch_hp"])
+                if hp > 0
+            ]
+            if living_branches:
+                top_branch = min(living_branches, key=lambda r: r[1])
+                target_y = top_branch[1] + (top_branch[3] * 0.45)
+            target_y -= CACTUS_SHOT_UPWARD_OFFSET_PX
+            vertical_boost = CACTUS_SHOT_VERTICAL_BOOST
+
         travel_px = max(80.0, width - (DINO_X + DINO_W))
-        projectile["vy"] = (target_y - projectile_y) / (travel_px / max(0.1, profile["speed"]))
-    if FIRE_PLAYER_SOUND is not None:
-        FIRE_PLAYER_SOUND.play()
+        base_vy = (target_y - projectile_y) / (travel_px / max(0.1, profile["speed"]))
+        projectile["vy"] = base_vy * vertical_boost
+    play_sfx(FIRE_PLAYER_SOUND)
     player_shot_cooldown_until_ms = now + PLAYER_SHOOT_COOLDOWN_MS
 
 
@@ -701,6 +913,22 @@ def get_cactus_branch_rects(boss):
         branch_y = base_y + idx * 38
         branch_rects.append((branch_x, branch_y, 46, 14))
     return branch_rects
+
+
+def draw_cactus_spines(area_x, area_y, area_w, area_h, step_x=14, step_y=16):
+    stroke(220, 242, 196)
+    stroke_weight(1)
+    row = 0
+    y_cursor = int(area_y + 6)
+    while y_cursor < int(area_y + area_h - 5):
+        x_cursor = int(area_x + 6 + (row % 2) * 4)
+        while x_cursor < int(area_x + area_w - 8):
+            line(x_cursor, y_cursor, x_cursor + 3, y_cursor - 2)
+            line(x_cursor + 2, y_cursor + 1, x_cursor + 5, y_cursor + 3)
+            x_cursor += step_x
+        y_cursor += step_y
+        row += 1
+    no_stroke()
 
 
 def spawn_boss_for_level(level):
@@ -779,10 +1007,23 @@ def spawn_boss_for_level(level):
 
 def maybe_start_boss_encounter():
     global boss_state, boss_intro_until_ms, player_shot_cooldown_until_ms
+    global pending_weapon_powerup_level
     if boss_state is not None or game_over or not game_started or game_paused or flight_mode:
         return
+
+    # Skip older boss tiers once the player is already in a higher tier.
+    # This keeps boss order aligned with the current level (e.g. level 7 starts with cactus).
+    for level in BOSS_LEVEL_ORDER:
+        if current_level > level:
+            boss_completed[level] = True
+
     for level in BOSS_LEVEL_ORDER:
         if current_level >= level and not boss_completed[level]:
+            has_weapon_for_level = weapon_powerup_ready and weapon_powerup_level == level
+            if not has_weapon_for_level:
+                pending_weapon_powerup_level = level
+                return
+            pending_weapon_powerup_level = 0
             boss_state = spawn_boss_for_level(level)
             boss_intro_until_ms = millis() + BOSS_INTRO_DURATION_MS
             reset_projectile_pool(player_projectiles)
@@ -797,26 +1038,65 @@ def draw_boss_entity(boss):
     h = int(boss["h"])
 
     if boss["type"] == "bird_miniboss":
-        image(BIRD_IMG, x, y, w, h)
+        image(BIRD_RIGHT_IMG, x, y, w, h)
         return
 
     if boss["type"] == "cactus_miniboss":
-        fill(46, 145, 54)
-        rect(x, y, w, h)
-        fill(61, 172, 71)
-        rect(x + 20, y + 10, w - 40, h - 24)
+        trunk_x = x + 22
+        trunk_y = y + 16
+        trunk_w = w - 30
+        trunk_h = h - 18
+
+        # Outer contour
+        fill(38, 126, 48)
+        rect(trunk_x - 6, trunk_y + 8, trunk_w + 8, trunk_h - 10)
+        arc(trunk_x + (trunk_w // 2) - 1, trunk_y + 8, trunk_w + 8, 28, PI, TWO_PI)
+
+        # Inner body + highlight
+        fill(58, 168, 70)
+        rect(trunk_x + 2, trunk_y + 14, trunk_w - 8, trunk_h - 22)
+        arc(trunk_x + (trunk_w // 2) - 2, trunk_y + 14, trunk_w - 8, 22, PI, TWO_PI)
+        fill(71, 186, 84)
+        rect(trunk_x + 12, trunk_y + 28, trunk_w - 32, trunk_h - 52)
+        arc(trunk_x + (trunk_w // 2) - 4, trunk_y + 28, trunk_w - 32, 18, PI, TWO_PI)
+
+        # Vertical ribs on the cactus body.
+        stroke(48, 145, 58)
+        stroke_weight(2)
+        line(trunk_x + 18, trunk_y + 18, trunk_x + 18, trunk_y + trunk_h - 16)
+        line(trunk_x + trunk_w // 2, trunk_y + 16, trunk_x + trunk_w // 2, trunk_y + trunk_h - 14)
+        line(trunk_x + trunk_w - 22, trunk_y + 18, trunk_x + trunk_w - 22, trunk_y + trunk_h - 16)
+        no_stroke()
+        draw_cactus_spines(trunk_x + 4, trunk_y + 18, trunk_w - 12, trunk_h - 24, step_x=16, step_y=20)
+
         branch_rects = get_cactus_branch_rects(boss)
         for idx, branch_hp in enumerate(boss["branch_hp"]):
-            if branch_hp <= 0:
-                continue
             bx, by, bw, bh = branch_rects[idx]
-            fill(48, 138, 53)
-            rect(int(bx), int(by), int(bw), int(bh))
+            if branch_hp <= 0:
+                # Remaining stump when a branch is gone.
+                fill(44, 133, 53)
+                rect(int(trunk_x - 4), int(by + 2), 8, int(bh - 3))
+                continue
+
+            # Branch crumbles gradually: less HP = shorter arm.
+            hp_ratio = max(0.2, min(1.0, branch_hp / 5.0))
+            arm_w = int(max(10, bw * hp_ratio))
+            arm_x = int(bx + (bw - arm_w))
+            arm_y = int(by + 1)
+            arm_h = int(max(8, bh - 2))
+
+            fill(45, 140, 55)
+            rect(arm_x, arm_y, arm_w, arm_h)
+            fill(61, 172, 71)
+            rect(arm_x + 2, arm_y + 2, max(3, arm_w - 4), max(3, arm_h - 4))
+            # Rounded branch tip.
+            arc(arm_x + 1, arm_y + (arm_h // 2), arm_h, arm_h, PI / 2, PI + PI / 2)
+            draw_cactus_spines(arm_x + 2, arm_y + 1, max(6, arm_w - 4), arm_h - 2, step_x=10, step_y=8)
         return
 
     # Final boss
     if boss["form"] == "ReuzenDino":
-        image(DINO_IMG, x, y, w, h)
+        image(GIANT_DINO_RIGHT_IMG, x, y, w, h)
         return
     if boss["form"] == "ReuzenCowboy":
         image(COWBOY_IMG, x, y, w, h)
@@ -862,11 +1142,13 @@ def draw_boss_meter(boss, theme):
 
 
 def finish_boss_if_defeated(boss):
-    global boss_state, score
+    global boss_state, score, weapon_powerup_ready, weapon_powerup_level
     if boss["hits_taken"] < boss["hits_required"]:
         return
     boss_completed[boss["level"]] = True
     boss_state = None
+    weapon_powerup_ready = False
+    weapon_powerup_level = 0
     reset_projectile_pool(player_projectiles)
     score += BOSS_REWARD_POINTS.get(boss["level"], 0)
     update_level_from_score()
@@ -882,8 +1164,7 @@ def update_enemy_projectiles(boss):
         if rects_overlap(projectile_rect, player_hitbox):
             projectile["active"] = False
             game_over = True
-            if CRASH_SOUND is not None:
-                CRASH_SOUND.play()
+            play_sfx(CRASH_SOUND)
             return
         if projectile["x"] + projectile["w"] < -40:
             projectile["active"] = False
@@ -939,8 +1220,7 @@ def spawn_boss_attack_if_needed(boss):
             "color": (80, 80, 80),
             "enemy": True,
         })
-        if FIRE_ENEMY_SOUND is not None:
-            FIRE_ENEMY_SOUND.play()
+        play_sfx(FIRE_ENEMY_SOUND)
         return
 
     if boss["type"] == "cactus_miniboss":
@@ -961,8 +1241,7 @@ def spawn_boss_attack_if_needed(boss):
             "color": (40, 130, 40),
             "enemy": True,
         })
-        if FIRE_ENEMY_SOUND is not None:
-            FIRE_ENEMY_SOUND.play()
+        play_sfx(FIRE_ENEMY_SOUND)
         return
 
     # final boss shoots same style as player
@@ -983,8 +1262,7 @@ def spawn_boss_attack_if_needed(boss):
         "color": color,
         "enemy": True,
     })
-    if FIRE_ENEMY_SOUND is not None:
-        FIRE_ENEMY_SOUND.play()
+    play_sfx(FIRE_ENEMY_SOUND)
 
 
 def update_and_draw_boss_mode(theme, update_world=True):
@@ -1029,8 +1307,7 @@ def update_and_draw_boss_mode(theme, update_world=True):
 
         if rects_overlap(get_dino_hitbox(), get_boss_hitbox(boss)):
             game_over = True
-            if CRASH_SOUND is not None:
-                CRASH_SOUND.play()
+            play_sfx(CRASH_SOUND)
             return
 
     draw_boss_entity(boss)
@@ -1047,6 +1324,10 @@ def update_and_draw_boss_mode(theme, update_world=True):
     text(f"Wapen: {weapon_label} (SPACE)", 20, 66)
 
     if millis() < boss_intro_until_ms:
+        if boss["type"] == "cactus_miniboss":
+            fill(200, 40, 40)
+            text_size(34)
+            text("Watch out! Giant cactus!!", width // 2 - 220, 34)
         fill(*theme["accent"])
         text_size(24)
         text(boss["name"], width // 2 - 150, 112)
@@ -1075,6 +1356,71 @@ def should_show_blink_phase():
     return int(millis() / LEVEL_BLINK_INTERVAL_MS) % 2 == 0
 
 
+def get_announcement_font(size):
+    key = int(size)
+    font = announcement_font_cache.get(key)
+    if font is not None:
+        return font
+    font = pygame.font.SysFont("Arial Black", key, bold=True)
+    announcement_font_cache[key] = font
+    return font
+
+
+def draw_transparent_blink_text(message, y, base_size=96, base_color=(255, 74, 56)):
+    surface = pygame.display.get_surface()
+    if surface is None:
+        return
+    msg_len = len(message)
+    if msg_len > 58:
+        base_size = 56
+    elif msg_len > 42:
+        base_size = 66
+    elif msg_len > 28:
+        base_size = 80
+
+    blink_on = int(millis() / 180) % 2 == 0
+    alpha_main = 235 if blink_on else 110
+    alpha_outline = 200 if blink_on else 95
+    font = get_announcement_font(base_size)
+
+    outline = font.render(message, True, (255, 255, 255))
+    outline.set_alpha(alpha_outline)
+    main = font.render(message, True, base_color)
+    main.set_alpha(alpha_main)
+
+    x = (width - main.get_width()) // 2
+    oy = int(y)
+    for dx, dy in ((-3, 0), (3, 0), (0, -3), (0, 3), (-2, -2), (2, 2)):
+        surface.blit(outline, (x + dx, oy + dy))
+    surface.blit(main, (x, oy))
+
+
+def draw_big_announcement_overlay(theme):
+    if not game_started or game_over or game_paused:
+        return
+
+    message = None
+    color = (255, 74, 56)
+    y = 18
+    if millis() < high_jump_warning_until_ms:
+        message = "HIGH JUMP!"
+    elif millis() < high_jump_powerup_warning_until_ms:
+        message = "HIGH JUMP POWERUP!"
+    elif millis() < weapon_powerup_warning_until_ms:
+        message = "WEAPON POWERUP!"
+    elif millis() < water_warning_until_ms:
+        message = "WATER! SPRING OP LELIEBLADEN"
+        color = (66, 176, 242)
+        y = 26
+    elif millis() < airplane_warning_until_ms:
+        message = "JUMP ON THE AIRPLANE!"
+        color = (255, 212, 78)
+
+    if message is None:
+        return
+    draw_transparent_blink_text(message, y, base_size=100, base_color=color)
+
+
 def draw_hud(theme, force_visible=False):
     blink_active = is_level_blink_active() and not force_visible
     visible = True if force_visible else (not blink_active or should_show_blink_phase())
@@ -1083,6 +1429,9 @@ def draw_hud(theme, force_visible=False):
         fill(*theme["text"])
         text_size(24)
         text(f"Score: {score}", 20, 40)
+        text_size(18)
+        text(f"Coins: {coin_count}", 20, 66)
+        text_size(24)
         text(f"Level: {current_level}", width - 150, 40)
 
     # During blink, briefly show level-up cue in accent color.
@@ -1162,8 +1511,7 @@ def update_and_draw_flight_mode(theme, update_world=True):
             )
             if rects_overlap(plane_rect, top_rect) or rects_overlap(plane_rect, bottom_rect):
                 game_over = True
-                if CRASH_SOUND is not None:
-                    CRASH_SOUND.play()
+                play_sfx(CRASH_SOUND)
                 break
 
     draw_flight_pipes()
@@ -1204,6 +1552,93 @@ def draw_rounded_rect_outline(x, y, w, h, radius, col, weight=2):
     arc(x + w - radius, y + h - radius, radius * 2, radius * 2, 0, PI / 2)
     arc(x + radius, y + h - radius, radius * 2, radius * 2, PI / 2, PI)
     no_stroke()
+
+
+def draw_high_jump_powerup(x, y, w, h, theme):
+    px = int(x)
+    py = int(y)
+    pw = int(w)
+    ph = int(h)
+    fill(255, 235, 96)
+    rect(px, py, pw, ph)
+    fill(236, 186, 34)
+    rect(px + 3, py + 3, max(2, pw - 6), max(2, ph - 6))
+    stroke(*theme["accent"])
+    stroke_weight(3)
+    arrow_x = px + pw // 2
+    arrow_top = py + 6
+    arrow_bottom = py + ph - 7
+    line(arrow_x, arrow_bottom, arrow_x, arrow_top)
+    line(arrow_x, arrow_top, arrow_x - 6, arrow_top + 7)
+    line(arrow_x, arrow_top, arrow_x + 6, arrow_top + 7)
+    no_stroke()
+
+
+def draw_weapon_powerup(x, y, w, h):
+    profile = get_player_weapon_profile()
+    px = int(x)
+    py = int(y)
+    pw = int(w)
+    ph = int(h)
+    fill(248, 248, 248)
+    rect(px, py, pw, ph)
+    fill(220, 220, 220)
+    rect(px + 2, py + 2, max(2, pw - 4), max(2, ph - 4))
+
+    if profile["kind"] == "tnt":
+        fill(210, 35, 30)
+        rect(px + 8, py + 5, pw - 16, ph - 10)
+        fill(255, 220, 100)
+        rect(px + pw - 10, py + 2, 2, 4)
+        return
+
+    if profile["kind"] == "fire":
+        fill(235, 85, 20)
+        rect(px + 7, py + 7, pw - 14, ph - 12)
+        fill(250, 200, 70)
+        rect(px + 11, py + 10, pw - 22, ph - 18)
+        return
+
+    # Cowboy gun (black)
+    fill(22, 22, 22)
+    rect(px + 6, py + 9, pw - 12, 6)
+    rect(px + 18, py + 14, 5, 7)
+
+
+def draw_coin_pickup(x, y, w, h):
+    px = int(x)
+    py = int(y)
+    pw = int(w)
+    ph = int(h)
+    fill(250, 214, 56)
+    rect(px, py, pw, ph)
+    fill(235, 180, 30)
+    rect(px + 2, py + 2, max(2, pw - 4), max(2, ph - 4))
+    fill(160, 110, 20)
+    rect(px + (pw // 2) - 2, py + 4, 4, ph - 8)
+
+
+def get_water_lily_pad_rects(draw_x, draw_y, draw_w, draw_h):
+    pad_w = 42
+    pad_h = 12
+    pad_y = draw_y - 10
+    return [
+        (draw_x + 16, pad_y, pad_w, pad_h),
+        (draw_x + (draw_w // 2) - (pad_w // 2), pad_y - 2, pad_w, pad_h),
+        (draw_x + draw_w - pad_w - 16, pad_y, pad_w, pad_h),
+    ]
+
+
+def draw_water_lily_obstacle(draw_x, draw_y, draw_w, draw_h):
+    fill(82, 164, 212)
+    rect(int(draw_x), int(draw_y), int(draw_w), int(draw_h))
+    fill(52, 112, 156)
+    rect(int(draw_x), int(draw_y + draw_h - 6), int(draw_w), 6)
+    for lx, ly, lw, lh in get_water_lily_pad_rects(draw_x, draw_y, draw_w, draw_h):
+        fill(62, 150, 72)
+        rect(int(lx), int(ly), int(lw), int(lh))
+        fill(48, 128, 58)
+        rect(int(lx + 3), int(ly + 2), int(max(2, lw - 6)), int(max(2, lh - 4)))
 
 
 def point_in_rect(px, py, x, y, w, h):
@@ -1282,8 +1717,11 @@ def draw_character_select(theme):
 
 
 def draw():
-    global dino_y, velocity_y, on_ground, obstacle_x, score, game_over, game_started
+    global dino_y, velocity_y, on_ground, obstacle_x, score, coin_count, game_over, game_started
     global is_ducking, bird_duck_scored, is_fast_falling, snake_hiss_played_for_current
+    global high_jump_powerup_charges, high_jump_powerup_warning_until_ms
+    global weapon_powerup_warning_until_ms, water_warning_until_ms
+    global weapon_powerup_ready, weapon_powerup_level, pending_weapon_powerup_level
     theme = get_theme()
     update_background_music()
     background(*theme["bg"])
@@ -1303,10 +1741,14 @@ def draw():
         text(f"Speed: {speed_mult:.2f}x", 500, 148)
         text_size(16)
         text("L: level +1, Shift+L: level -1", 500, 176)
+        if millis() < screenshot_notice_until_ms:
+            fill(30, 110, 30)
+            text_size(14)
+            text(screenshot_notice_text, 30, height - 24)
         return
 
     if not game_started:
-        draw_dino()
+        draw_main_character()
         fill(*theme["text"])
         text_size(44)
         text("Dino Game", width // 2 - 105, height // 2 - 55)
@@ -1317,12 +1759,23 @@ def draw():
         text("High jump: buk en spring binnen 0.5s", width // 2 - 190, height // 2 + 80)
         text("Info: I", width // 2 - 45, height // 2 + 110)
         draw_character_select(theme)
+        if quit_confirm_active:
+            fill(250, 250, 250)
+            rect(width // 2 - 190, height // 2 + 132, 380, 84)
+            stroke(*theme["accent"])
+            stroke_weight(3)
+            no_fill()
+            rect(width // 2 - 190, height // 2 + 132, 380, 84)
+            no_stroke()
+            fill(*theme["text"])
+            text_size(28)
+            text("Wanna quit, really? y/n", width // 2 - 168, height // 2 + 186)
         draw_debug_overlay()
         return
 
     if flight_mode:
         update_and_draw_flight_mode(theme, update_world=(not game_paused and not game_over))
-        draw_dino()
+        draw_main_character()
         if game_paused and not game_over:
             fill(40)
             text_size(34)
@@ -1350,7 +1803,7 @@ def draw():
     maybe_start_boss_encounter()
     if boss_state is not None:
         update_and_draw_boss_mode(theme, update_world=(not game_paused and not game_over))
-        draw_dino()
+        draw_main_character()
         if game_paused and not game_over:
             fill(40)
             text_size(34)
@@ -1378,8 +1831,17 @@ def draw():
     # Draw obstacle
     obstacle_cfg = OBSTACLE_CONFIG[obstacle_type]
     obstacle_draw_x, obstacle_draw_y, obstacle_draw_w, obstacle_draw_h = get_obstacle_draw_rect()
-    image(obstacle_cfg["img"], obstacle_draw_x, obstacle_draw_y, obstacle_draw_w, obstacle_draw_h)
-    draw_dino()
+    if obstacle_type == "high_jump_powerup":
+        draw_high_jump_powerup(obstacle_draw_x, obstacle_draw_y, obstacle_draw_w, obstacle_draw_h, theme)
+    elif obstacle_type == "weapon_powerup":
+        draw_weapon_powerup(obstacle_draw_x, obstacle_draw_y, obstacle_draw_w, obstacle_draw_h)
+    elif obstacle_type == "coin":
+        draw_coin_pickup(obstacle_draw_x, obstacle_draw_y, obstacle_draw_w, obstacle_draw_h)
+    elif obstacle_type == "water_lily":
+        draw_water_lily_obstacle(obstacle_draw_x, obstacle_draw_y, obstacle_draw_w, obstacle_draw_h)
+    else:
+        image(obstacle_cfg["img"], obstacle_draw_x, obstacle_draw_y, obstacle_draw_w, obstacle_draw_h)
+    draw_main_character()
 
     if game_paused:
         fill(40)
@@ -1391,14 +1853,23 @@ def draw():
         draw_debug_overlay()
         return
 
-    if millis() < high_jump_warning_until_ms and game_started and not game_over:
+    draw_big_announcement_overlay(theme)
+    if high_jump_powerup_charges > 0 and game_started and not game_over:
         fill(*theme["accent"])
-        text_size(20)
-        text("Prepare for high jump: duck first then quickly jump.", width // 2 - 235, 28)
-    if millis() < airplane_warning_until_ms and game_started and not game_over:
+        text_size(16)
+        text(f"High Jump x{high_jump_powerup_charges}", 20, 88)
+    if weapon_powerup_ready and game_started and not game_over:
         fill(*theme["accent"])
-        text_size(20)
-        text("Jump on the airplane to start flight mode!", width // 2 - 170, 56)
+        text_size(16)
+        weapon_label = get_player_weapon_profile()["label"]
+        if weapon_powerup_level > 0:
+            text(f"{weapon_label} ready (L{weapon_powerup_level})", 20, 110)
+        else:
+            text(f"{weapon_label} ready", 20, 110)
+    elif pending_weapon_powerup_level > 0 and game_started and not game_over:
+        fill(*theme["accent"])
+        text_size(16)
+        text(f"Pak weapon powerup voor boss L{pending_weapon_powerup_level}", 20, 110)
 
     if not game_over:
         # Dino jump physics
@@ -1416,8 +1887,7 @@ def draw():
 
         if obstacle_type == "snake" and is_snake_extended() and not snake_hiss_played_for_current:
             snake_hiss_played_for_current = True
-            if HISS_SOUND is not None:
-                HISS_SOUND.play()
+            play_sfx(HISS_SOUND)
 
         if obstacle_type == "bird_low":
             dino_hitbox = get_dino_hitbox()
@@ -1454,18 +1924,49 @@ def draw():
                 velocity_y = 0
                 on_ground = False
                 start_flight_mode()
-                draw_dino()
+                draw_main_character()
                 draw_hud(theme)
                 return
 
         # Collision detection
         dino_hitbox = get_dino_hitbox()
         obstacle_hitbox = get_obstacle_hitbox()
-        if rects_overlap(dino_hitbox, obstacle_hitbox):
+        if obstacle_type == "high_jump_powerup" and rects_overlap(dino_hitbox, obstacle_hitbox):
+            high_jump_powerup_charges = HIGH_JUMP_POWERUP_MAX_CHARGES
+            high_jump_powerup_warning_until_ms = millis() + HIGH_JUMP_POWERUP_NOTICE_MS
+            spawn_obstacle()
+        elif obstacle_type == "weapon_powerup" and rects_overlap(dino_hitbox, obstacle_hitbox):
+            weapon_powerup_ready = True
+            weapon_powerup_level = pending_weapon_powerup_level if pending_weapon_powerup_level > 0 else current_level
+            pending_weapon_powerup_level = 0
+            weapon_powerup_warning_until_ms = millis() + WEAPON_POWERUP_NOTICE_MS
+            spawn_obstacle()
+        elif obstacle_type == "coin" and rects_overlap(dino_hitbox, obstacle_hitbox):
+            coin_count += 1
+            score += COIN_SCORE_VALUE
+            play_sfx(COIN_SOUND)
+            update_level_from_score()
+            spawn_obstacle()
+        elif obstacle_type == "water_lily":
+            water_hitbox = obstacle_hitbox
+            dino_feet_hitbox = (
+                dino_hitbox[0],
+                dino_hitbox[1] + dino_hitbox[3] - 8,
+                dino_hitbox[2],
+                8,
+            )
+            lily_pad_rects = get_water_lily_pad_rects(
+                obstacle_draw_x, obstacle_draw_y, obstacle_draw_w, obstacle_draw_h
+            )
+            on_lily = any(rects_overlap(dino_feet_hitbox, lily_rect) for lily_rect in lily_pad_rects)
+            if rects_overlap(dino_hitbox, water_hitbox) and not on_lily:
+                game_over = True
+                is_ducking = False
+                play_sfx(SPLASH_SOUND)
+        elif rects_overlap(dino_hitbox, obstacle_hitbox):
             game_over = True
             is_ducking = False
-            if CRASH_SOUND is not None:
-                CRASH_SOUND.play()
+            play_sfx(CRASH_SOUND)
 
     if isDebugMode:
         no_fill()
@@ -1484,21 +1985,52 @@ def draw():
         text(f"Snelheid: x{round(scroll_speed / BASE_SCROLL_SPEED, 2)}", width - 230, 72)
         text("Druk op SPACE voor startscherm", width // 2 - 170, height // 2 + 40)
         draw_debug_overlay()
+        if millis() < screenshot_notice_until_ms:
+            fill(30, 110, 30)
+            text_size(14)
+            text(screenshot_notice_text, 20, height - 20)
         return
 
     draw_hud(theme)
     draw_debug_overlay()
+    if millis() < screenshot_notice_until_ms:
+        fill(30, 110, 30)
+        text_size(14)
+        text(screenshot_notice_text, 20, height - 20)
 
 def key_pressed():
     global velocity_y, on_ground, game_started, isDebugMode, is_ducking
     global game_paused, selected_character_idx, active_character_key
-    global duck_jump_expires_ms, is_fast_falling
+    global duck_jump_expires_ms, is_fast_falling, high_jump_powerup_charges
     global fly_left_pressed, fly_right_pressed, fly_up_pressed, fly_down_pressed
+    global quit_confirm_active
     pressed_key = key.lower() if isinstance(key, str) else key
-    shared.handle_common_keys(pressed_key, key_code, info_text=INFO_TEXT)
-    if pressed_key in ("i", "s"):
+    shared.handle_common_keys(
+        pressed_key,
+        key_code,
+        info_text=INFO_TEXT,
+        music_toggle_callback=lambda _enabled: update_background_music(force=True),
+        allow_quit=False,
+    )
+    if pressed_key == "i":
         update_background_music(force=True)
-    if pressed_key in ("i", "q", "s"):
+    if pressed_key in ("i", "m", "s"):
+        return
+
+    if quit_confirm_active:
+        if pressed_key == "y":
+            exit()
+        if pressed_key in ("n", "q") or key_code == pygame.K_ESCAPE:
+            quit_confirm_active = False
+        return
+
+    if pressed_key == "q" or key_code == pygame.K_ESCAPE:
+        if game_started:
+            if active_character_key in CHARACTER_ORDER:
+                selected_character_idx = CHARACTER_ORDER.index(active_character_key)
+            reset_game(show_splash=True)
+        else:
+            quit_confirm_active = True
         return
 
     if shared.show_info:
@@ -1511,6 +2043,10 @@ def key_pressed():
 
     if key in ("d", "D"):
         isDebugMode = not isDebugMode
+        return
+
+    if pressed_key == "k":
+        capture_screenshot()
         return
 
     if isDebugMode and game_started and not game_over and pressed_key == "l":
@@ -1575,14 +2111,18 @@ def key_pressed():
     if game_started and not game_over and key_code == pygame.K_UP and on_ground:
         # Buk-spring binnen half seconde geeft high jump.
         now = millis()
-        jump_velocity = HIGH_JUMP_VELOCITY if now <= duck_jump_expires_ms else JUMP_VELOCITY
+        jump_velocity = JUMP_VELOCITY
+        if high_jump_powerup_charges > 0:
+            jump_velocity = POWERUP_HIGH_JUMP_VELOCITY
+            high_jump_powerup_charges = max(0, high_jump_powerup_charges - 1)
+        elif now <= duck_jump_expires_ms:
+            jump_velocity = HIGH_JUMP_VELOCITY
         is_ducking = False
         velocity_y = jump_velocity
         on_ground = False
         is_fast_falling = False
         duck_jump_expires_ms = 0
-        if JUMP_SOUND is not None:
-            JUMP_SOUND.play()
+        play_sfx(JUMP_SOUND)
 
 
 def key_released(released_key):
@@ -1625,7 +2165,76 @@ def mouse_clicked(x, y, button):
         start_game_from_selection()
 
 
-def draw_dino():
+def draw_equipped_weapon_on_character(pose):
+    profile = get_player_weapon_profile()
+    hand_x = int(pose["x"] + pose["w"] - 8)
+    hand_y = int(pose["y"] + pose["h"] * 0.48)
+    if pose["ducking"]:
+        hand_y += 2
+
+    if profile["kind"] == "tnt":
+        fill(210, 35, 30)
+        rect(hand_x - 8, hand_y - 6, 12, 12)
+        fill(255, 220, 100)
+        rect(hand_x + 1, hand_y - 9, 2, 3)
+        return
+
+    if profile["kind"] == "fire":
+        fill(235, 85, 20)
+        rect(hand_x - 4, hand_y - 3, 14, 7)
+        fill(250, 200, 70)
+        rect(hand_x - 1, hand_y - 1, 8, 3)
+        return
+
+    # Cowboy gun overlay (black), dichtbij hand.
+    fill(22, 22, 22)
+    rect(hand_x - 4, hand_y - 3, 15, 4)
+    rect(hand_x + 1, hand_y + 1, 4, 5)
+
+
+def draw_high_jump_powerup_effect(pose):
+    if high_jump_powerup_charges <= 0:
+        return
+    surface = pygame.display.get_surface()
+    if surface is None or not EXPLOSION_FRAMES:
+        return
+
+    charge_level = max(0, min(HIGH_JUMP_POWERUP_MAX_CHARGES, high_jump_powerup_charges))
+    if charge_level == 0:
+        return
+
+    # 3 -> fel/groot, 2 -> medium, 1 -> subtiel
+    alpha_by_charge = {3: 210, 2: 145, 1: 85}
+    size_by_charge = {3: 54, 2: 42, 1: 30}
+    frame_idx = int(millis() / 85) % len(EXPLOSION_FRAMES)
+    frame = EXPLOSION_FRAMES[frame_idx]
+    if frame is None:
+        return
+
+    glow_size = size_by_charge.get(charge_level, 30)
+    glow = pygame.transform.smoothscale(frame, (glow_size, glow_size)).copy()
+    glow.set_alpha(alpha_by_charge.get(charge_level, 90))
+
+    feet_x = int(pose["x"] + (pose["w"] // 2) - (glow_size // 2))
+    feet_y = int(pose["y"] + pose["h"] - (glow_size // 3))
+    surface.blit(glow, (feet_x, feet_y))
+
+
+def weapon_overlay_decorator(draw_fn):
+    def wrapped():
+        pose = draw_fn()
+        if pose is None:
+            return None
+        if game_started and not game_over and high_jump_powerup_charges > 0:
+            draw_high_jump_powerup_effect(pose)
+        if game_started and not game_over and weapon_powerup_ready:
+            draw_equipped_weapon_on_character(pose)
+        return pose
+    return wrapped
+
+
+@weapon_overlay_decorator
+def draw_main_character():
     if flight_mode:
         plane_x, plane_y, plane_w, plane_h = get_flight_plane_rect()
         image(AIRPLANE_IMG, plane_x, plane_y, plane_w, plane_h)
@@ -1635,7 +2244,7 @@ def draw_dino():
             stroke_weight(2)
             rect(plane_x, plane_y, plane_w, plane_h)
             no_stroke()
-        return
+        return None
 
     dino_h = DUCK_H if (is_ducking and on_ground and not game_over) else DINO_H
     dino_y_draw = get_dino_draw_y()
@@ -1671,6 +2280,14 @@ def draw_dino():
         stroke_weight(2)
         rect(*get_dino_hitbox())
         no_stroke()
+    return {
+        "x": draw_x,
+        "y": dino_y_draw,
+        "w": draw_w,
+        "h": draw_h,
+        "ducking": bool(is_ducking and on_ground and not game_over),
+    }
+
 
 if __name__ == "__main__":
     try:
