@@ -116,3 +116,5 @@ Host the generated `.web-build/output/` files on your site and embed with an ifr
   allowfullscreen
 ></iframe>
 ```
+
+![alt text](assets/macbook.png)

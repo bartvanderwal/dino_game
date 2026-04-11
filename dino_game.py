@@ -133,9 +133,21 @@ BOSS_REWARD_POINTS = {
     7: 12,
     10: 20,
 }
-FINAL_BOSS_DEFEAT_DURATION_MS = 2600
-FINAL_BOSS_BLAST_INTERVAL_MS = 110
-FINAL_BOSS_BLAST_LIFE_MS = 620
+FINAL_BOSS_JUMP_GRAVITY = 0.78
+FINAL_BOSS_JUMP_VELOCITY_MIN = -13.8
+FINAL_BOSS_JUMP_VELOCITY_MAX = -10.6
+FINAL_BOSS_JUMP_GAP_MIN_MS = 760
+FINAL_BOSS_JUMP_GAP_MAX_MS = 1480
+FINAL_BOSS_DUCK_GAP_MIN_MS = 980
+FINAL_BOSS_DUCK_GAP_MAX_MS = 1920
+FINAL_BOSS_DUCK_MIN_MS = 360
+FINAL_BOSS_DUCK_MAX_MS = 740
+MINI_BOSS_DEFEAT_DURATION_MS = 3200
+MINI_BOSS_BLAST_INTERVAL_MS = 70
+MINI_BOSS_DEFEAT_BURST_COUNT = 5
+FINAL_BOSS_DEFEAT_DURATION_MS = 4200
+FINAL_BOSS_BLAST_INTERVAL_MS = 70
+FINAL_BOSS_BLAST_LIFE_MS = 920
 BOSS_HIT_EXPLOSION_SIZE = 68
 FINAL_BOSS_DEFEAT_EXPLOSION_SIZE = 128
 FINAL_BOSS_DEFEAT_BURST_COUNT = 7
@@ -177,6 +189,8 @@ INTRO_SPEECH_CANDIDATES = (
 CREDITS_DURATION_MS = 60000
 CREDITS_TOP_MARGIN = 30
 CREDITS_BOTTOM_MARGIN = 110
+CREDITS_SCROLL_SPEED_FACTOR = 0.82
+CREDITS_FINISH_PAD_PX = 120
 SCREENSHOT_NOTICE_MS = 2200
 GROUND_Y = 460
 
@@ -477,8 +491,12 @@ credits_started_ms = 0
 credits_items = []
 credits_content_height = 0
 credits_scroll_speed_px_per_ms = 0.0
+credits_total_duration_ms = CREDITS_DURATION_MS
 credits_starfield = []
 credits_font_cache = {}
+pending_credits_after_victory = False
+mini_boss_defeat_sequences = []
+is_fullscreen = False
 
 
 def reset_game(show_splash=False):
@@ -506,7 +524,10 @@ def reset_game(show_splash=False):
     global wind_swirl_effect_until_ms
     global explosion_effects, final_boss_snapshot, final_boss_defeat_until_ms, final_boss_next_blast_ms
     global credits_active, credits_finished, credits_started_ms
-    global credits_items, credits_content_height, credits_scroll_speed_px_per_ms, credits_starfield
+    global credits_items, credits_content_height, credits_scroll_speed_px_per_ms
+    global credits_total_duration_ms, credits_starfield
+    global pending_credits_after_victory
+    global mini_boss_defeat_sequences
     stop_intro_speech()
     dino_y = DINO_Y
     velocity_y = 0
@@ -581,7 +602,10 @@ def reset_game(show_splash=False):
     credits_items = []
     credits_content_height = 0
     credits_scroll_speed_px_per_ms = 0.0
+    credits_total_duration_ms = CREDITS_DURATION_MS
     credits_starfield = []
+    pending_credits_after_victory = False
+    mini_boss_defeat_sequences = []
     spawn_obstacle("cactus_low")
 
 
@@ -714,14 +738,31 @@ def build_credits_items():
     add_text("CONGRATULATIONS!", 58, (255, 70, 70), bold=True, spacing=80)
     add_text("LEVEL 10 CLEARED", 34, (255, 210, 74), bold=True, spacing=56)
     add_spacer(12)
-    add_text("Veel dank aan The Boyz J&J, voor het testen en de input.", 27, (247, 232, 132), spacing=46)
-    add_text("Han de Pan voor de visuals en vrolijkheid.", 27, (247, 232, 132), spacing=44)
-    add_text("HAN voor de laptop en gedegen verdieping in Software Engineering", 27, (247, 232, 132), spacing=42)
-    add_text("en leuke Processing game engine; nu ook in Python.", 27, (247, 232, 132), spacing=50)
+    add_text("Special thanks to The Boyz J&J for testing and feedback.", 27, (247, 232, 132), spacing=46)
+    add_text("Han de Pan for the visuals and good vibes.", 27, (247, 232, 132), spacing=44)
+    add_text("HAN for the laptop and deep dives into Software Engineering", 27, (247, 232, 132), spacing=42)
+    add_text("and for the fun Processing game engine, now also in Python.", 27, (247, 232, 132), spacing=50)
     add_spacer(20)
-    add_text("Credits...", 40, (255, 220, 86), bold=True, spacing=62)
-    add_text("Dank aan Codex GPT-5.3", 28, (255, 238, 152), spacing=44)
-    add_text("https://toolkit.artlist.io/ voor de vet overdreven eind music...", 23, (255, 238, 152), spacing=48)
+    add_text("Credits", 40, (255, 220, 86), bold=True, spacing=62)
+    add_text("Thanks to Codex GPT-5.3", 28, (255, 238, 152), spacing=44)
+    add_text("https://toolkit.artlist.io/ for the epic over-the-top finale music...", 23, (255, 238, 152), spacing=48)
+    try:
+        macbook_raw = pygame.image.load("assets/macbook.png").convert_alpha()
+        max_w = 250
+        max_h = 150
+        scale = min(max_w / max(1, macbook_raw.get_width()), max_h / max(1, macbook_raw.get_height()))
+        target_w = max(24, int(macbook_raw.get_width() * scale))
+        target_h = max(24, int(macbook_raw.get_height() * scale))
+        macbook_scaled = pygame.transform.smoothscale(macbook_raw, (target_w, target_h))
+        items.append({
+            "kind": "image",
+            "surface": macbook_scaled,
+            "caption": "HAN laptop :)",
+            "subcaption": "assets/macbook.png",
+            "height": target_h + 74,
+        })
+    except Exception:
+        pass
     add_spacer(18)
 
     add_text("Enemies & Visual Assets", 36, (255, 220, 86), bold=True, spacing=58)
@@ -768,14 +809,18 @@ def build_credits_items():
 
 def start_credits_mode():
     global credits_active, credits_finished, credits_started_ms
-    global credits_items, credits_content_height, credits_scroll_speed_px_per_ms, credits_starfield
+    global credits_items, credits_content_height, credits_scroll_speed_px_per_ms
+    global credits_total_duration_ms, credits_starfield, pending_credits_after_victory
     credits_items = build_credits_items()
     credits_content_height = sum(item.get("height", 0) for item in credits_items)
     travel_px = (height + CREDITS_BOTTOM_MARGIN) + (credits_content_height + CREDITS_TOP_MARGIN)
-    credits_scroll_speed_px_per_ms = travel_px / max(1, CREDITS_DURATION_MS)
+    base_speed = travel_px / max(1, CREDITS_DURATION_MS)
+    credits_scroll_speed_px_per_ms = max(0.0001, base_speed * CREDITS_SCROLL_SPEED_FACTOR)
+    credits_total_duration_ms = int(travel_px / max(0.0001, credits_scroll_speed_px_per_ms))
     credits_started_ms = millis()
     credits_active = True
     credits_finished = False
+    pending_credits_after_victory = False
     shared.show_info = False
     stop_intro_speech()
     credits_starfield = [
@@ -810,12 +855,12 @@ def draw_credits_screen():
         return
 
     elapsed = max(0, now - credits_started_ms)
-    if elapsed >= CREDITS_DURATION_MS:
-        elapsed = CREDITS_DURATION_MS
+    elapsed_for_scroll = min(elapsed, credits_total_duration_ms)
+    if elapsed >= credits_total_duration_ms:
         credits_finished = True
 
     start_y = height + CREDITS_BOTTOM_MARGIN
-    scroll_offset = start_y - (elapsed * credits_scroll_speed_px_per_ms)
+    scroll_offset = start_y - (elapsed_for_scroll * credits_scroll_speed_px_per_ms)
 
     surface = pygame.display.get_surface()
     if surface is None:
@@ -871,6 +916,9 @@ def draw_credits_screen():
             sx = int(center_x - (subcaption.get_width() / 2))
             sy = cy + 18
             surface.blit(subcaption, (sx, sy))
+
+    if cursor_y < -CREDITS_FINISH_PAD_PX:
+        credits_finished = True
 
     fill(255, 220, 84)
     text_size(20)
@@ -949,7 +997,7 @@ def setup():
     global JUMP_SOUND, ROADRUNNER_JUMP_SOUND, CRASH_SOUND, HISS_SOUND
     global SPLASH_SOUND, FIRE_PLAYER_SOUND, FIRE_ENEMY_SOUND
     global BOSS_EXPLOSION_SOUND, COIN_SOUND, MINI_BOSS_VICTORY_SOUND, INTRO_SPEECH_SOUND
-    size(800, 500)
+    size(BASE_GAME_WIDTH, BASE_GAME_HEIGHT)
     frame_rate(60)
     title("Dino Game")
     reset_game(show_splash=True)
@@ -1546,6 +1594,27 @@ def draw_explosion_effects():
     explosion_effects[:] = alive_effects
 
 
+def update_mini_boss_defeat_sequences():
+    if not mini_boss_defeat_sequences:
+        return
+    now = millis()
+    active_sequences = []
+    for sequence in mini_boss_defeat_sequences:
+        snapshot = sequence.get("snapshot")
+        next_blast_ms = sequence.get("next_blast_ms", 0)
+        until_ms = sequence.get("until_ms", 0)
+
+        while snapshot is not None and now >= next_blast_ms and now <= until_ms:
+            burst_count = int(random(3, 7))
+            spawn_final_boss_explosion_burst(snapshot, count=burst_count)
+            next_blast_ms += MINI_BOSS_BLAST_INTERVAL_MS
+
+        sequence["next_blast_ms"] = next_blast_ms
+        if now <= until_ms:
+            active_sequences.append(sequence)
+    mini_boss_defeat_sequences[:] = active_sequences
+
+
 def fire_player_weapon():
     global player_shot_cooldown_until_ms
     if boss_state is None or game_over or game_paused or shared.show_info:
@@ -1603,9 +1672,60 @@ def fire_player_weapon():
 
 
 def get_boss_hitbox(boss):
+    def hitbox_from_sprite(surface, draw_x, draw_y, draw_w, draw_h, pad_x=0, pad_y=0):
+        if surface is None:
+            return (draw_x, draw_y, draw_w, draw_h)
+        bounds = surface.get_bounding_rect(min_alpha=8)
+        if bounds.width <= 0 or bounds.height <= 0:
+            return (draw_x, draw_y, draw_w, draw_h)
+
+        sx = draw_x + (draw_w * (bounds.x / max(1.0, float(surface.get_width()))))
+        sy = draw_y + (draw_h * (bounds.y / max(1.0, float(surface.get_height()))))
+        sw = draw_w * (bounds.width / max(1.0, float(surface.get_width())))
+        sh = draw_h * (bounds.height / max(1.0, float(surface.get_height())))
+        return (
+            sx + pad_x,
+            sy + pad_y,
+            max(8.0, sw - (pad_x * 2)),
+            max(8.0, sh - (pad_y * 2)),
+        )
+
+    if boss["type"] == "bird_miniboss":
+        return hitbox_from_sprite(BIRD_RIGHT_IMG, boss["x"], boss["y"], boss["w"], boss["h"], pad_x=14, pad_y=10)
+
     if boss["type"] == "cactus_miniboss":
-        return (boss["x"] + 10, boss["y"] + 8, boss["w"] - 20, boss["h"] - 8)
-    return (boss["x"] + 10, boss["y"] + 6, boss["w"] - 20, boss["h"] - 12)
+        return (boss["x"] + 16, boss["y"] + 16, boss["w"] - 34, boss["h"] - 26)
+
+    if boss.get("form") == "ReuzenDino":
+        draw_y = boss["y"]
+        draw_h = boss["h"]
+        if boss.get("is_crouching", False) and not boss.get("jumping", False):
+            draw_h = int(boss["h"] * 0.72)
+            draw_y = boss["y"] + (boss["h"] - draw_h)
+        return hitbox_from_sprite(GIANT_DINO_RIGHT_IMG, boss["x"], draw_y, boss["w"], draw_h, pad_x=12, pad_y=11)
+
+    if boss.get("form") == "ReuzenCowboy":
+        if boss.get("is_crouching", False):
+            crouch_h = int(boss["h"] * 0.62)
+            crouch_y = boss["y"] + (boss["h"] - crouch_h)
+            return hitbox_from_sprite(
+                GIANT_COWBOY_DUCK_RIGHT_IMG,
+                boss["x"],
+                crouch_y,
+                boss["w"],
+                crouch_h,
+                pad_x=11,
+                pad_y=9,
+            )
+        return hitbox_from_sprite(GIANT_COWBOY_RIGHT_IMG, boss["x"], boss["y"], boss["w"], boss["h"], pad_x=12, pad_y=11)
+
+    # ReuzenCoyote (shape-based render): keep manual tuned hitbox.
+    draw_y = boss["y"]
+    draw_h = boss["h"]
+    if boss.get("is_crouching", False) and not boss.get("jumping", False):
+        draw_h = int(boss["h"] * 0.74)
+        draw_y = boss["y"] + (boss["h"] - draw_h)
+    return (boss["x"] + 26, draw_y + 48, boss["w"] - 72, draw_h - 112)
 
 
 def get_cactus_branch_rects(boss):
@@ -1724,6 +1844,11 @@ def spawn_boss_for_level(level):
         "enemy_weapon_kind": profile["kind"],
         "is_crouching": False,
         "crouch_until_ms": 0,
+        "ground_y": spawn_y,
+        "jumping": False,
+        "jump_vy": 0.0,
+        "next_jump_ms": now + int(random(FINAL_BOSS_JUMP_GAP_MIN_MS, FINAL_BOSS_JUMP_GAP_MAX_MS)),
+        "next_duck_ms": now + int(random(FINAL_BOSS_DUCK_GAP_MIN_MS, FINAL_BOSS_DUCK_GAP_MAX_MS)),
     }
 
 
@@ -1831,6 +1956,7 @@ def draw_boss_entity(boss):
     y = int(boss["y"])
     w = int(boss["w"])
     h = int(boss["h"])
+    crouching = boss.get("is_crouching", False) and not boss.get("jumping", False)
 
     if boss["type"] == "bird_miniboss":
         image(BIRD_RIGHT_IMG, x, y, w, h)
@@ -1891,10 +2017,15 @@ def draw_boss_entity(boss):
 
     # Final boss
     if boss["form"] == "ReuzenDino":
-        image(GIANT_DINO_RIGHT_IMG, x, y, w, h)
+        if crouching:
+            crouch_h = int(h * 0.72)
+            crouch_y = y + (h - crouch_h)
+            image(GIANT_DINO_RIGHT_IMG, x, crouch_y, w, crouch_h)
+        else:
+            image(GIANT_DINO_RIGHT_IMG, x, y, w, h)
         return
     if boss["form"] == "ReuzenCowboy":
-        if boss.get("is_crouching", False):
+        if crouching:
             crouch_h = int(h * 0.62)
             crouch_y = y + (h - crouch_h)
             image(GIANT_COWBOY_DUCK_RIGHT_IMG, x, crouch_y, w, crouch_h)
@@ -1903,6 +2034,10 @@ def draw_boss_entity(boss):
         return
 
     # ReuzenCoyote without dedicated sprite: stylized silhouette with mood phases.
+    if crouching:
+        crouch_h = int(h * 0.74)
+        y = y + (h - crouch_h)
+        h = crouch_h
     phase = boss.get("phase", "laugh")
     fill(124, 84, 51)
     rect(x + 24, y + 78, w - 54, h - 120)
@@ -1969,6 +2104,8 @@ def finish_boss_if_defeated(boss):
     global boss_state, score, weapon_powerup_ready, weapon_powerup_level, game_completed
     global player_x, boss_left_pressed, boss_right_pressed
     global final_boss_snapshot, final_boss_defeat_until_ms, final_boss_next_blast_ms
+    global pending_credits_after_victory
+    global mini_boss_defeat_sequences
     if boss["hits_taken"] < boss["hits_required"]:
         return
     if boss["type"] in ("bird_miniboss", "cactus_miniboss"):
@@ -1984,18 +2121,24 @@ def finish_boss_if_defeated(boss):
     boss_snapshot = dict(boss)
     boss_snapshot["enemy_projectiles"] = []
     boss_snapshot["pit_traps"] = []
-    burst_count = FINAL_BOSS_DEFEAT_BURST_COUNT if boss["level"] < 10 else (FINAL_BOSS_DEFEAT_BURST_COUNT + 3)
+    now = millis()
+    burst_count = MINI_BOSS_DEFEAT_BURST_COUNT if boss["level"] < 10 else (FINAL_BOSS_DEFEAT_BURST_COUNT + 3)
     spawn_final_boss_explosion_burst(boss_snapshot, count=burst_count)
     play_sfx(BOSS_EXPLOSION_SOUND)
     score += BOSS_REWARD_POINTS.get(boss["level"], 0)
     update_level_from_score()
+    if boss["level"] < 10:
+        mini_boss_defeat_sequences.append({
+            "snapshot": boss_snapshot,
+            "until_ms": now + MINI_BOSS_DEFEAT_DURATION_MS,
+            "next_blast_ms": now + MINI_BOSS_BLAST_INTERVAL_MS,
+        })
     if boss["level"] >= 10:
-        now = millis()
         final_boss_snapshot = boss_snapshot
         final_boss_defeat_until_ms = now + FINAL_BOSS_DEFEAT_DURATION_MS
         final_boss_next_blast_ms = now
         game_completed = True
-        start_credits_mode()
+        pending_credits_after_victory = True
         return
     spawn_obstacle()
 
@@ -2258,6 +2401,37 @@ def spawn_boss_attack_if_needed(boss):
     play_sfx(FIRE_ENEMY_SOUND)
 
 
+def update_final_boss_movement(boss, now):
+    if boss.get("form") == "ReuzenCoyote":
+        boss["x"] += boss.get("vx", 0.0)
+        if boss["x"] <= boss["min_x"] or boss["x"] >= boss["max_x"]:
+            boss["vx"] *= -1
+        update_coyote_phase_state(boss)
+        update_coyote_pits(boss)
+
+    if boss.get("jumping", False):
+        boss["jump_vy"] = boss.get("jump_vy", 0.0) + FINAL_BOSS_JUMP_GRAVITY
+        boss["y"] += boss["jump_vy"]
+        if boss["y"] >= boss.get("ground_y", boss["y"]):
+            boss["y"] = boss.get("ground_y", boss["y"])
+            boss["jumping"] = False
+            boss["jump_vy"] = 0.0
+            boss["next_jump_ms"] = now + int(random(FINAL_BOSS_JUMP_GAP_MIN_MS, FINAL_BOSS_JUMP_GAP_MAX_MS))
+    elif now >= boss.get("next_jump_ms", 0) and not boss.get("is_crouching", False):
+        boss["jumping"] = True
+        boss["jump_vy"] = float(random(FINAL_BOSS_JUMP_VELOCITY_MIN, FINAL_BOSS_JUMP_VELOCITY_MAX))
+        boss["next_jump_ms"] = now + int(random(FINAL_BOSS_JUMP_GAP_MIN_MS, FINAL_BOSS_JUMP_GAP_MAX_MS))
+
+    if boss.get("is_crouching", False):
+        if now >= boss.get("crouch_until_ms", 0):
+            boss["is_crouching"] = False
+            boss["next_duck_ms"] = now + int(random(FINAL_BOSS_DUCK_GAP_MIN_MS, FINAL_BOSS_DUCK_GAP_MAX_MS))
+    elif (not boss.get("jumping", False)) and now >= boss.get("next_duck_ms", 0):
+        boss["is_crouching"] = True
+        boss["crouch_until_ms"] = now + int(random(FINAL_BOSS_DUCK_MIN_MS, FINAL_BOSS_DUCK_MAX_MS))
+        boss["next_duck_ms"] = now + int(random(FINAL_BOSS_DUCK_GAP_MIN_MS, FINAL_BOSS_DUCK_GAP_MAX_MS))
+
+
 def update_and_draw_boss_mode(theme, update_world=True):
     global dino_y, velocity_y, on_ground, is_fast_falling, game_over, player_x
     boss = boss_state
@@ -2265,12 +2439,7 @@ def update_and_draw_boss_mode(theme, update_world=True):
         return
 
     if update_world:
-        if boss.get("form") == "ReuzenCoyote":
-            update_coyote_phase_state(boss)
-            update_coyote_pits(boss)
-        if boss.get("form") == "ReuzenCowboy" and boss.get("is_crouching", False):
-            if millis() >= boss.get("crouch_until_ms", 0):
-                boss["is_crouching"] = False
+        now = millis()
 
         move_dir = int(boss_right_pressed) - int(boss_left_pressed)
         if move_dir != 0:
@@ -2293,17 +2462,8 @@ def update_and_draw_boss_mode(theme, update_world=True):
                 boss["vx"] *= -1
             if boss["y"] <= boss["min_y"] or boss["y"] >= boss["max_y"]:
                 boss["vy"] *= -1
-        elif boss.get("form") == "ReuzenCoyote":
-            boss["x"] += boss.get("vx", 0.0)
-            boss["y"] += boss["vy"]
-            if boss["x"] <= boss["min_x"] or boss["x"] >= boss["max_x"]:
-                boss["vx"] *= -1
-            if boss["y"] <= boss["min_y"] or boss["y"] >= boss["max_y"]:
-                boss["vy"] *= -1
         else:
-            boss["y"] += boss["vy"]
-            if boss["y"] <= boss["min_y"] or boss["y"] >= boss["max_y"]:
-                boss["vy"] *= -1
+            update_final_boss_movement(boss, now)
 
         spawn_boss_attack_if_needed(boss)
         update_enemy_projectiles(boss)
@@ -2771,6 +2931,7 @@ def draw():
     global weapon_powerup_warning_until_ms, water_warning_until_ms
     global weapon_powerup_ready, weapon_powerup_level, pending_weapon_powerup_level
     global final_boss_snapshot, final_boss_defeat_until_ms, final_boss_next_blast_ms
+    global pending_credits_after_victory
     theme = get_theme()
     update_background_music()
     if score > high_score:
@@ -2787,6 +2948,7 @@ def draw():
     stroke_weight(2)
     line(0, GROUND_Y, width, GROUND_Y)
     no_stroke()
+    update_mini_boss_defeat_sequences()
 
     if shared.show_info:
         shared.draw_info_screen(INFO_TEXT)
@@ -2832,10 +2994,10 @@ def draw():
         return
 
     if game_completed:
+        now = millis()
         draw_main_character()
         if final_boss_snapshot is not None:
             draw_boss_entity(final_boss_snapshot)
-            now = millis()
             if now <= final_boss_defeat_until_ms and now >= final_boss_next_blast_ms:
                 burst_count = int(random(4, 8))
                 spawn_final_boss_explosion_burst(final_boss_snapshot, count=burst_count)
@@ -2843,6 +3005,9 @@ def draw():
             if now > final_boss_defeat_until_ms:
                 final_boss_snapshot = None
         draw_explosion_effects()
+        if pending_credits_after_victory and final_boss_snapshot is None and not explosion_effects:
+            start_credits_mode()
+            return
         draw_transparent_blink_text("Congratulations!", 18, base_size=92, base_color=(224, 44, 44))
         fill(30, 150, 60)
         text_size(44)
@@ -3105,7 +3270,7 @@ def key_pressed():
     global duck_jump_expires_ms, is_fast_falling, high_jump_powerup_charges, game_completed
     global fly_left_pressed, fly_right_pressed, fly_up_pressed, fly_down_pressed
     global boss_left_pressed, boss_right_pressed
-    global quit_confirm_active
+    global quit_confirm_active, is_fullscreen
     pressed_key = key.lower() if isinstance(key, str) else key
     if credits_active and pressed_key == "i":
         return
@@ -3128,6 +3293,14 @@ def key_pressed():
             stop_intro_speech()
         return
     if pressed_key == "m":
+        return
+    if pressed_key == "f":
+        if is_fullscreen:
+            size(BASE_GAME_WIDTH, BASE_GAME_HEIGHT)
+            is_fullscreen = False
+        else:
+            full_screen()
+            is_fullscreen = True
         return
 
     if quit_confirm_active:
