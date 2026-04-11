@@ -6,7 +6,6 @@ import pygame
 import shared
 import math
 import os
-import copy
 
 # Dino game assets
 DINO_IMG = load_image("assets/dino-transparant.png")
@@ -19,7 +18,8 @@ COWBOY_DUCK_IMG = load_image("assets/pc/cowboy-duck-transparant.png")
 ROADRUNNER_IMG = load_image("assets/roadrunner-transparant.png")
 ROADRUNNER_OOPS_IMG = load_image("assets/roadrunner-oops-transparant.png")
 ROADRUNNER_DUCK_IMG = load_image("assets/roadrunner-duck-transparant.png")
-AIRPLANE_IMG = load_image("assets/airplane-transparant.png")
+AIRPLANE_IMG = load_image("assets/plane-still.png")
+PLANE_SPRITE_SHEET = load_image("assets/plane-sprite.png") if os.path.exists("assets/plane-sprite.png") else None
 BIRD_IMG = load_image("assets/obstacles/bird-transparant.png")
 SNAKE_IMG = load_image("assets/snake-transparant.png")
 EXPLOSION_IMG = load_image("assets/explosion.png")
@@ -31,6 +31,51 @@ CACTUS_IMGS = [
     load_image("assets/obstacles/cactus-transparant.png"),
     load_image("assets/obstacles/3Cacti-transparant.png")
 ]
+
+
+def extract_plane_sprite_rows(sheet, cols=3, rows=3):
+    if sheet is None:
+        return {}
+    sw, sh = sheet.get_width(), sheet.get_height()
+    row_frames = {}
+    for row in range(rows):
+        frames = []
+        y0 = int((row * sh) / rows)
+        y1 = int(((row + 1) * sh) / rows)
+        for col in range(cols):
+            x0 = int((col * sw) / cols)
+            x1 = int(((col + 1) * sw) / cols)
+            tile_w = max(1, x1 - x0)
+            tile_h = max(1, y1 - y0)
+            tile = sheet.subsurface((x0, y0, tile_w, tile_h)).copy()
+            bounds = tile.get_bounding_rect(min_alpha=8)
+            if bounds.width <= 0 or bounds.height <= 0:
+                continue
+            # Crop out transparent margins so scaling does not include huge empty area.
+            trimmed = tile.subsurface(bounds).copy()
+            frames.append(trimmed)
+        if frames:
+            row_frames[row] = frames
+    return row_frames
+
+
+PLANE_SPRITE_ROWS = extract_plane_sprite_rows(PLANE_SPRITE_SHEET, cols=3, rows=3)
+# Current sheet layout (top->bottom): cowboy, roadrunner, dino.
+PLANE_SPRITE_ROW_BY_CHARACTER = {
+    "cowboy": 0,
+    "roadrunner": 1,
+    "dino": 2,
+}
+
+
+def get_plane_frames_for_character(character_key):
+    if not PLANE_SPRITE_ROWS:
+        return []
+    preferred_row = PLANE_SPRITE_ROW_BY_CHARACTER.get(character_key, 0)
+    if preferred_row in PLANE_SPRITE_ROWS:
+        return PLANE_SPRITE_ROWS[preferred_row]
+    first_row = sorted(PLANE_SPRITE_ROWS.keys())[0]
+    return PLANE_SPRITE_ROWS[first_row]
 
 # Richtingsvarianten (naar rechts kijken) voor specifieke enemies/bosses.
 BIRD_RIGHT_IMG = pygame.transform.flip(BIRD_IMG, True, False)
@@ -55,7 +100,6 @@ HIGH_JUMP_POWERUP_MAX_CHARGES = 3
 HIGH_JUMP_WINDOW_MS = 500
 FAST_FALL_EXTRA_GRAVITY = 2.0
 BASE_SCROLL_SPEED = 6.0
-LEVEL_SCORE_STEP = 10
 LEVEL_SPEED_FACTOR = 1.1
 LEVEL_BLINK_DURATION_MS = 1200
 LEVEL_BLINK_INTERVAL_MS = 120
@@ -135,6 +179,16 @@ CREDITS_TOP_MARGIN = 30
 CREDITS_BOTTOM_MARGIN = 110
 SCREENSHOT_NOTICE_MS = 2200
 GROUND_Y = 460
+
+# Progression per level: first chapter = 6 points, then +1 point each chapter.
+LEVEL_POINT_REQUIREMENTS = [6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+LEVEL_TOTAL_THRESHOLDS = []
+_level_total = 0
+for _points_needed in LEVEL_POINT_REQUIREMENTS:
+    _level_total += _points_needed
+    LEVEL_TOTAL_THRESHOLDS.append(_level_total)
+LEVEL_START_SCORES = [0] + LEVEL_TOTAL_THRESHOLDS[:-1]
+FINAL_LEVEL_TOTAL_SCORE = LEVEL_TOTAL_THRESHOLDS[-1]
 
 LEVEL_NAMES = {
     1: "Enter Cactus Land...",
@@ -255,6 +309,14 @@ OBSTACLE_CONFIG = {
         "hitbox_insets": (8, 8, 6, 4),
         "points": 0,
     },
+    "pipe_pair": {
+        "img": None,
+        "w": FLIGHT_PIPE_WIDTH,
+        "h": GROUND_Y,
+        "y": 0,
+        "hitbox_insets": (0, 0, 0, 0),
+        "points": 3,
+    },
 }
 
 INFO_TEXT = [
@@ -356,7 +418,7 @@ duck_jump_expires_ms = 0
 is_fast_falling = False
 current_level = 1
 scroll_speed = BASE_SCROLL_SPEED
-next_level_score = LEVEL_SCORE_STEP
+next_level_score = LEVEL_TOTAL_THRESHOLDS[0]
 level_blink_until_ms = 0
 high_jump_warning_until_ms = 0
 high_jump_powerup_warning_until_ms = 0
@@ -373,8 +435,11 @@ coin_spawn_y = 360
 flight_mode = False
 flight_plane_x = 0.0
 flight_plane_y = 0.0
+flight_mode_entry_level = 1
+flight_mode_exit_level = 2
 flight_pipe_spawn_due_ms = 0
 flight_pipes = []
+ground_pipe_gap_top = 220
 fly_left_pressed = False
 fly_right_pressed = False
 fly_up_pressed = False
@@ -427,7 +492,8 @@ def reset_game(show_splash=False):
     global high_jump_powerup_charges
     global pending_weapon_powerup_level, weapon_powerup_ready, weapon_powerup_level
     global coin_spawn_y
-    global flight_mode, flight_plane_x, flight_plane_y, flight_pipe_spawn_due_ms, flight_pipes
+    global flight_mode, flight_plane_x, flight_plane_y, flight_mode_entry_level, flight_mode_exit_level
+    global flight_pipe_spawn_due_ms, flight_pipes, ground_pipe_gap_top
     global fly_left_pressed, fly_right_pressed, fly_up_pressed, fly_down_pressed
     global boss_left_pressed, boss_right_pressed
     global snake_hiss_played_for_current
@@ -458,7 +524,7 @@ def reset_game(show_splash=False):
     is_fast_falling = False
     current_level = 1
     scroll_speed = BASE_SCROLL_SPEED
-    next_level_score = LEVEL_SCORE_STEP
+    next_level_score = LEVEL_TOTAL_THRESHOLDS[0]
     level_blink_until_ms = 0
     high_jump_warning_until_ms = 0
     high_jump_powerup_warning_until_ms = 0
@@ -475,8 +541,11 @@ def reset_game(show_splash=False):
     flight_mode = False
     flight_plane_x = 0.0
     flight_plane_y = 0.0
+    flight_mode_entry_level = 1
+    flight_mode_exit_level = 2
     flight_pipe_spawn_due_ms = 0
     flight_pipes = []
+    ground_pipe_gap_top = 220
     fly_left_pressed = False
     fly_right_pressed = False
     fly_up_pressed = False
@@ -806,9 +875,9 @@ def draw_credits_screen():
     fill(255, 220, 84)
     text_size(20)
     if credits_finished:
-        text("Credits complete. Press SPACE for menu", width // 2 - 178, height - 28)
+        text("Credits complete. Press Q for menu", width // 2 - 166, height - 28)
     else:
-        text("Press SPACE to skip credits", width // 2 - 126, height - 28)
+        text("Press Q to skip credits", width // 2 - 111, height - 28)
 
 def capture_screenshot():
     global screenshot_notice_until_ms, screenshot_notice_text
@@ -989,7 +1058,7 @@ def choose_obstacle_type():
     if pending_weapon_powerup_level > 0 and not weapon_powerup_ready:
         return "weapon_powerup"
 
-    if pending_airplane_spawn:
+    if pending_airplane_spawn and current_level in (5, 6) and int(random(0, 100)) < 22:
         return "airplane_pickup"
 
     if queued_obstacle_after_powerup is not None:
@@ -1023,16 +1092,14 @@ def choose_obstacle_type():
 
     else:
         roll = int(random(0, 100))
-        if current_level == 6:
-            # Vrij level-slot: water met leliebladen verschijnt hier als extra mechanic.
-            if roll < 18:
-                chosen = "water_lily"
-            elif roll < 45:
+        if current_level in (5, 6):
+            # Pipe chapters: pipes are normal obstacles, airplane is optional pickup.
+            if roll < 44:
+                chosen = "pipe_pair"
+            elif roll < 64:
                 chosen = "cactus_low"
-            elif roll < 62:
+            elif roll < 76:
                 chosen = "cactus_high"
-            elif roll < 72:
-                chosen = "cactus_tower"
             elif roll < 86:
                 chosen = "snake"
             else:
@@ -1069,6 +1136,7 @@ def spawn_obstacle(force_type=None):
     global weapon_powerup_warning_until_ms, water_warning_until_ms
     global airplane_warning_until_ms, pending_airplane_spawn
     global coin_spawn_y
+    global ground_pipe_gap_top
     global snake_hiss_played_for_current
     obstacle_type = force_type or choose_obstacle_type()
     obstacle_x = width + random(100, 300)
@@ -1077,6 +1145,9 @@ def spawn_obstacle(force_type=None):
     if obstacle_type == "airplane_pickup":
         pending_airplane_spawn = False
         airplane_warning_until_ms = millis() + AIRPLANE_WARNING_DURATION_MS
+    if obstacle_type == "pipe_pair":
+        # Ground pipe pair: gap tuned for normal jump/duck traversal.
+        ground_pipe_gap_top = int(random(168, 262))
     if obstacle_type == "weapon_powerup":
         weapon_powerup_warning_until_ms = millis() + WEAPON_POWERUP_NOTICE_MS
     if obstacle_type == "coin":
@@ -1102,23 +1173,62 @@ def spawn_flight_pipe():
 
 
 def start_flight_mode():
-    global flight_mode, flight_plane_x, flight_plane_y, flight_pipe_spawn_due_ms, flight_pipes
+    global flight_mode, flight_plane_x, flight_plane_y, flight_mode_entry_level, flight_mode_exit_level
+    global flight_pipe_spawn_due_ms, flight_pipes
     global fly_left_pressed, fly_right_pressed, fly_up_pressed, fly_down_pressed
-    global current_level, scroll_speed, next_level_score, level_blink_until_ms
     flight_mode = True
     flight_plane_x = 120.0
     flight_plane_y = float(GROUND_Y - 90)
+    flight_mode_entry_level = current_level
+    flight_mode_exit_level = 7
     flight_pipe_spawn_due_ms = millis() + 400
     flight_pipes = []
     fly_left_pressed = False
     fly_right_pressed = False
     fly_up_pressed = False
     fly_down_pressed = False
-    current_level = min(MAX_LEVEL, current_level + 1)
-    scroll_speed = BASE_SCROLL_SPEED * (LEVEL_SPEED_FACTOR ** (current_level - 1))
-    next_level_score = current_level * LEVEL_SCORE_STEP
-    level_blink_until_ms = millis() + LEVEL_BLINK_DURATION_MS
-    save_character_checkpoint(current_level)
+
+
+def end_flight_mode():
+    global flight_mode, flight_pipes, flight_pipe_spawn_due_ms
+    global fly_left_pressed, fly_right_pressed, fly_up_pressed, fly_down_pressed
+    global dino_y, velocity_y, on_ground, is_ducking, is_fast_falling
+    flight_mode = False
+    flight_pipes = []
+    flight_pipe_spawn_due_ms = 0
+    fly_left_pressed = False
+    fly_right_pressed = False
+    fly_up_pressed = False
+    fly_down_pressed = False
+    dino_y = DINO_Y
+    velocity_y = 0
+    on_ground = True
+    is_ducking = False
+    is_fast_falling = False
+    spawn_obstacle()
+
+
+def get_ground_pipe_rects(draw_x=None):
+    pipe_x = obstacle_x if draw_x is None else draw_x
+    gap_top = int(ground_pipe_gap_top)
+    top_rect = (pipe_x, 0, FLIGHT_PIPE_WIDTH, gap_top)
+    bottom_y = gap_top + FLIGHT_PIPE_GAP_H
+    bottom_rect = (
+        pipe_x,
+        bottom_y,
+        FLIGHT_PIPE_WIDTH,
+        max(0, GROUND_Y - bottom_y),
+    )
+    return top_rect, bottom_rect
+
+
+def draw_ground_pipe_pair(draw_x=None):
+    top_rect, bottom_rect = get_ground_pipe_rects(draw_x=draw_x)
+    tx, ty, tw, th = top_rect
+    bx, by, bw, bh = bottom_rect
+    fill(74, 160, 90)
+    rect(int(tx), int(ty), int(tw), int(th))
+    rect(int(bx), int(by), int(bw), int(bh))
 
 
 def is_snake_extended():
@@ -1141,6 +1251,10 @@ def get_obstacle_draw_rect():
         draw_w = cfg["extended_w"]
         # Uitklappen rondom midden, zodat de slang zichtbaar langer wordt dichtbij de speler.
         draw_x = obstacle_x - (draw_w - cfg["w"]) // 2
+    elif obstacle_type == "pipe_pair":
+        draw_y = 0
+        draw_w = FLIGHT_PIPE_WIDTH
+        draw_h = GROUND_Y
 
     return draw_x, draw_y, draw_w, draw_h
 
@@ -1183,6 +1297,24 @@ def get_current_character_key():
     return get_selected_character_key()
 
 
+def get_level_start_score(level):
+    idx = max(1, min(MAX_LEVEL, int(level))) - 1
+    return int(LEVEL_START_SCORES[idx])
+
+
+def get_level_total_score(level):
+    idx = max(1, min(MAX_LEVEL, int(level))) - 1
+    return int(LEVEL_TOTAL_THRESHOLDS[idx])
+
+
+def get_level_for_score(current_score):
+    score_value = max(0, int(current_score))
+    for idx, total_threshold in enumerate(LEVEL_TOTAL_THRESHOLDS, start=1):
+        if score_value < total_threshold:
+            return idx
+    return MAX_LEVEL
+
+
 def save_character_checkpoint(level=None, character_key=None):
     checkpoint_character_key = character_key or active_character_key
     checkpoint_level = current_level if level is None else level
@@ -1196,16 +1328,17 @@ def restore_character_checkpoint(character_key):
     global current_level, score, scroll_speed, next_level_score
     checkpoint_level = checkpoint_level_by_character.get(character_key, 1)
     current_level = checkpoint_level
-    score = max(0, (checkpoint_level - 1) * LEVEL_SCORE_STEP)
+    score = get_level_start_score(checkpoint_level)
     scroll_speed = BASE_SCROLL_SPEED * (LEVEL_SPEED_FACTOR ** (current_level - 1))
-    next_level_score = current_level * LEVEL_SCORE_STEP
+    next_level_score = get_level_total_score(current_level)
 
 
 def start_game_from_selection():
-    global active_character_key
+    global active_character_key, pending_airplane_spawn
     active_character_key = get_selected_character_key()
     reset_game(show_splash=False)
     restore_character_checkpoint(active_character_key)
+    pending_airplane_spawn = (current_level in (5, 6))
 
 
 def get_theme():
@@ -1214,15 +1347,17 @@ def get_theme():
 
 def update_level_from_score():
     global current_level, scroll_speed, next_level_score, level_blink_until_ms, pending_airplane_spawn
-    new_level = min(MAX_LEVEL, max(1, (score // LEVEL_SCORE_STEP) + 1))
+    new_level = get_level_for_score(score)
     if new_level > current_level:
         current_level = new_level
         scroll_speed = BASE_SCROLL_SPEED * (LEVEL_SPEED_FACTOR ** (current_level - 1))
-        next_level_score = current_level * LEVEL_SCORE_STEP
+        next_level_score = get_level_total_score(current_level)
         level_blink_until_ms = millis() + LEVEL_BLINK_DURATION_MS
         save_character_checkpoint(current_level)
-        if current_level >= 5 and not flight_mode:
+        if current_level in (5, 6) and not flight_mode:
             pending_airplane_spawn = True
+        elif current_level > 6:
+            pending_airplane_spawn = False
 
 
 def debug_step_level(level_delta):
@@ -1232,17 +1367,17 @@ def debug_step_level(level_delta):
     if target_level == old_level:
         return
 
-    # In debug mode, level and score move together in fixed 10-point steps.
-    score = max(0, score + (target_level - old_level) * LEVEL_SCORE_STEP)
+    # In debug mode, score snaps to the start score of the selected level.
+    score = get_level_start_score(target_level)
     current_level = target_level
     scroll_speed = BASE_SCROLL_SPEED * (LEVEL_SPEED_FACTOR ** (current_level - 1))
-    next_level_score = current_level * LEVEL_SCORE_STEP
+    next_level_score = get_level_total_score(current_level)
     level_blink_until_ms = millis() + LEVEL_BLINK_DURATION_MS
     save_character_checkpoint(current_level)
 
-    if old_level < 5 <= current_level and not flight_mode:
+    if current_level in (5, 6) and not flight_mode:
         pending_airplane_spawn = True
-    if current_level < 5:
+    else:
         pending_airplane_spawn = False
 
 
@@ -1281,6 +1416,26 @@ def iter_active_projectiles(pool):
 
 def get_projectile_rect(projectile):
     return (projectile["x"], projectile["y"], projectile["w"], projectile["h"])
+
+
+def get_rect_center(rect):
+    rx, ry, rw, rh = rect
+    return (rx + (rw / 2), ry + (rh / 2))
+
+
+def get_linear_aim_velocity(origin_x, origin_y, target_x, target_y, speed, min_vy=None, max_vy=None):
+    dx = target_x - origin_x
+    if abs(dx) < 1.0:
+        dx = -1.0 if speed < 0 else 1.0
+    direction = -1.0 if dx < 0 else 1.0
+    vx = abs(speed) * direction
+    travel_time = abs(dx) / max(0.1, abs(vx))
+    vy = (target_y - origin_y) / max(0.1, travel_time)
+    if min_vy is not None:
+        vy = max(min_vy, vy)
+    if max_vy is not None:
+        vy = min(max_vy, vy)
+    return vx, vy
 
 
 def draw_projectile(projectile):
@@ -1826,17 +1981,19 @@ def finish_boss_if_defeated(boss):
     boss_left_pressed = False
     boss_right_pressed = False
     reset_projectile_pool(player_projectiles)
+    boss_snapshot = dict(boss)
+    boss_snapshot["enemy_projectiles"] = []
+    boss_snapshot["pit_traps"] = []
+    burst_count = FINAL_BOSS_DEFEAT_BURST_COUNT if boss["level"] < 10 else (FINAL_BOSS_DEFEAT_BURST_COUNT + 3)
+    spawn_final_boss_explosion_burst(boss_snapshot, count=burst_count)
+    play_sfx(BOSS_EXPLOSION_SOUND)
     score += BOSS_REWARD_POINTS.get(boss["level"], 0)
     update_level_from_score()
     if boss["level"] >= 10:
         now = millis()
-        final_boss_snapshot = dict(boss)
-        final_boss_snapshot["enemy_projectiles"] = []
-        final_boss_snapshot["pit_traps"] = []
+        final_boss_snapshot = boss_snapshot
         final_boss_defeat_until_ms = now + FINAL_BOSS_DEFEAT_DURATION_MS
         final_boss_next_blast_ms = now
-        spawn_final_boss_explosion_burst(final_boss_snapshot, count=FINAL_BOSS_DEFEAT_BURST_COUNT + 3)
-        play_sfx(BOSS_EXPLOSION_SOUND)
         game_completed = True
         start_credits_mode()
         return
@@ -1879,6 +2036,7 @@ def update_enemy_projectiles(boss):
             continue
 
         projectile["x"] += projectile["vx"]
+        projectile["y"] += projectile.get("vy", 0.0)
         projectile_rect = get_projectile_rect(projectile)
         if rects_overlap(projectile_rect, player_hitbox):
             projectile["active"] = False
@@ -1886,6 +2044,9 @@ def update_enemy_projectiles(boss):
             play_sfx(CRASH_SOUND)
             return
         if projectile["x"] + projectile["w"] < -40:
+            projectile["active"] = False
+            continue
+        if projectile["y"] + projectile["h"] < -50 or projectile["y"] > height + 50:
             projectile["active"] = False
 
 
@@ -1933,18 +2094,33 @@ def spawn_boss_attack_if_needed(boss):
     if now - boss["last_attack_ms"] < boss["attack_interval_ms"]:
         return
     boss["last_attack_ms"] = now
+    player_center_x, player_center_y = get_rect_center(get_dino_hitbox())
 
     projectile = acquire_projectile_slot(boss["enemy_projectiles"])
     if projectile is None:
         return
 
     if boss["type"] == "bird_miniboss":
+        proj_w = 30
+        proj_h = 14
+        origin_x = boss["x"] - 26
+        origin_y = boss["y"] + (boss["h"] * 0.45)
+        vx, vy = get_linear_aim_velocity(
+            origin_x + (proj_w / 2),
+            origin_y + (proj_h / 2),
+            player_center_x,
+            player_center_y,
+            10.0,
+            min_vy=-4.0,
+            max_vy=4.0,
+        )
         projectile.update({
-            "x": boss["x"] - 26,
-            "y": DINO_Y + 14 + int(random(-5, 6)),
-            "w": 30,
-            "h": 14,
-            "vx": -10.0,
+            "x": origin_x,
+            "y": origin_y,
+            "w": proj_w,
+            "h": proj_h,
+            "vx": vx,
+            "vy": vy,
             "kind": "wind",
             "color": (80, 80, 80),
             "enemy": True,
@@ -1960,12 +2136,26 @@ def spawn_boss_attack_if_needed(boss):
             return
         pick = living_idxs[int(random(0, len(living_idxs)))]
         bx, by, bw, bh = branch_rects[pick]
+        proj_w = 22
+        proj_h = 8
+        origin_x = bx - 10
+        origin_y = by + (bh // 2) - 4
+        vx, vy = get_linear_aim_velocity(
+            origin_x + (proj_w / 2),
+            origin_y + (proj_h / 2),
+            player_center_x,
+            player_center_y,
+            8.8,
+            min_vy=-4.6,
+            max_vy=4.6,
+        )
         projectile.update({
-            "x": bx - 10,
-            "y": by + (bh // 2) - 4,
-            "w": 22,
-            "h": 8,
-            "vx": -8.8,
+            "x": origin_x,
+            "y": origin_y,
+            "w": proj_w,
+            "h": proj_h,
+            "vx": vx,
+            "vy": vy,
             "kind": "stem",
             "color": (40, 130, 40),
             "enemy": True,
@@ -1974,13 +2164,24 @@ def spawn_boss_attack_if_needed(boss):
         return
 
     if boss.get("form") == "ReuzenCoyote":
+        proj_w = 14
+        proj_h = 28
+        origin_x = boss["x"] - 6
+        origin_y = boss["y"] + 112
+        travel_px = max(28.0, origin_x - player_center_x)
+        travel_time = travel_px / max(0.1, COYOTE_TNT_THROW_SPEED)
+        raw_vy = (
+            (player_center_y - origin_y)
+            - (0.5 * COYOTE_TNT_THROW_GRAVITY * (travel_time ** 2))
+        ) / max(0.1, travel_time)
+        throw_vy = max(-12.0, min(-3.6, raw_vy))
         projectile.update({
-            "x": boss["x"] - 6,
-            "y": boss["y"] + 112,
-            "w": 14,
-            "h": 28,
+            "x": origin_x,
+            "y": origin_y,
+            "w": proj_w,
+            "h": proj_h,
             "vx": -COYOTE_TNT_THROW_SPEED,
-            "vy": float(random(-7.8, -5.8)),
+            "vy": throw_vy,
             "kind": "enemy_tnt",
             "color": (210, 35, 30),
             "enemy": True,
@@ -2007,12 +2208,24 @@ def spawn_boss_attack_if_needed(boss):
             boss["crouch_until_ms"] = 0
             muzzle_y = boss["y"] + boss["h"] - GIANT_COWBOY_SHOT_STAND_OFFSET
 
+        origin_x = boss["x"] - 14
+        origin_y = muzzle_y - (h // 2)
+        vx, vy = get_linear_aim_velocity(
+            origin_x + (w / 2),
+            origin_y + (h / 2),
+            player_center_x,
+            player_center_y,
+            speed,
+            min_vy=-2.2,
+            max_vy=2.2,
+        )
         projectile.update({
-            "x": boss["x"] - 14,
-            "y": muzzle_y - (h // 2),
+            "x": origin_x,
+            "y": origin_y,
             "w": w,
             "h": h,
-            "vx": -speed,
+            "vx": vx,
+            "vy": vy,
             "kind": enemy_kind,
             "color": color,
             "enemy": True,
@@ -2020,12 +2233,24 @@ def spawn_boss_attack_if_needed(boss):
         play_sfx(FIRE_ENEMY_SOUND)
         return
 
+    origin_x = boss["x"] - 14
+    origin_y = boss["y"] + (boss["h"] // 2) + int(random(-18, 18))
+    vx, vy = get_linear_aim_velocity(
+        origin_x + (w / 2),
+        origin_y + (h / 2),
+        player_center_x,
+        player_center_y,
+        speed,
+        min_vy=-4.2,
+        max_vy=4.2,
+    )
     projectile.update({
-        "x": boss["x"] - 14,
-        "y": boss["y"] + (boss["h"] // 2) + int(random(-26, 26)),
+        "x": origin_x,
+        "y": origin_y,
         "w": w,
         "h": h,
-        "vx": -speed,
+        "vx": vx,
+        "vy": vy,
         "kind": enemy_kind,
         "color": color,
         "enemy": True,
@@ -2290,6 +2515,11 @@ def update_and_draw_flight_mode(theme, update_world=True):
                 pipe["passed"] = True
                 score += FLIGHT_PIPE_POINTS
                 update_level_from_score()
+
+        # Flight section ends when the next level is reached.
+        if current_level >= flight_mode_exit_level:
+            end_flight_mode()
+            return
 
         flight_pipes[:] = [p for p in flight_pipes if p["x"] + FLIGHT_PIPE_WIDTH > -20]
 
@@ -2619,13 +2849,18 @@ def draw():
         text("You Win!", width // 2 - 98, height // 2 - 12)
         fill(*theme["text"])
         text_size(22)
-        text("Final boss defeated. Press SPACE for start screen", width // 2 - 230, height // 2 + 26)
+        text("Final boss defeated. Press Q for start screen", width // 2 - 208, height // 2 + 26)
         draw_hud(theme, force_visible=True)
         draw_debug_overlay()
         return
 
     if flight_mode:
         update_and_draw_flight_mode(theme, update_world=(not game_paused and not game_over))
+        if not flight_mode:
+            draw_main_character()
+            draw_hud(theme)
+            draw_debug_overlay()
+            return
         draw_main_character()
         if game_paused and not game_over:
             fill(40)
@@ -2690,6 +2925,8 @@ def draw():
         draw_coin_pickup(obstacle_draw_x, obstacle_draw_y, obstacle_draw_w, obstacle_draw_h)
     elif obstacle_type == "water_lily":
         draw_water_lily_obstacle(obstacle_draw_x, obstacle_draw_y, obstacle_draw_w, obstacle_draw_h)
+    elif obstacle_type == "pipe_pair":
+        draw_ground_pipe_pair(obstacle_draw_x)
     else:
         image(obstacle_cfg["img"], obstacle_draw_x, obstacle_draw_y, obstacle_draw_w, obstacle_draw_h)
     draw_main_character()
@@ -2814,6 +3051,12 @@ def draw():
                 game_over = True
                 is_ducking = False
                 play_sfx(SPLASH_SOUND)
+        elif obstacle_type == "pipe_pair":
+            top_pipe, bottom_pipe = get_ground_pipe_rects()
+            if rects_overlap(dino_hitbox, top_pipe) or rects_overlap(dino_hitbox, bottom_pipe):
+                game_over = True
+                is_ducking = False
+                play_sfx(CRASH_SOUND)
         elif rects_overlap(dino_hitbox, obstacle_hitbox):
             game_over = True
             is_ducking = False
@@ -2823,8 +3066,15 @@ def draw():
         no_fill()
         stroke(255, 0, 0)
         stroke_weight(2)
-        rect(*get_obstacle_hitbox())
+        if obstacle_type == "pipe_pair":
+            top_pipe, bottom_pipe = get_ground_pipe_rects()
+            rect(*top_pipe)
+            rect(*bottom_pipe)
+        else:
+            rect(*get_obstacle_hitbox())
         no_stroke()
+
+    draw_explosion_effects()
 
     if game_over:
         fill(255, 0, 0)
@@ -2943,10 +3193,7 @@ def key_pressed():
         return
 
     if game_completed and key == " ":
-        save_character_checkpoint()
-        if active_character_key in CHARACTER_ORDER:
-            selected_character_idx = CHARACTER_ORDER.index(active_character_key)
-        reset_game(show_splash=True)
+        # Avoid accidental skip when player is still hammering shoot during boss defeat.
         return
 
     if not game_started and key_code == pygame.K_LEFT:
@@ -3142,7 +3389,13 @@ def weapon_overlay_decorator(draw_fn):
 def draw_main_character():
     if flight_mode:
         plane_x, plane_y, plane_w, plane_h = get_flight_plane_rect()
-        image(AIRPLANE_IMG, plane_x, plane_y, plane_w, plane_h)
+        plane_frames = get_plane_frames_for_character(get_current_character_key())
+        if plane_frames:
+            frame_idx = int(millis() / 120) % len(plane_frames)
+            plane_frame = plane_frames[frame_idx]
+            image(plane_frame, plane_x, plane_y, plane_w, plane_h)
+        else:
+            image(AIRPLANE_IMG, plane_x, plane_y, plane_w, plane_h)
         if isDebugMode:
             no_fill()
             stroke(255, 0, 0)

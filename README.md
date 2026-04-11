@@ -67,3 +67,52 @@ See `api.md` for the full English API reference, including:
 - Function and variable names follow `snake_case`.
 - ESC closes the sketch window.
 - The runtime supports both static and interactive sketch modes.
+
+## WebAssembly Build (pygbag)
+
+You can package `dino_game.py` for the browser (WASM) and embed it in a blog post.
+
+### 1) Setup once
+
+```bash
+scripts/web/setup_web.sh
+```
+
+### 2) Build web version
+
+```bash
+scripts/web/build_web.sh
+```
+
+Output is copied to:
+
+```text
+.web-build/output/
+```
+
+### 3) Run local preview
+
+```bash
+scripts/web/run_web.sh
+```
+
+Then open:
+
+```text
+http://localhost:8000
+```
+
+### Blog embed idea
+
+Host the generated `.web-build/output/` files on your site and embed with an iframe:
+
+```html
+<iframe
+  src="https://bartvanderwal.nl/path-to-game/index.html"
+  width="960"
+  height="600"
+  style="border:0;"
+  loading="lazy"
+  allowfullscreen
+></iframe>
+```

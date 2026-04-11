@@ -29,7 +29,8 @@ Deze game is een variant op de Chrome Dino game, met meerdere speelbare karakter
   - Torencactus: 4 punten.
   - Vogel (laag, succesvol gedukt): 3 punten.
   - Slang (uitklappend dichtbij): 5 punten.
-- Elke 10 punten stijgt het level en neemt de snelheid toe met factor 1.1.
+- Levelprogressie gebruikt variabele hoofdstuklengtes.
+- Hoofdstuk 1 duurt 6 punten, daarna duurt elk volgend hoofdstuk 1 punt langer.
 - Bij level-up knipperen score en level-indicator kort.
 
 ## Obstakels en speciale acties
@@ -44,11 +45,24 @@ Deze game is een variant op de Chrome Dino game, met meerdere speelbare karakter
 ## Levelsysteem
 
 - De game heeft 10 levels (`MAX_LEVEL = 10`).
-- Elke 10 punten stijgt het level.
+- Levels stijgen op cumulatieve scoregrenzen met oplopende hoofdstuklengte.
 - Bij elke level-up:
   - De scrollsnelheid stijgt met factor `1.1`.
   - Score en level-indicator knipperen kort.
   - De spawnmix verandert, met hogere spawndichtheid en complexere patronen.
+
+### Scoregrenzen per level
+
+- Level 1: 6 punten.
+- Level 2: +7 punten (totaal 13).
+- Level 3: +8 punten (totaal 21).
+- Level 4: +9 punten (totaal 30) - minibosshoofdstuk.
+- Level 5: +10 punten (totaal 40).
+- Level 6: +11 punten (totaal 51).
+- Level 7: +12 punten (totaal 63) - minibosshoofdstuk.
+- Level 8: +13 punten (totaal 76).
+- Level 9: +14 punten (totaal 90).
+- Level 10: +15 punten (totaal 105) - eindbaashoofdstuk.
 
 ### Progressie per fase
 
@@ -70,16 +84,18 @@ Deze game is een variant op de Chrome Dino game, met meerdere speelbare karakter
   - Boss fight met energiemeter van 20 stappen.
   - Boss verslaan vereist 15 hits.
 - Level 5, `Fly away`:
-  - De route opent richting vliegtuig-sectie.
-  - Vliegtuig verschijnt als pickup.
+  - Eerste vliegtuighoofdstuk.
+  - Pijpen verschijnen als normale levelobstakels, ook zonder vliegtuig.
+  - Vliegtuig verschijnt als optionele pickup.
   - Bij landing op het vliegtuig start flight mode.
-  - Flight mode: bewegen in linkerhelft, ontwijken van pijpen boven en onder, Flappy Bird-stijl.
 - Level 6, `Storm Track`:
-  - Tussenfase met hogere druk.
-  - Verdere verhoging van snelheid, spawnfrequentie en patrooncomplexiteit.
-  - Mix van bekende vijanden vraagt sneller reageren.
+  - Tweede vliegtuighoofdstuk.
+  - Pijpen blijven actief als normale levelobstakels.
+  - Vliegtuig kan opnieuw als pickup verschijnen.
+  - Flight mode loopt door over level 5 en 6.
 - Level 7, `Cactus Fortress`:
   - Tweede minibossfase.
+  - De speler stapt uit flight mode en gaat terug naar grondgevecht.
   - Reuzencactus verschijnt.
   - Boss fight met energiemeter van 25 stappen.
   - De cactus heeft 5 takken met elk 5 hits; totaal 25 hits nodig.
@@ -121,7 +137,7 @@ Sprite vliegtuig
 
 ![Plane still](assets/plane-still.png)
 
-![Plane still](assets/plane-sprite2.png)
+![Plane sprite](assets/plane-sprite.png)
 
 - Spelerassets staan in `assets/`.
 - Obstakelassets staan in `assets/obstacles/`.
@@ -129,7 +145,8 @@ Sprite vliegtuig
   - `assets/dino-transparant.png`
   - `assets/cowboy-transparant.png`
   - `assets/roadrunner-transparant.png`
-  - `assets/airplane-transparant.png`
+  - `assets/plane-still.png`
+  - `assets/plane-sprite.png`
   - `assets/obstacles/cactus-transparant.png`
   - `assets/obstacles/bird-transparant.png`
   - `assets/snake-transparant.png`

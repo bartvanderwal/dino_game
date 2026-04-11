@@ -10,6 +10,7 @@ Notes:
 ## Structure
 
 ### `size(w, h)`
+
 Set the sketch window size in pixels. The window is created immediately when called — even outside `setup()`, at the top level of your sketch. This allows drawing commands to follow directly without needing `setup()`. The new surface is initialized with the default background color (light gray, `(200, 200, 200)`).
 
 ### `full_screen()`
@@ -21,13 +22,16 @@ Switch the sketch window to fullscreen mode. Must be called before `run()`.
 Set the target frame rate for interactive mode.
 
 ### `run()`
+
 Start the sketch loop.
 
 Mode is auto-detected:
+
 - interactive when `draw()` is defined
 - static otherwise
 
 Usage notes:
+
 - Interactive mode: `run()` is required to start the frame loop and input callbacks.
 - Static mode: `run()` is optional. Top-level drawing (outside `setup()`/`draw()`) works without it.
 
@@ -82,9 +86,11 @@ Draw a triangle.
 Draw a quadrilateral.
 
 ### `arc(x, y, w, h, start, stop, mode=OPEN)`
+
 Draw an arc over an ellipse defined by center and size.
 
 Modes:
+
 - `OPEN`: open curve (default)
 - `CHORD`: closes endpoints with a straight line
 - `PIE`: closes endpoints to center
@@ -219,11 +225,13 @@ Alignment constants:
 - `BASELINE`
 
 Arc constants:
+
 - `OPEN`
 - `CHORD`
 - `PIE`
 
 Math constants:
+
 - `PI`
 - `TWO_PI`
 
