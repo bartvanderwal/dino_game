@@ -44,3 +44,7 @@ game_over = False
 - Er is een SKILL.md aanwezig voor pygame-patterns in `.agents/skills/pygame-patterns/SKILL.md`.
 - Deze skill is vooral bedoeld voor projecten met een pyproject.toml en geavanceerde pygame setup.
 - Dit project gebruikt requirements.txt en een eigen processing-API, dus niet alle pygame-patterns zijn direct toepasbaar.
+
+## Git remote afspraak
+
+- Als er gepusht moet worden en de `personal` remote schrijfrechten heeft, push dan standaard naar `personal` in plaats van `origin`.

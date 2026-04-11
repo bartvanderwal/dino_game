@@ -52,35 +52,60 @@ Deze game is een variant op de Chrome Dino game, met meerdere speelbare karakter
 
 ### Progressie per fase
 
-- Level 1:
-  - Basisobstakels (lage/hoge cactus en lage vogel), nog geen slang.
-- Level 2:
+- Level 1, `Enter Cactus Land...`:
+  - Introductie van de woestijn.
+  - Basisobstakels: lage cactus, hoge cactus en lage vogel.
+  - Nog geen slang.
+- Level 2, `Snake Sands`:
+  - De woestijn wordt drukker en gevaarlijker.
   - Slang komt erbij en klapt dichtbij verder uit.
-- Level 3:
-  - Torencactus komt erbij, met high-jump waarschuwing.
-- Level 4 (miniboss 1):
+  - Meer variatie in timing tussen vogel, cactus en slang.
+- Level 3, `High Jump Ridge`:
+  - Verticale obstakels worden belangrijker.
+  - Torencactus komt erbij.
+  - High-jump waarschuwing wordt relevant voor grotere obstakels.
+- Level 4, `Bird Boss Canyon`:
+  - Eerste minibossfase.
   - Reuzenvogel verschijnt.
   - Boss fight met energiemeter van 20 stappen.
   - Boss verslaan vereist 15 hits.
-- Level 5:
+- Level 5, `Fly away`:
+  - De route opent richting vliegtuig-sectie.
   - Vliegtuig verschijnt als pickup.
   - Bij landing op het vliegtuig start flight mode.
-  - Flight mode: bewegen in linkerhelft, ontwijken van pijpen boven/onder (Flappy Bird-stijl).
-- Level 6:
+  - Flight mode: bewegen in linkerhelft, ontwijken van pijpen boven en onder, Flappy Bird-stijl.
+- Level 6, `Storm Track`:
+  - Tussenfase met hogere druk.
   - Verdere verhoging van snelheid, spawnfrequentie en patrooncomplexiteit.
-- Level 7 (miniboss 2):
+  - Mix van bekende vijanden vraagt sneller reageren.
+- Level 7, `Cactus Fortress`:
+  - Tweede minibossfase.
   - Reuzencactus verschijnt.
   - Boss fight met energiemeter van 25 stappen.
-  - 5 takken met elk 5 hits; totaal 25 hits nodig.
-- Levels 8-9:
+  - De cactus heeft 5 takken met elk 5 hits; totaal 25 hits nodig.
+- Level 8, `Wild Flats`:
+  - Snellere combinatie van grond- en luchtgevaar.
+  - Ook snel achter elkaar verschijnende cactussen, vaak twee direct na elkaar en soms zelfs drie als extra uitdaging.
+  - Sprongen vragen hier extra controle: tijdens sommige sprongen moet je ook `Pijl omlaag` gebruiken om goed uit te komen.
   - Verdere opschaling van tempo, variatie en reactiedruk.
-- Level 10 (eindbaas):
+- Level 9, `Last Stretch`:
+  - Voorbereiding op de eindbaas.
+  - Hogere druk door snellere spawnmix en minder hersteltijd tussen obstakels.
+- Level 10, `Giant Town`:
+  - Eindbaasfase.
   - Eindbaas is een reuzenvariant per karakter:
     - Dino: ReuzenDino.
     - Cowboy: ReuzenCowboy.
     - Roadrunner: ReuzenCoyote.
   - Boss gebruikt hetzelfde projectieltype als de speler.
-  - Boss verslaan vereist 35 hits (energiemeter 35 stappen).
+  - Boss verslaan vereist 35 hits, energiemeter van 35 stappen.
+
+### Overzichtskaart en levelkeuze
+
+- De game heeft nu ook een zelfgetekende overzichtskaart.
+- Op die kaart kies je het level dat je wilt spelen.
+- De kaart geeft per fase een duidelijk visueel gebied of thema, zodat de speler ziet welke omgeving en vijanden bij dat level horen.
+- Daardoor werkt de levelprogressie niet alleen als score-opbouw, maar ook als een zichtbare route door de spelwereld.
 
 ### Boss- en wapenregels
 
@@ -91,13 +116,12 @@ Deze game is een variant op de Chrome Dino game, met meerdere speelbare karakter
   - Dino: vuurprojectiel.
 
 ## Assets
+
 Sprite vliegtuig
 
 ![Plane still](assets/plane-still.png)
 
-
 ![Plane still](assets/plane-sprite2.png)
-
 
 - Speler- en obstakelassets staan in `assets/`.
 - Belangrijke sprites:

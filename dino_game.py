@@ -28,7 +28,7 @@ EXPLOSION_FRAMES = [
 ]
 CACTUS_IMGS = [
     load_image("assets/cactus-transparant.png"),
-    load_image("assets/3Cacti-transparant.png")
+    load_image("assets/obstacles/3Cacti-transparant.png")
 ]
 
 # Richtingsvarianten (naar rechts kijken) voor specifieke enemies/bosses.
@@ -59,6 +59,10 @@ HIGH_JUMP_POWERUP_NOTICE_MS = 1400
 WEAPON_POWERUP_NOTICE_MS = 1600
 WATER_WARNING_DURATION_MS = 1800
 AIRPLANE_WARNING_DURATION_MS = 1800
+LEVEL_NAME_NOTICE_MS = 2200
+WIND_SWIRL_EFFECT_MS = 1800
+WIND_SWIRL_SLOW_GRAVITY = 0.18
+WIND_SWIRL_MAX_FALL_SPEED = 1.6
 FLIGHT_PIPE_GAP_H = 150
 FLIGHT_PIPE_WIDTH = 72
 FLIGHT_PIPE_SPAWN_BASE_MS = 1500
@@ -78,6 +82,12 @@ BOSS_REWARD_POINTS = {
 FINAL_BOSS_DEFEAT_DURATION_MS = 2600
 FINAL_BOSS_BLAST_INTERVAL_MS = 110
 FINAL_BOSS_BLAST_LIFE_MS = 620
+COYOTE_TNT_THROW_SPEED = 6.8
+COYOTE_TNT_THROW_GRAVITY = 0.34
+COYOTE_TNT_BLAST_MS = 260
+COYOTE_PIT_WIDTH = 86
+COYOTE_PIT_LIFE_MS = 6500
+COYOTE_MAX_PITS = 3
 JACKET_BONUS_HP = 3
 PLAYER_DAMAGE_COOLDOWN_MS = 750
 MAX_PROJECTILES_PER_SIDE = 10
@@ -87,6 +97,19 @@ GAME_MUSIC_PATH = "assets/audio/pixel-leap.wav"
 MUSIC_VOLUME = 0.35
 SCREENSHOT_NOTICE_MS = 2200
 GROUND_Y = 460
+
+LEVEL_NAMES = {
+    1: "Enter Cactus Land...",
+    2: "Snake Sands",
+    3: "High Jump Ridge",
+    4: "Bird Boss Canyon",
+    5: "Fly away",
+    6: "Storm track",
+    7: "Cactus Fortress",
+    8: "Wild Flats",
+    9: "Last Stretch",
+    10: "Giant Town",
+}
 
 # Collision hitbox tuning (smaller than visual sprite for fair gameplay)
 DINO_HITBOX_INSET_LEFT = 12
@@ -157,6 +180,14 @@ OBSTACLE_CONFIG = {
         "h": 34,
         "y": 426,
         "hitbox_insets": (0, 0, 0, 0),
+        "points": 3,
+    },
+    "wind_swirl": {
+        "img": None,
+        "w": 76,
+        "h": 96,
+        "y": 324,
+        "hitbox_insets": (10, 10, 8, 8),
         "points": 3,
     },
     "snake": {
@@ -273,6 +304,9 @@ is_ducking = False
 game_paused = False
 selected_character_idx = 0
 active_character_key = "dino"
+checkpoint_level_by_character = {
+    character_key: 1 for character_key in CHARACTER_ORDER
+}
 duck_jump_expires_ms = 0
 is_fast_falling = False
 current_level = 1
@@ -320,6 +354,9 @@ screenshot_notice_until_ms = 0
 screenshot_notice_text = ""
 quit_confirm_active = False
 announcement_font_cache = {}
+level_name_announcement_until_ms = 0
+level_name_announcement_text = ""
+wind_swirl_effect_until_ms = 0
 
 
 def reset_game(show_splash=False):
@@ -342,6 +379,8 @@ def reset_game(show_splash=False):
     global player_max_hp, player_hp, player_damage_cooldown_until_ms
     global screenshot_notice_until_ms, screenshot_notice_text
     global quit_confirm_active
+    global level_name_announcement_until_ms, level_name_announcement_text
+    global wind_swirl_effect_until_ms
     dino_y = DINO_Y
     velocity_y = 0
     on_ground = True
@@ -398,7 +437,45 @@ def reset_game(show_splash=False):
     screenshot_notice_until_ms = 0
     screenshot_notice_text = ""
     quit_confirm_active = False
+    level_name_announcement_until_ms = 0
+    level_name_announcement_text = ""
+    wind_swirl_effect_until_ms = 0
     spawn_obstacle("cactus_low")
+
+
+def show_level_name_announcement(level=None):
+    global level_name_announcement_until_ms, level_name_announcement_text
+    shown_level = current_level if level is None else level
+    level_name = LEVEL_NAMES.get(shown_level)
+    if level_name is None:
+        return
+    level_name_announcement_text = f"WELCOME IN LEVEL {shown_level}:\n{level_name}"
+    level_name_announcement_until_ms = millis() + LEVEL_NAME_NOTICE_MS
+
+
+def is_wind_swirl_active():
+    return millis() < wind_swirl_effect_until_ms
+
+
+def update_player_vertical_motion():
+    global dino_y, velocity_y, on_ground, is_fast_falling
+    if on_ground:
+        return
+
+    gravity_now = GRAVITY + (FAST_FALL_EXTRA_GRAVITY if is_fast_falling else 0)
+    if is_wind_swirl_active() and velocity_y >= 0:
+        gravity_now = min(gravity_now, WIND_SWIRL_SLOW_GRAVITY)
+
+    velocity_y += gravity_now
+    if is_wind_swirl_active() and velocity_y > WIND_SWIRL_MAX_FALL_SPEED:
+        velocity_y = WIND_SWIRL_MAX_FALL_SPEED
+
+    dino_y += velocity_y
+    if dino_y >= DINO_Y:
+        dino_y = DINO_Y
+        velocity_y = 0
+        on_ground = True
+        is_fast_falling = False
 
 
 def update_background_music(force=False):
@@ -700,6 +777,7 @@ def start_flight_mode():
     scroll_speed = BASE_SCROLL_SPEED * (LEVEL_SPEED_FACTOR ** (current_level - 1))
     next_level_score = current_level * LEVEL_SCORE_STEP
     level_blink_until_ms = millis() + LEVEL_BLINK_DURATION_MS
+    save_character_checkpoint(current_level)
 
 
 def is_snake_extended():
@@ -764,10 +842,29 @@ def get_current_character_key():
     return get_selected_character_key()
 
 
+def save_character_checkpoint(level=None, character_key=None):
+    checkpoint_character_key = character_key or active_character_key
+    checkpoint_level = current_level if level is None else level
+    checkpoint_level_by_character[checkpoint_character_key] = max(
+        1,
+        min(MAX_LEVEL, int(checkpoint_level)),
+    )
+
+
+def restore_character_checkpoint(character_key):
+    global current_level, score, scroll_speed, next_level_score
+    checkpoint_level = checkpoint_level_by_character.get(character_key, 1)
+    current_level = checkpoint_level
+    score = max(0, (checkpoint_level - 1) * LEVEL_SCORE_STEP)
+    scroll_speed = BASE_SCROLL_SPEED * (LEVEL_SPEED_FACTOR ** (current_level - 1))
+    next_level_score = current_level * LEVEL_SCORE_STEP
+
+
 def start_game_from_selection():
     global active_character_key
     active_character_key = get_selected_character_key()
     reset_game(show_splash=False)
+    restore_character_checkpoint(active_character_key)
 
 
 def get_theme():
@@ -782,6 +879,7 @@ def update_level_from_score():
         scroll_speed = BASE_SCROLL_SPEED * (LEVEL_SPEED_FACTOR ** (current_level - 1))
         next_level_score = current_level * LEVEL_SCORE_STEP
         level_blink_until_ms = millis() + LEVEL_BLINK_DURATION_MS
+        save_character_checkpoint(current_level)
         if current_level >= 5 and not flight_mode:
             pending_airplane_spawn = True
 
@@ -799,6 +897,7 @@ def debug_step_level(level_delta):
     scroll_speed = BASE_SCROLL_SPEED * (LEVEL_SPEED_FACTOR ** (current_level - 1))
     next_level_score = current_level * LEVEL_SCORE_STEP
     level_blink_until_ms = millis() + LEVEL_BLINK_DURATION_MS
+    save_character_checkpoint(current_level)
 
     if old_level < 5 <= current_level and not flight_mode:
         pending_airplane_spawn = True
@@ -862,6 +961,13 @@ def draw_projectile(projectile):
         rect(x, y, w, h)
         fill(255, 220, 90)
         rect(x + w - 2, y - 3, 2, 3)
+        return
+
+    if kind == "tnt_blast":
+        fill(238, 96, 42)
+        rect(x, y, w, h)
+        fill(255, 210, 90)
+        rect(x + 6, y + 6, max(4, w - 12), max(4, h - 12))
         return
 
     if kind == "stem":
@@ -1033,9 +1139,87 @@ def spawn_boss_for_level(level):
         "meter_steps": 35,
         "enemy_projectiles": create_projectile_pool(),
         "attack_interval_ms": 760,
+        "phase": "laugh",
+        "pit_traps": [],
+        "vx": 1.5 if form_name == "ReuzenCoyote" else 0.0,
+        "min_x": float(width - 320),
+        "max_x": float(width - 68),
         "last_attack_ms": now,
         "enemy_weapon_kind": profile["kind"],
     }
+
+
+def get_coyote_phase(boss):
+    hit_ratio = boss["hits_taken"] / max(1, boss["hits_required"])
+    if hit_ratio < (1 / 3):
+        return "laugh"
+    if hit_ratio < (2 / 3):
+        return "angry"
+    return "nervous"
+
+
+def update_coyote_phase_state(boss):
+    if boss.get("form") != "ReuzenCoyote":
+        return
+    phase = get_coyote_phase(boss)
+    boss["phase"] = phase
+    if phase == "laugh":
+        boss["attack_interval_ms"] = 860
+        boss["vx"] = 1.3 if boss["vx"] >= 0 else -1.3
+    elif phase == "angry":
+        boss["attack_interval_ms"] = 710
+        boss["vx"] = 1.9 if boss["vx"] >= 0 else -1.9
+    else:
+        boss["attack_interval_ms"] = 560
+        boss["vx"] = 2.6 if boss["vx"] >= 0 else -2.6
+
+
+def spawn_coyote_pit(boss, center_x):
+    pit_left = max(24.0, min(width - COYOTE_PIT_WIDTH - 24.0, center_x - (COYOTE_PIT_WIDTH / 2)))
+    pits = boss.setdefault("pit_traps", [])
+    pits.append({
+        "x": pit_left,
+        "w": COYOTE_PIT_WIDTH,
+        "expires_at": millis() + COYOTE_PIT_LIFE_MS,
+    })
+    if len(pits) > COYOTE_MAX_PITS:
+        del pits[0:len(pits) - COYOTE_MAX_PITS]
+
+
+def update_coyote_pits(boss):
+    if boss.get("form") != "ReuzenCoyote":
+        return
+    pits = boss.setdefault("pit_traps", [])
+    now = millis()
+    pits[:] = [pit for pit in pits if pit["expires_at"] > now]
+
+
+def player_over_coyote_pit(boss):
+    if boss.get("form") != "ReuzenCoyote":
+        return False
+    player_hitbox = get_dino_hitbox()
+    player_center_x = player_hitbox[0] + (player_hitbox[2] / 2)
+    for pit in boss.get("pit_traps", []):
+        if pit["x"] <= player_center_x <= pit["x"] + pit["w"]:
+            return True
+    return False
+
+
+def draw_coyote_pits(boss, theme):
+    if boss.get("form") != "ReuzenCoyote":
+        return
+    for pit in boss.get("pit_traps", []):
+        pit_x = int(pit["x"])
+        pit_w = int(pit["w"])
+        fill(*theme["bg"])
+        rect(pit_x, GROUND_Y - 2, pit_w, 42)
+        fill(54, 34, 22)
+        rect(pit_x + 4, GROUND_Y + 6, max(8, pit_w - 8), 20)
+        stroke(*theme["ground_line"])
+        stroke_weight(2)
+        line(pit_x - 2, GROUND_Y, pit_x + 10, GROUND_Y)
+        line(pit_x + pit_w - 10, GROUND_Y, pit_x + pit_w + 2, GROUND_Y)
+        no_stroke()
 
 
 def maybe_start_boss_encounter():
@@ -1135,7 +1319,8 @@ def draw_boss_entity(boss):
         image(COWBOY_IMG, x, y, w, h)
         return
 
-    # ReuzenCoyote without dedicated sprite: stylized silhouette.
+    # ReuzenCoyote without dedicated sprite: stylized silhouette with mood phases.
+    phase = boss.get("phase", "laugh")
     fill(124, 84, 51)
     rect(x + 24, y + 78, w - 54, h - 120)
     rect(x + 8, y + 92, 30, h - 112)
@@ -1144,7 +1329,30 @@ def draw_boss_entity(boss):
     rect(x + w - 44, y + 54, 12, 14)
     rect(x + w - 26, y + 54, 12, 14)
     fill(12, 12, 12)
-    rect(x + w - 34, y + 84, 6, 6)
+    if phase == "laugh":
+        rect(x + w - 36, y + 84, 4, 4)
+        rect(x + w - 22, y + 84, 4, 4)
+        fill(210, 188, 138)
+        rect(x + w - 40, y + 98, 20, 4)
+        fill(94, 60, 34)
+        rect(x + w - 38, y + 96, 18, 2)
+    elif phase == "angry":
+        rect(x + w - 38, y + 85, 5, 5)
+        rect(x + w - 24, y + 85, 5, 5)
+        stroke(12, 12, 12)
+        stroke_weight(2)
+        line(x + w - 42, y + 82, x + w - 34, y + 79)
+        line(x + w - 18, y + 79, x + w - 10, y + 82)
+        no_stroke()
+        fill(70, 18, 18)
+        rect(x + w - 39, y + 101, 20, 5)
+    else:
+        rect(x + w - 40, y + 82, 6, 8)
+        rect(x + w - 24, y + 82, 6, 8)
+        fill(210, 188, 138)
+        rect(x + w - 34, y + 100, 8, 8)
+        fill(94, 60, 34)
+        rect(x + w - 38, y + 98, 16, 2)
 
 
 def draw_boss_meter(boss, theme):
@@ -1196,6 +1404,37 @@ def update_enemy_projectiles(boss):
     global game_over
     player_hitbox = get_dino_hitbox()
     for projectile in iter_active_projectiles(boss["enemy_projectiles"]):
+        if projectile["kind"] == "enemy_tnt":
+            projectile["x"] += projectile["vx"]
+            projectile["y"] += projectile.get("vy", 0.0)
+            projectile["vy"] = projectile.get("vy", 0.0) + COYOTE_TNT_THROW_GRAVITY
+            projectile_rect = get_projectile_rect(projectile)
+            if rects_overlap(projectile_rect, player_hitbox):
+                projectile["active"] = False
+                game_over = True
+                play_sfx(CRASH_SOUND)
+                return
+            if projectile["y"] + projectile["h"] >= GROUND_Y:
+                spawn_coyote_pit(boss, projectile["x"] + (projectile["w"] / 2))
+                projectile.update({
+                    "kind": "tnt_blast",
+                    "x": projectile["x"] - 16,
+                    "y": GROUND_Y - 28,
+                    "w": 44,
+                    "h": 28,
+                    "vx": 0.0,
+                    "blast_until": millis() + COYOTE_TNT_BLAST_MS,
+                })
+                continue
+            if projectile["x"] + projectile["w"] < -40:
+                projectile["active"] = False
+            continue
+
+        if projectile["kind"] == "tnt_blast":
+            if millis() >= projectile.get("blast_until", 0):
+                projectile["active"] = False
+            continue
+
         projectile["x"] += projectile["vx"]
         projectile_rect = get_projectile_rect(projectile)
         if rects_overlap(projectile_rect, player_hitbox):
@@ -1281,6 +1520,21 @@ def spawn_boss_attack_if_needed(boss):
         play_sfx(FIRE_ENEMY_SOUND)
         return
 
+    if boss.get("form") == "ReuzenCoyote":
+        projectile.update({
+            "x": boss["x"] - 6,
+            "y": boss["y"] + 112,
+            "w": 14,
+            "h": 28,
+            "vx": -COYOTE_TNT_THROW_SPEED,
+            "vy": float(random(-7.8, -5.8)),
+            "kind": "enemy_tnt",
+            "color": (210, 35, 30),
+            "enemy": True,
+        })
+        play_sfx(FIRE_ENEMY_SOUND)
+        return
+
     # final boss shoots same style as player
     enemy_kind = boss["enemy_weapon_kind"]
     if enemy_kind == "tnt":
@@ -1309,6 +1563,10 @@ def update_and_draw_boss_mode(theme, update_world=True):
         return
 
     if update_world:
+        if boss.get("form") == "ReuzenCoyote":
+            update_coyote_phase_state(boss)
+            update_coyote_pits(boss)
+
         move_dir = int(boss_right_pressed) - int(boss_left_pressed)
         if move_dir != 0:
             min_player_x = 36.0
@@ -1321,19 +1579,17 @@ def update_and_draw_boss_mode(theme, update_world=True):
                 min(max_player_x, player_x + (move_dir * BOSS_PLAYER_SPEED)),
             )
 
-        # Player jump physics stays active during boss fights.
-        if not on_ground:
-            gravity_now = GRAVITY + (FAST_FALL_EXTRA_GRAVITY if is_fast_falling else 0)
-            velocity_y += gravity_now
-            dino_y += velocity_y
-            if dino_y >= DINO_Y:
-                dino_y = DINO_Y
-                velocity_y = 0
-                on_ground = True
-                is_fast_falling = False
+        update_player_vertical_motion()
 
         if boss["type"] == "bird_miniboss":
             boss["x"] += boss["vx"]
+            boss["y"] += boss["vy"]
+            if boss["x"] <= boss["min_x"] or boss["x"] >= boss["max_x"]:
+                boss["vx"] *= -1
+            if boss["y"] <= boss["min_y"] or boss["y"] >= boss["max_y"]:
+                boss["vy"] *= -1
+        elif boss.get("form") == "ReuzenCoyote":
+            boss["x"] += boss.get("vx", 0.0)
             boss["y"] += boss["vy"]
             if boss["x"] <= boss["min_x"] or boss["x"] >= boss["max_x"]:
                 boss["vx"] *= -1
@@ -1354,11 +1610,17 @@ def update_and_draw_boss_mode(theme, update_world=True):
         if boss_state is None:
             return
 
+        if on_ground and player_over_coyote_pit(boss):
+            game_over = True
+            play_sfx(CRASH_SOUND)
+            return
+
         if rects_overlap(get_dino_hitbox(), get_boss_hitbox(boss)):
             game_over = True
             play_sfx(CRASH_SOUND)
             return
 
+    draw_coyote_pits(boss, theme)
     draw_boss_entity(boss)
     draw_boss_meter(boss, theme)
 
@@ -2078,6 +2340,7 @@ def key_pressed():
 
     if pressed_key == "q" or key_code == pygame.K_ESCAPE:
         if game_started:
+            save_character_checkpoint()
             if active_character_key in CHARACTER_ORDER:
                 selected_character_idx = CHARACTER_ORDER.index(active_character_key)
             reset_game(show_splash=True)
@@ -2113,6 +2376,7 @@ def key_pressed():
         return
 
     if game_over and key == " ":
+        save_character_checkpoint()
         if active_character_key in CHARACTER_ORDER:
             selected_character_idx = CHARACTER_ORDER.index(active_character_key)
         reset_game(show_splash=True)
