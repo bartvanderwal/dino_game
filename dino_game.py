@@ -129,6 +129,11 @@ HIGH_JUMP_POWERUP_NOTICE_MS = 1400
 WEAPON_POWERUP_NOTICE_MS = 1600
 WATER_WARNING_DURATION_MS = 1800
 AIRPLANE_WARNING_DURATION_MS = 1800
+MISSED_PLANE_NOTICE_MS = 1600
+JUMP_BLOCK_WET_GROUND_MS = 7000
+JUMP_BLOCK_FLOWER_GROW_MS = 1700
+JUMP_BLOCK_DROPLET_COUNT = 14
+JUMP_BLOCK_FLOWER_COUNT = 18
 LEVEL_NAME_NOTICE_MS = 2200
 WIND_SWIRL_EFFECT_MS = 1800
 WIND_SWIRL_SLOW_GRAVITY = 0.18
@@ -138,6 +143,8 @@ FLIGHT_PIPE_WIDTH = 72
 FLIGHT_PIPE_SPAWN_BASE_MS = 1500
 FLIGHT_PLANE_SPEED = 5.0
 FLIGHT_PIPE_POINTS = 2
+AIRPLANE_PICKUP_W = 104
+AIRPLANE_PICKUP_H = 40
 PLAYER_SHOOT_COOLDOWN_MS = 180
 CACTUS_SHOT_VERTICAL_BOOST = 1.45
 CACTUS_SHOT_UPWARD_OFFSET_PX = 12
@@ -172,16 +179,64 @@ BOSS_HIT_EXPLOSION_SIZE = 68
 FINAL_BOSS_DEFEAT_EXPLOSION_SIZE = 128
 FINAL_BOSS_DEFEAT_BURST_COUNT = 7
 MAX_ACTIVE_EXPLOSIONS = 72
+CACTUS_BRANCH_EXPLOSION_SIZE = 54
+CACTUS_BRANCH_EXPLOSION_LIFE_MS = 360
 COYOTE_TNT_THROW_SPEED = 6.8
 COYOTE_TNT_THROW_GRAVITY = 0.34
 COYOTE_TNT_BLAST_MS = 260
+COYOTE_BIG_BOMB_CHANCE_PCT = 34
+COYOTE_BIG_BOMB_THROW_SPEED = 5.1
+COYOTE_BIG_BOMB_FUSE_MS = 1250
+COYOTE_BIG_BOMB_BLAST_MS = 420
+COYOTE_BIG_BOMB_RETURN_SPEED = 9.4
+COYOTE_BIG_BOMB_RETURN_VY = -8.6
+COYOTE_BIG_BOMB_RETURN_GRAVITY = 0.28
+COYOTE_BIG_BOMB_BOSS_DAMAGE = 5
 COYOTE_PIT_WIDTH = 86
 COYOTE_PIT_LIFE_MS = 6500
 COYOTE_MAX_PITS = 3
 JACKET_BONUS_HP = 3
 PLAYER_DAMAGE_COOLDOWN_MS = 750
 MAX_PROJECTILES_PER_SIDE = 10
+MAX_COIN_POUCH = 100
 COIN_SCORE_VALUE = 1
+COIN_SPAWN_CHANCE_PCT = 46
+COIN_ARC_SPAWN_CHANCE_PCT = 24
+BONUS_COIN_LINE_CHANCE_PCT = 28
+BONUS_COIN_ARC_CHANCE_PCT = 22
+MULTI_OBSTACLE_PACK_CHANCE_PCT = 34
+MULTI_JUMP_NOTICE_MS = 1800
+SHOP_SHIELD_MS = 5000
+SHOP_COIN_BOOST_MS = 60000
+SHOP_JUMP_SHOES_MS = 30000
+SHOP_JUMP_SHOES_FACTOR = 1.18
+SHOP_NOTICE_MS = 1800
+SHOP_ITEMS = (
+    {
+        "key": "extra_life",
+        "label": "Extra Life",
+        "cost": 20,
+        "desc": "Absorb one fatal hit.",
+    },
+    {
+        "key": "shield",
+        "label": "Shield (5s)",
+        "cost": 16,
+        "desc": "Temporary protection.",
+    },
+    {
+        "key": "coin_boost",
+        "label": "Coin x2 (60s)",
+        "cost": 22,
+        "desc": "All collected coins are doubled.",
+    },
+    {
+        "key": "jump_shoes",
+        "label": "Jump Shoes (30s)",
+        "cost": 18,
+        "desc": "Higher jumps for a short time.",
+    },
+)
 MENU_MUSIC_PATH = "assets/audio/loading-atmosphere.wav"
 GAME_MUSIC_PATH = "assets/audio/pixel-leap.wav"
 VICTORY_MUSIC_CANDIDATES = (
@@ -292,6 +347,14 @@ OBSTACLE_CONFIG = {
         "hitbox_insets": (3, 3, 3, 3),
         "points": 0,
     },
+    "jump_block": {
+        "img": None,
+        "w": 42,
+        "h": 42,
+        "y": 282,
+        "hitbox_insets": (2, 2, 2, 2),
+        "points": 0,
+    },
     "coin": {
         "img": None,
         "w": 20,
@@ -337,8 +400,8 @@ OBSTACLE_CONFIG = {
     },
     "airplane_pickup": {
         "img": AIRPLANE_IMG,
-        "w": 120,
-        "h": 44,
+        "w": AIRPLANE_PICKUP_W,
+        "h": AIRPLANE_PICKUP_H,
         "y": 378,
         "hitbox_insets": (8, 8, 6, 4),
         "points": 0,
@@ -427,6 +490,16 @@ game_started = False
 score = 0
 high_score = 0
 coin_count = 0
+shop_active = False
+shop_notice_text = ""
+shop_notice_until_ms = 0
+shop_extra_life_count = 0
+shop_shield_count = 0
+shop_coin_boost_count = 0
+shop_jump_shoes_count = 0
+shield_until_ms = 0
+coin_boost_until_ms = 0
+jump_shoes_until_ms = 0
 player_x = float(DINO_X)
 JUMP_SOUND = None
 ROADRUNNER_JUMP_SOUND = None
@@ -441,6 +514,8 @@ MINI_BOSS_VICTORY_SOUND = None
 INTRO_SPEECH_SOUND = None
 INTRO_SPEECH_CHANNEL = None
 isDebugMode = False
+debug_coin_pressed = False
+debug_coin_repeat_until_ms = 0
 is_ducking = False
 game_paused = False
 selected_character_idx = 0
@@ -462,8 +537,18 @@ high_jump_powerup_warning_until_ms = 0
 weapon_powerup_warning_until_ms = 0
 water_warning_until_ms = 0
 airplane_warning_until_ms = 0
+missed_plane_notice_until_ms = 0
+multi_jump_notice_until_ms = 0
+wet_ground_until_ms = 0
+wet_ground_started_ms = 0
 pending_airplane_spawn = False
 queued_obstacle_after_powerup = None
+queued_spawn_sequence = []
+queued_coin_spawn_ys = []
+bonus_coins = []
+extra_obstacles = []
+jump_block_droplets = []
+ground_flowers = []
 high_jump_powerup_charges = 0
 pending_weapon_powerup_level = 0
 weapon_powerup_ready = False
@@ -524,12 +609,21 @@ is_fullscreen = False
 
 def reset_game(show_splash=False):
     global dino_y, velocity_y, on_ground, score, coin_count, game_over, game_completed, game_started
+    global shop_active, shop_notice_text, shop_notice_until_ms
+    global shield_until_ms, coin_boost_until_ms, jump_shoes_until_ms
     global player_x
     global is_ducking, game_paused, bird_duck_scored, duck_jump_expires_ms, is_fast_falling
+    global debug_coin_pressed, debug_coin_repeat_until_ms
     global current_level, scroll_speed, next_level_score, level_blink_until_ms
     global high_jump_warning_until_ms, high_jump_powerup_warning_until_ms
     global weapon_powerup_warning_until_ms, water_warning_until_ms
-    global airplane_warning_until_ms, pending_airplane_spawn, queued_obstacle_after_powerup
+    global airplane_warning_until_ms, missed_plane_notice_until_ms
+    global multi_jump_notice_until_ms
+    global wet_ground_until_ms, wet_ground_started_ms
+    global pending_airplane_spawn, queued_obstacle_after_powerup
+    global queued_spawn_sequence, queued_coin_spawn_ys, bonus_coins
+    global extra_obstacles
+    global jump_block_droplets, ground_flowers
     global high_jump_powerup_charges
     global pending_weapon_powerup_level, weapon_powerup_ready, weapon_powerup_level
     global coin_spawn_y
@@ -557,10 +651,15 @@ def reset_game(show_splash=False):
     on_ground = True
     player_x = float(DINO_X)
     score = 0
-    coin_count = 0
     game_over = False
     game_completed = False
     game_started = not show_splash
+    if show_splash:
+        shop_active = False
+    shop_notice_text = ""
+    shop_notice_until_ms = 0
+    debug_coin_pressed = False
+    debug_coin_repeat_until_ms = 0
     is_ducking = False
     game_paused = False
     bird_duck_scored = False
@@ -575,8 +674,18 @@ def reset_game(show_splash=False):
     weapon_powerup_warning_until_ms = 0
     water_warning_until_ms = 0
     airplane_warning_until_ms = 0
+    missed_plane_notice_until_ms = 0
+    multi_jump_notice_until_ms = 0
+    wet_ground_until_ms = 0
+    wet_ground_started_ms = 0
     pending_airplane_spawn = False
     queued_obstacle_after_powerup = None
+    queued_spawn_sequence = []
+    queued_coin_spawn_ys = []
+    bonus_coins = []
+    extra_obstacles = []
+    jump_block_droplets = []
+    ground_flowers = []
     high_jump_powerup_charges = 0
     pending_weapon_powerup_level = 0
     weapon_powerup_ready = False
@@ -609,6 +718,9 @@ def reset_game(show_splash=False):
     player_max_hp = 1
     player_hp = 1
     player_damage_cooldown_until_ms = 0
+    shield_until_ms = 0
+    coin_boost_until_ms = 0
+    jump_shoes_until_ms = 0
     screenshot_notice_until_ms = 0
     screenshot_notice_text = ""
     quit_confirm_active = False
@@ -638,7 +750,7 @@ def show_level_name_announcement(level=None):
     level_name = LEVEL_NAMES.get(shown_level)
     if level_name is None:
         return
-    level_name_announcement_text = f"WELCOME TO LEVEL {shown_level}:\n{level_name}"
+    level_name_announcement_text = f"LEVEL {shown_level}\n{level_name.upper()}"
     level_name_announcement_until_ms = millis() + LEVEL_NAME_NOTICE_MS
 
 
@@ -1125,12 +1237,15 @@ def get_dino_hitbox():
 
 
 def choose_obstacle_type():
-    global queued_obstacle_after_powerup
+    global queued_obstacle_after_powerup, queued_spawn_sequence, queued_coin_spawn_ys
     if pending_weapon_powerup_level > 0 and not weapon_powerup_ready:
         return "weapon_powerup"
 
-    if pending_airplane_spawn and current_level in (5, 6) and int(random(0, 100)) < 22:
+    if pending_airplane_spawn and current_level in (5, 6):
         return "airplane_pickup"
+
+    if queued_spawn_sequence:
+        return queued_spawn_sequence.pop(0)
 
     if queued_obstacle_after_powerup is not None:
         queued_type = queued_obstacle_after_powerup
@@ -1157,6 +1272,21 @@ def choose_obstacle_type():
         elif roll < 66:
             chosen = "cactus_high"
         elif roll < 84:
+            chosen = "snake"
+        else:
+            chosen = "bird_low"
+
+    elif current_level < 4:
+        roll = int(random(0, 100))
+        if roll < 16:
+            chosen = "cactus_low"
+        elif roll < 30:
+            chosen = "cactus_high"
+        elif roll < 52:
+            chosen = "jump_block"
+        elif roll < 66:
+            chosen = "cactus_tower"
+        elif roll < 92:
             chosen = "snake"
         else:
             chosen = "bird_low"
@@ -1194,11 +1324,157 @@ def choose_obstacle_type():
 
     # Muntje kan vóór een normaal obstakel spawnen en gebruikt dezelfde collision flow.
     if chosen in ("cactus_low", "cactus_high", "cactus_tower", "snake", "bird_low"):
-        if int(random(0, 100)) < 18:
-            queued_obstacle_after_powerup = chosen
+        if int(random(0, 100)) < COIN_SPAWN_CHANCE_PCT:
+            if int(random(0, 100)) < COIN_ARC_SPAWN_CHANCE_PCT:
+                queued_coin_spawn_ys.extend(get_coin_arc_spawn_ys(chosen))
+                queued_spawn_sequence = ["coin", "coin", "coin", "coin", chosen]
+            else:
+                queued_coin_spawn_ys.append(get_random_coin_spawn_y())
+                queued_spawn_sequence = [chosen]
             return "coin"
 
     return chosen
+
+
+def get_random_coin_spawn_y():
+    coin_ys = [320, 350, 382]
+    return coin_ys[int(random(0, len(coin_ys)))]
+
+
+def get_coin_arc_spawn_ys(obstacle_kind):
+    obstacle_cfg = OBSTACLE_CONFIG.get(obstacle_kind, OBSTACLE_CONFIG["cactus_low"])
+    obstacle_top = int(obstacle_cfg["y"])
+    side_y = max(252, obstacle_top - 18)
+    inner_y = max(228, obstacle_top - 46)
+    apex_y = max(204, obstacle_top - 72)
+    return [side_y, inner_y, apex_y, inner_y, side_y]
+
+
+def build_ground_flowers():
+    flowers = []
+    for _ in range(JUMP_BLOCK_FLOWER_COUNT):
+        flowers.append({
+            "x": float(random(18, width - 24)),
+            "stem_h": float(random(12, 24)),
+            "petal_r": float(random(4, 7)),
+            "stem": (
+                int(random(42, 64)),
+                int(random(148, 182)),
+                int(random(58, 88)),
+            ),
+            "petal": (
+                int(random(214, 255)),
+                int(random(92, 214)),
+                int(random(120, 255)),
+            ),
+            "center": (
+                int(random(222, 255)),
+                int(random(196, 238)),
+                int(random(62, 108)),
+            ),
+        })
+    return flowers
+
+
+def trigger_jump_block_rain(obstacle_draw_x, obstacle_draw_y, obstacle_draw_w):
+    global wet_ground_until_ms, wet_ground_started_ms
+    global jump_block_droplets, ground_flowers
+    now = millis()
+    wet_ground_started_ms = now
+    wet_ground_until_ms = now + JUMP_BLOCK_WET_GROUND_MS
+    ground_flowers = build_ground_flowers()
+    jump_block_droplets = []
+    for _ in range(JUMP_BLOCK_DROPLET_COUNT):
+        jump_block_droplets.append({
+            "x": float(obstacle_draw_x + random(4, obstacle_draw_w - 4)),
+            "y": float(obstacle_draw_y + 8),
+            "vy": float(random(2.6, 5.4)),
+            "size": int(random(3, 6)),
+        })
+
+
+def is_ground_wet_active():
+    return millis() < wet_ground_until_ms
+
+
+def maybe_spawn_bonus_coin_pattern(base_type, base_x):
+    global bonus_coins
+    if base_type not in ("cactus_low", "cactus_high", "cactus_tower", "snake"):
+        return
+
+    obstacle_cfg = OBSTACLE_CONFIG[base_type]
+    obstacle_w = obstacle_cfg["w"]
+    obstacle_y = obstacle_cfg["y"]
+    obstacle_h = obstacle_cfg["h"]
+    obstacle_center_x = base_x + (obstacle_w / 2)
+    coin_size = OBSTACLE_CONFIG["coin"]["w"]
+
+    if int(random(0, 100)) < BONUS_COIN_ARC_CHANCE_PCT:
+        arc_points = [(-56, -40), (-24, -68), (8, -88), (40, -68), (72, -40)]
+        for dx, dy in arc_points:
+            bonus_coins.append({
+                "x": float(obstacle_center_x + dx),
+                "y": float(obstacle_y + dy),
+                "w": coin_size,
+                "h": coin_size,
+            })
+        return
+
+    if int(random(0, 100)) < BONUS_COIN_LINE_CHANCE_PCT:
+        line_y = float(max(234, obstacle_y - obstacle_h - 8))
+        start_x = obstacle_center_x - 54
+        for idx in range(4):
+            bonus_coins.append({
+                "x": float(start_x + idx * 34),
+                "y": line_y,
+                "w": coin_size,
+                "h": coin_size,
+            })
+
+
+def maybe_spawn_extra_obstacle_pack(base_type, base_x):
+    global extra_obstacles, multi_jump_notice_until_ms
+    if current_level < 8:
+        return
+    if base_type not in ("cactus_low", "cactus_high", "cactus_tower"):
+        return
+    if int(random(0, 100)) >= MULTI_OBSTACLE_PACK_CHANCE_PCT:
+        return
+
+    pack_types = ["cactus_low", "cactus_low"]
+    if current_level >= 9 and int(random(0, 100)) < 45:
+        pack_types.append("cactus_low")
+
+    current_x = base_x
+    for idx, obstacle_kind in enumerate(pack_types):
+        gap = random(44, 68) if idx == 0 else random(52, 82)
+        prev_cfg = OBSTACLE_CONFIG[base_type if idx == 0 else pack_types[idx - 1]]
+        current_x += prev_cfg["w"] + gap
+        extra_obstacles.append({
+            "type": obstacle_kind,
+            "x": float(current_x),
+            "bird_duck_scored": False,
+            "snake_hiss_played": False,
+        })
+
+    multi_jump_notice_until_ms = millis() + MULTI_JUMP_NOTICE_MS
+
+
+def get_extra_obstacle_draw_rect(obstacle):
+    cfg = OBSTACLE_CONFIG[obstacle["type"]]
+    return obstacle["x"], cfg["y"], cfg["w"], cfg["h"]
+
+
+def get_extra_obstacle_hitbox(obstacle):
+    cfg = OBSTACLE_CONFIG[obstacle["type"]]
+    draw_x, draw_y, draw_w, draw_h = get_extra_obstacle_draw_rect(obstacle)
+    inset_left, inset_right, inset_top, inset_bottom = cfg["hitbox_insets"]
+    return (
+        draw_x + inset_left,
+        draw_y + inset_top,
+        draw_w - inset_left - inset_right,
+        draw_h - inset_top - inset_bottom,
+    )
 
 
 def spawn_obstacle(force_type=None):
@@ -1206,7 +1482,7 @@ def spawn_obstacle(force_type=None):
     global high_jump_warning_until_ms, high_jump_powerup_warning_until_ms
     global weapon_powerup_warning_until_ms, water_warning_until_ms
     global airplane_warning_until_ms, pending_airplane_spawn
-    global coin_spawn_y
+    global coin_spawn_y, queued_coin_spawn_ys
     global ground_pipe_gap_top
     global snake_hiss_played_for_current
     obstacle_type = force_type or choose_obstacle_type()
@@ -1222,16 +1498,20 @@ def spawn_obstacle(force_type=None):
     if obstacle_type == "weapon_powerup":
         weapon_powerup_warning_until_ms = millis() + WEAPON_POWERUP_NOTICE_MS
     if obstacle_type == "coin":
-        coin_ys = [332, 360, 392]
-        coin_spawn_y = coin_ys[int(random(0, len(coin_ys)))]
+        if queued_coin_spawn_ys:
+            coin_spawn_y = queued_coin_spawn_ys.pop(0)
+        else:
+            coin_spawn_y = get_random_coin_spawn_y()
     if obstacle_type == "water_lily":
         water_warning_until_ms = millis() + WATER_WARNING_DURATION_MS
     if obstacle_type == "cactus_tower":
         high_jump_warning_until_ms = millis() + HIGH_JUMP_WARNING_DURATION_MS
+    maybe_spawn_extra_obstacle_pack(obstacle_type, obstacle_x)
+    maybe_spawn_bonus_coin_pattern(obstacle_type, obstacle_x)
 
 
 def get_flight_plane_rect():
-    return (flight_plane_x, flight_plane_y, 88, 36)
+    return (flight_plane_x, flight_plane_y, AIRPLANE_PICKUP_W, AIRPLANE_PICKUP_H)
 
 
 def spawn_flight_pipe():
@@ -1409,11 +1689,109 @@ def start_game_from_selection():
     active_character_key = get_selected_character_key()
     reset_game(show_splash=False)
     restore_character_checkpoint(active_character_key)
+    activate_shop_powerups_for_run()
     pending_airplane_spawn = (current_level in (5, 6))
 
 
 def get_theme():
     return CHARACTER_CONFIG[get_current_character_key()]["theme"]
+
+
+def set_shop_notice(message, duration_ms=SHOP_NOTICE_MS):
+    global shop_notice_text, shop_notice_until_ms
+    shop_notice_text = str(message)
+    shop_notice_until_ms = millis() + max(200, int(duration_ms))
+
+
+def is_shield_active():
+    return millis() < shield_until_ms
+
+
+def is_coin_boost_active():
+    return millis() < coin_boost_until_ms
+
+
+def is_jump_shoes_active():
+    return millis() < jump_shoes_until_ms
+
+
+def activate_shop_powerups_for_run():
+    global shop_shield_count, shop_coin_boost_count, shop_jump_shoes_count
+    global shield_until_ms, coin_boost_until_ms, jump_shoes_until_ms
+    now = millis()
+    if shop_shield_count > 0:
+        shop_shield_count -= 1
+        shield_until_ms = max(shield_until_ms, now + SHOP_SHIELD_MS)
+    if shop_coin_boost_count > 0:
+        shop_coin_boost_count -= 1
+        coin_boost_until_ms = max(coin_boost_until_ms, now + SHOP_COIN_BOOST_MS)
+    if shop_jump_shoes_count > 0:
+        shop_jump_shoes_count -= 1
+        jump_shoes_until_ms = max(jump_shoes_until_ms, now + SHOP_JUMP_SHOES_MS)
+
+
+def get_shop_item_count(item_key):
+    if item_key == "extra_life":
+        return shop_extra_life_count
+    if item_key == "shield":
+        return shop_shield_count
+    if item_key == "coin_boost":
+        return shop_coin_boost_count
+    if item_key == "jump_shoes":
+        return shop_jump_shoes_count
+    return 0
+
+
+def add_shop_item(item_key, amount=1):
+    global shop_extra_life_count, shop_shield_count, shop_coin_boost_count, shop_jump_shoes_count
+    delta = max(0, int(amount))
+    if delta <= 0:
+        return
+    if item_key == "extra_life":
+        shop_extra_life_count += delta
+    elif item_key == "shield":
+        shop_shield_count += delta
+    elif item_key == "coin_boost":
+        shop_coin_boost_count += delta
+    elif item_key == "jump_shoes":
+        shop_jump_shoes_count += delta
+
+
+def buy_shop_item(item_key):
+    global coin_count
+    item = next((it for it in SHOP_ITEMS if it["key"] == item_key), None)
+    if item is None:
+        return False
+    cost = int(item["cost"])
+    if coin_count < cost:
+        set_shop_notice("Not enough coins in pouch.")
+        return False
+    coin_count -= cost
+    add_shop_item(item_key, 1)
+    set_shop_notice(f"Purchased: {item['label']}")
+    return True
+
+
+def apply_player_hit(hit_sound=None):
+    global game_over, player_damage_cooldown_until_ms, shop_extra_life_count
+    now = millis()
+    if now < player_damage_cooldown_until_ms:
+        return
+
+    if is_shield_active():
+        player_damage_cooldown_until_ms = now + PLAYER_DAMAGE_COOLDOWN_MS
+        play_sfx(hit_sound if hit_sound is not None else CRASH_SOUND)
+        return
+
+    if shop_extra_life_count > 0:
+        shop_extra_life_count -= 1
+        player_damage_cooldown_until_ms = now + PLAYER_DAMAGE_COOLDOWN_MS
+        set_shop_notice("Extra life used!", duration_ms=1200)
+        play_sfx(hit_sound if hit_sound is not None else CRASH_SOUND)
+        return
+
+    game_over = True
+    play_sfx(hit_sound if hit_sound is not None else CRASH_SOUND)
 
 
 def update_level_from_score():
@@ -1424,6 +1802,7 @@ def update_level_from_score():
         scroll_speed = BASE_SCROLL_SPEED * (LEVEL_SPEED_FACTOR ** (current_level - 1))
         next_level_score = get_level_total_score(current_level)
         level_blink_until_ms = millis() + LEVEL_BLINK_DURATION_MS
+        show_level_name_announcement(current_level)
         save_character_checkpoint(current_level)
         if current_level in (5, 6) and not flight_mode:
             pending_airplane_spawn = True
@@ -1444,6 +1823,7 @@ def debug_step_level(level_delta):
     scroll_speed = BASE_SCROLL_SPEED * (LEVEL_SPEED_FACTOR ** (current_level - 1))
     next_level_score = get_level_total_score(current_level)
     level_blink_until_ms = millis() + LEVEL_BLINK_DURATION_MS
+    show_level_name_announcement(current_level)
     save_character_checkpoint(current_level)
 
     if current_level in (5, 6) and not flight_mode:
@@ -1530,7 +1910,17 @@ def draw_projectile(projectile):
         rect(x + w - 2, y - 3, 2, 3)
         return
 
-    if kind == "tnt_blast":
+    if kind in ("enemy_big_tnt", "enemy_big_tnt_ground", "returned_big_tnt"):
+        fill(182, 24, 24)
+        rect(x, y, w, h)
+        fill(120, 10, 10)
+        rect(x + 2, y + 2, max(4, w - 4), max(4, h - 4))
+        fill(255, 228, 110)
+        fuse_x = x + w - 4 if kind != "returned_big_tnt" else x + 2
+        rect(fuse_x, y - 4, 3, 5)
+        return
+
+    if kind in ("tnt_blast", "big_tnt_blast"):
         fill(238, 96, 42)
         rect(x, y, w, h)
         fill(255, 210, 90)
@@ -1549,7 +1939,7 @@ def draw_projectile(projectile):
     rect(x, y, w, h)
 
 
-def spawn_explosion_effect(center_x, center_y, size, life_ms=FINAL_BOSS_BLAST_LIFE_MS, alpha=225):
+def spawn_explosion_effect(center_x, center_y, size, life_ms=FINAL_BOSS_BLAST_LIFE_MS, alpha=225, hazardous=False):
     if not EXPLOSION_FRAMES:
         return
     frame_count = len(EXPLOSION_FRAMES)
@@ -1561,6 +1951,8 @@ def spawn_explosion_effect(center_x, center_y, size, life_ms=FINAL_BOSS_BLAST_LI
         "life_ms": max(120, int(life_ms)),
         "alpha": max(40, min(255, int(alpha))),
         "frame_offset": int(random(0, frame_count)),
+        "hazardous": bool(hazardous),
+        "hit_player": False,
     })
     overflow = len(explosion_effects) - MAX_ACTIVE_EXPLOSIONS
     if overflow > 0:
@@ -1617,6 +2009,35 @@ def draw_explosion_effects():
     explosion_effects[:] = alive_effects
 
 
+def update_hazardous_explosions():
+    if not explosion_effects or game_over:
+        return
+
+    player_hitbox = get_dino_hitbox()
+    now = millis()
+    for effect in explosion_effects:
+        if not effect.get("hazardous") or effect.get("hit_player"):
+            continue
+        age = now - effect["spawned_ms"]
+        life_ms = max(1, effect["life_ms"])
+        if age >= life_ms:
+            continue
+
+        progress = max(0.0, min(0.999, age / life_ms))
+        size_now = max(16.0, effect["size"] * (0.86 + (0.30 * progress)))
+        blast_rect = (
+            effect["x"] - (size_now * 0.34),
+            effect["y"] - (size_now * 0.34),
+            size_now * 0.68,
+            size_now * 0.68,
+        )
+        if rects_overlap(player_hitbox, blast_rect):
+            effect["hit_player"] = True
+            apply_player_hit(CRASH_SOUND)
+            if game_over:
+                return
+
+
 def update_mini_boss_defeat_sequences():
     if not mini_boss_defeat_sequences:
         return
@@ -1641,6 +2062,8 @@ def update_mini_boss_defeat_sequences():
 def fire_player_weapon():
     global player_shot_cooldown_until_ms
     if boss_state is None or game_over or game_paused or shared.show_info:
+        return
+    if boss_state.get("form") == "ReuzenCoyote":
         return
     if not weapon_powerup_ready:
         return
@@ -1667,12 +2090,13 @@ def fire_player_weapon():
         "enemy": False,
     })
     if boss_state is not None:
-        target_x = boss_state["x"] + (boss_state["w"] * 0.5)
-        target_y = boss_state["y"] + (boss_state["h"] * 0.5)
-        vertical_boost = 1.0
+        boss_hitbox = get_boss_hitbox(boss_state)
+        target_x = boss_hitbox[0] + (boss_hitbox[2] * 0.5)
+        target_y = boss_hitbox[1] + (boss_hitbox[3] * 0.5)
+        min_vy = -3.2
+        max_vy = 3.2
 
         if boss_state["type"] == "cactus_miniboss":
-            # Mik hoger op de bovenste nog levende tak zodat top-armen beter raakbaar zijn.
             branch_rects = get_cactus_branch_rects(boss_state)
             living_branches = [
                 branch_rects[idx]
@@ -1680,18 +2104,71 @@ def fire_player_weapon():
                 if hp > 0
             ]
             if living_branches:
-                top_branch = min(living_branches, key=lambda r: r[1])
-                target_x = top_branch[0] + (top_branch[2] * 0.6)
-                target_y = top_branch[1] + (top_branch[3] * 0.45)
-            target_y -= CACTUS_SHOT_UPWARD_OFFSET_PX
-            vertical_boost = CACTUS_SHOT_VERTICAL_BOOST
+                projectile_center_y = projectile_y + (profile["h"] / 2)
+                target_branch = min(
+                    living_branches,
+                    key=lambda rect: abs((rect[1] + (rect[3] * 0.5)) - projectile_center_y),
+                )
+                target_x = target_branch[0] + (target_branch[2] * 0.5)
+                target_y = target_branch[1] + (target_branch[3] * 0.5)
+            min_vy = -2.6
+            max_vy = 2.6
 
-        travel_px = max(40.0, target_x - projectile_x)
-        travel_time = travel_px / max(0.1, profile["speed"])
-        base_vy = (target_y - projectile_y) / max(0.1, travel_time)
-        projectile["vy"] = base_vy * vertical_boost
+        _, projectile["vy"] = get_linear_aim_velocity(
+            projectile_x + (profile["w"] / 2),
+            projectile_y + (profile["h"] / 2),
+            target_x,
+            target_y,
+            profile["speed"],
+            min_vy=min_vy,
+            max_vy=max_vy,
+        )
     play_sfx(FIRE_PLAYER_SOUND)
     player_shot_cooldown_until_ms = now + PLAYER_SHOOT_COOLDOWN_MS
+
+
+def try_throw_back_coyote_bomb():
+    if boss_state is None or boss_state.get("form") != "ReuzenCoyote":
+        return False
+
+    player_hitbox = get_dino_hitbox()
+    reach_rect = (
+        player_hitbox[0] - 10,
+        player_hitbox[1] - 10,
+        player_hitbox[2] + 42,
+        player_hitbox[3] + 20,
+    )
+    for projectile in iter_active_projectiles(boss_state["enemy_projectiles"]):
+        if projectile.get("kind") != "enemy_big_tnt_ground":
+            continue
+        projectile_rect = get_projectile_rect(projectile)
+        if not rects_overlap(reach_rect, projectile_rect):
+            continue
+        boss_hitbox = get_boss_hitbox(boss_state)
+        target_x = boss_hitbox[0] + (boss_hitbox[2] * 0.5)
+        target_y = boss_hitbox[1] + (boss_hitbox[3] * 0.5) - 34
+        throw_x = get_player_x() + DINO_W - 6
+        throw_y = GROUND_Y - projectile["h"] - 10
+        throw_vx, throw_vy = get_linear_aim_velocity(
+            throw_x + (projectile["w"] / 2),
+            throw_y + (projectile["h"] / 2),
+            target_x,
+            target_y,
+            COYOTE_BIG_BOMB_RETURN_SPEED,
+            min_vy=-10.0,
+            max_vy=-2.2,
+        )
+        projectile.update({
+            "kind": "returned_big_tnt",
+            "enemy": False,
+            "vx": throw_vx,
+            "vy": min(COYOTE_BIG_BOMB_RETURN_VY, throw_vy - 1.0),
+            "x": throw_x,
+            "y": throw_y,
+        })
+        play_sfx(FIRE_PLAYER_SOUND)
+        return True
+    return False
 
 
 def get_boss_hitbox(boss):
@@ -1811,6 +2288,7 @@ def spawn_boss_for_level(level):
             "y": 176.0,
             "w": 124,
             "h": 242,
+            "ground_y": 176.0,
             "vy": 1.2,
             "min_y": 150.0,
             "max_y": 210.0,
@@ -1854,8 +2332,8 @@ def spawn_boss_for_level(level):
         "min_y": min_y,
         "max_y": max_y,
         "hits_taken": 0,
-        "hits_required": 35,
-        "meter_steps": 35,
+        "hits_required": 25 if form_name == "ReuzenCoyote" else 35,
+        "meter_steps": 25 if form_name == "ReuzenCoyote" else 35,
         "enemy_projectiles": create_projectile_pool(),
         "attack_interval_ms": 760,
         "phase": "laugh",
@@ -2171,6 +2649,34 @@ def update_enemy_projectiles(boss):
     global game_over
     player_hitbox = get_dino_hitbox()
     for projectile in iter_active_projectiles(boss["enemy_projectiles"]):
+        if projectile["kind"] == "returned_big_tnt":
+            projectile["x"] += projectile["vx"]
+            projectile["y"] += projectile.get("vy", 0.0)
+            projectile["vy"] = min(3.4, projectile.get("vy", 0.0) + COYOTE_BIG_BOMB_RETURN_GRAVITY)
+            projectile_rect = get_projectile_rect(projectile)
+            boss_hitbox = get_boss_hitbox(boss)
+            bomb_hitbox = (
+                projectile_rect[0] - 6,
+                projectile_rect[1] - 6,
+                projectile_rect[2] + 12,
+                projectile_rect[3] + 12,
+            )
+            if rects_overlap(bomb_hitbox, boss_hitbox):
+                boss["hits_taken"] += COYOTE_BIG_BOMB_BOSS_DAMAGE
+                projectile["active"] = False
+                spawn_explosion_effect(
+                    projectile_rect[0] + (projectile_rect[2] / 2),
+                    projectile_rect[1] + (projectile_rect[3] / 2),
+                    84,
+                    life_ms=380,
+                    alpha=235,
+                )
+                play_sfx(BOSS_EXPLOSION_SOUND)
+                continue
+            if projectile["x"] > width + 40 or projectile["y"] > height + 40:
+                projectile["active"] = False
+            continue
+
         if projectile["kind"] == "enemy_tnt":
             projectile["x"] += projectile["vx"]
             projectile["y"] += projectile.get("vy", 0.0)
@@ -2178,8 +2684,7 @@ def update_enemy_projectiles(boss):
             projectile_rect = get_projectile_rect(projectile)
             if rects_overlap(projectile_rect, player_hitbox):
                 projectile["active"] = False
-                game_over = True
-                play_sfx(CRASH_SOUND)
+                apply_player_hit(CRASH_SOUND)
                 return
             if projectile["y"] + projectile["h"] >= GROUND_Y:
                 spawn_coyote_pit(boss, projectile["x"] + (projectile["w"] / 2))
@@ -2197,7 +2702,47 @@ def update_enemy_projectiles(boss):
                 projectile["active"] = False
             continue
 
-        if projectile["kind"] == "tnt_blast":
+        if projectile["kind"] == "enemy_big_tnt":
+            projectile["x"] += projectile["vx"]
+            projectile["y"] += projectile.get("vy", 0.0)
+            projectile["vy"] = projectile.get("vy", 0.0) + COYOTE_TNT_THROW_GRAVITY
+            projectile_rect = get_projectile_rect(projectile)
+            if rects_overlap(projectile_rect, player_hitbox):
+                projectile["active"] = False
+                apply_player_hit(CRASH_SOUND)
+                return
+            if projectile["y"] + projectile["h"] >= GROUND_Y:
+                projectile.update({
+                    "kind": "enemy_big_tnt_ground",
+                    "x": projectile["x"],
+                    "y": GROUND_Y - projectile["h"],
+                    "vx": 0.0,
+                    "vy": 0.0,
+                    "explode_at": millis() + COYOTE_BIG_BOMB_FUSE_MS,
+                })
+                continue
+            if projectile["x"] + projectile["w"] < -40:
+                projectile["active"] = False
+            continue
+
+        if projectile["kind"] == "enemy_big_tnt_ground":
+            if millis() >= projectile.get("explode_at", 0):
+                projectile.update({
+                    "kind": "big_tnt_blast",
+                    "x": projectile["x"] - 22,
+                    "y": GROUND_Y - 42,
+                    "w": 72,
+                    "h": 42,
+                    "vx": 0.0,
+                    "blast_until": millis() + COYOTE_BIG_BOMB_BLAST_MS,
+                })
+                continue
+            continue
+
+        if projectile["kind"] in ("tnt_blast", "big_tnt_blast"):
+            if rects_overlap(get_projectile_rect(projectile), player_hitbox):
+                apply_player_hit(CRASH_SOUND)
+                return
             if millis() >= projectile.get("blast_until", 0):
                 projectile["active"] = False
             continue
@@ -2207,8 +2752,7 @@ def update_enemy_projectiles(boss):
         projectile_rect = get_projectile_rect(projectile)
         if rects_overlap(projectile_rect, player_hitbox):
             projectile["active"] = False
-            game_over = True
-            play_sfx(CRASH_SOUND)
+            apply_player_hit(CRASH_SOUND)
             return
         if projectile["x"] + projectile["w"] < -40:
             projectile["active"] = False
@@ -2233,6 +2777,18 @@ def update_player_projectiles_against_boss(boss):
                 if rects_overlap(projectile_rect, branch_rect):
                     boss["branch_hp"][idx] -= 1
                     boss["hits_taken"] += 1
+                    if boss["branch_hp"][idx] == 0:
+                        branch_center_x = branch_rect[0] + (branch_rect[2] / 2)
+                        branch_center_y = branch_rect[1] + (branch_rect[3] / 2)
+                        spawn_explosion_effect(
+                            branch_center_x,
+                            branch_center_y,
+                            CACTUS_BRANCH_EXPLOSION_SIZE,
+                            life_ms=CACTUS_BRANCH_EXPLOSION_LIFE_MS,
+                            alpha=235,
+                            hazardous=True,
+                        )
+                        play_sfx(BOSS_EXPLOSION_SOUND)
                     hit = True
                     break
         elif rects_overlap(projectile_rect, boss_hitbox):
@@ -2303,18 +2859,21 @@ def spawn_boss_attack_if_needed(boss):
             return
         pick = living_idxs[int(random(0, len(living_idxs)))]
         bx, by, bw, bh = branch_rects[pick]
+        hp_ratio = max(0.2, min(1.0, boss["branch_hp"][pick] / 5.0))
+        arm_w = int(max(10, bw * hp_ratio))
+        arm_x = int(bx + (bw - arm_w))
         proj_w = 22
         proj_h = 8
-        origin_x = bx - 10
+        origin_x = arm_x - proj_w - 2
         origin_y = by + (bh // 2) - 4
         vx, vy = get_linear_aim_velocity(
             origin_x + (proj_w / 2),
             origin_y + (proj_h / 2),
             player_center_x,
             player_center_y,
-            8.8,
-            min_vy=-4.6,
-            max_vy=4.6,
+            9.6,
+            min_vy=-6.0,
+            max_vy=6.0,
         )
         projectile.update({
             "x": origin_x,
@@ -2331,12 +2890,14 @@ def spawn_boss_attack_if_needed(boss):
         return
 
     if boss.get("form") == "ReuzenCoyote":
-        proj_w = 14
-        proj_h = 28
+        throw_big_bomb = int(random(0, 100)) < COYOTE_BIG_BOMB_CHANCE_PCT
+        proj_w = 24 if throw_big_bomb else 14
+        proj_h = 24 if throw_big_bomb else 28
         origin_x = boss["x"] - 6
-        origin_y = boss["y"] + 112
+        origin_y = boss["y"] + (108 if throw_big_bomb else 112)
+        bomb_speed = COYOTE_BIG_BOMB_THROW_SPEED if throw_big_bomb else COYOTE_TNT_THROW_SPEED
         travel_px = max(28.0, origin_x - player_center_x)
-        travel_time = travel_px / max(0.1, COYOTE_TNT_THROW_SPEED)
+        travel_time = travel_px / max(0.1, bomb_speed)
         raw_vy = (
             (player_center_y - origin_y)
             - (0.5 * COYOTE_TNT_THROW_GRAVITY * (travel_time ** 2))
@@ -2347,9 +2908,9 @@ def spawn_boss_attack_if_needed(boss):
             "y": origin_y,
             "w": proj_w,
             "h": proj_h,
-            "vx": -COYOTE_TNT_THROW_SPEED,
+            "vx": -bomb_speed,
             "vy": throw_vy,
-            "kind": "enemy_tnt",
+            "kind": "enemy_big_tnt" if throw_big_bomb else "enemy_tnt",
             "color": (210, 35, 30),
             "enemy": True,
         })
@@ -2486,6 +3047,8 @@ def update_and_draw_boss_mode(theme, update_world=True):
                 boss["vx"] *= -1
             if boss["y"] <= boss["min_y"] or boss["y"] >= boss["max_y"]:
                 boss["vy"] *= -1
+        elif boss["type"] == "cactus_miniboss":
+            boss["y"] = boss.get("ground_y", boss["y"])
         else:
             update_final_boss_movement(boss, now)
 
@@ -2495,18 +3058,15 @@ def update_and_draw_boss_mode(theme, update_world=True):
             return
 
         update_player_projectiles_against_boss(boss)
+        update_hazardous_explosions()
+        if game_over:
+            return
         finish_boss_if_defeated(boss)
         if boss_state is None:
             return
 
-        if on_ground and player_over_coyote_pit(boss):
-            game_over = True
-            play_sfx(CRASH_SOUND)
-            return
-
         if rects_overlap(get_dino_hitbox(), get_boss_hitbox(boss)):
-            game_over = True
-            play_sfx(CRASH_SOUND)
+            apply_player_hit(CRASH_SOUND)
             return
 
     draw_coyote_pits(boss, theme)
@@ -2519,16 +3079,23 @@ def update_and_draw_boss_mode(theme, update_world=True):
         draw_projectile(projectile)
     draw_explosion_effects()
 
-    weapon_label = get_player_weapon_profile()["label"]
     fill(*theme["text"])
     text_size(16)
-    text(f"Weapon: {weapon_label} (SPACE)", 20, 66)
+    if boss.get("form") == "ReuzenCoyote":
+        text("TIP: throw back 5 big bombs with SPACE", 20, 66)
+    else:
+        weapon_label = get_player_weapon_profile()["label"]
+        text(f"Weapon: {weapon_label} (SPACE)", 20, 66)
 
     if millis() < boss_intro_until_ms:
         if boss["type"] in ("bird_miniboss", "cactus_miniboss"):
             fill(200, 40, 40)
             text_size(34)
             text("Mini boss coming...", width // 2 - 168, 34)
+        elif boss.get("form") == "ReuzenCoyote":
+            fill(200, 40, 40)
+            text_size(30)
+            text("Throw back 5 big bombs!", width // 2 - 166, 34)
         fill(*theme["accent"])
         text_size(24)
         text(boss["name"], width // 2 - 150, 112)
@@ -2605,7 +3172,10 @@ def draw_big_announcement_overlay(theme):
     message = None
     color = (255, 74, 56)
     y = 18
-    if millis() < high_jump_warning_until_ms:
+    if millis() < level_name_announcement_until_ms and level_name_announcement_text:
+        message = level_name_announcement_text
+        y = 12
+    elif millis() < high_jump_warning_until_ms:
         message = "HIGH JUMP!"
     elif millis() < high_jump_powerup_warning_until_ms:
         message = "HIGH JUMP\nPOWERUP!"
@@ -2618,6 +3188,11 @@ def draw_big_announcement_overlay(theme):
     elif millis() < airplane_warning_until_ms:
         message = "JUMP ON THE AIRPLANE!"
         color = (255, 212, 78)
+    elif millis() < missed_plane_notice_until_ms:
+        message = "YOU MISSED\nTHE PLANE"
+        color = (255, 212, 78)
+    elif millis() < multi_jump_notice_until_ms:
+        message = "USE ↓ TO LAND QUICKER\nFOR MULTI JUMP"
 
     if message is None:
         return
@@ -2633,7 +3208,22 @@ def draw_hud(theme, force_visible=False):
         text_size(24)
         text(f"Score: {score}", 20, 40)
         text_size(18)
-        text(f"Coins: {coin_count}", 20, 66)
+        text(f"Coins: {coin_count}/{MAX_COIN_POUCH}", 20, 66)
+        status_y = 88
+        if is_shield_active():
+            shield_left = max(0.0, (shield_until_ms - millis()) / 1000.0)
+            text(f"Shield: {shield_left:.1f}s", 20, status_y)
+            status_y += 20
+        if is_coin_boost_active():
+            coin_left = max(0.0, (coin_boost_until_ms - millis()) / 1000.0)
+            text(f"Coin x2: {coin_left:.0f}s", 20, status_y)
+            status_y += 20
+        if is_jump_shoes_active():
+            shoes_left = max(0.0, (jump_shoes_until_ms - millis()) / 1000.0)
+            text(f"Jump shoes: {shoes_left:.0f}s", 20, status_y)
+            status_y += 20
+        if shop_extra_life_count > 0:
+            text(f"Extra lives: {shop_extra_life_count}", 20, status_y)
         text_size(24)
         text(f"Level: {current_level}", width - 150, 40)
 
@@ -2683,8 +3273,8 @@ def update_and_draw_flight_mode(theme, update_world=True):
         if fly_down_pressed:
             flight_plane_y += FLIGHT_PLANE_SPEED
 
-        plane_w = 88
-        plane_h = 36
+        plane_w = AIRPLANE_PICKUP_W
+        plane_h = AIRPLANE_PICKUP_H
         flight_plane_x = max(20.0, min((width // 2) - plane_w - 10, flight_plane_x))
         flight_plane_y = max(50.0, min(GROUND_Y - plane_h - 4, flight_plane_y))
 
@@ -2718,8 +3308,7 @@ def update_and_draw_flight_mode(theme, update_world=True):
                 GROUND_Y - (pipe["gap_top"] + FLIGHT_PIPE_GAP_H),
             )
             if rects_overlap(plane_rect, top_rect) or rects_overlap(plane_rect, bottom_rect):
-                game_over = True
-                play_sfx(CRASH_SOUND)
+                apply_player_hit(CRASH_SOUND)
                 break
 
     draw_flight_pipes()
@@ -2849,6 +3438,64 @@ def draw_water_lily_obstacle(draw_x, draw_y, draw_w, draw_h):
         rect(int(lx + 3), int(ly + 2), int(max(2, lw - 6)), int(max(2, lh - 4)))
 
 
+def draw_jump_block_obstacle(draw_x, draw_y, draw_w, draw_h):
+    px = int(draw_x)
+    py = int(draw_y)
+    pw = int(draw_w)
+    ph = int(draw_h)
+    fill(225, 182, 72)
+    rect(px, py, pw, ph)
+    fill(186, 138, 42)
+    rect(px + 3, py + 3, max(4, pw - 6), max(4, ph - 6))
+    fill(244, 222, 144)
+    rect(px + 9, py + 9, max(4, pw - 18), max(4, ph - 18))
+    fill(126, 84, 22)
+    rect(px + (pw // 2) - 2, py + 10, 4, ph - 20)
+    rect(px + 10, py + (ph // 2) - 2, pw - 20, 4)
+
+
+def update_and_draw_jump_block_garden(theme):
+    if not is_ground_wet_active() and not jump_block_droplets:
+        return
+
+    if is_ground_wet_active():
+        fill(96, 152, 182)
+        rect(0, GROUND_Y + 2, width, 38)
+        fill(74, 128, 158)
+        rect(0, GROUND_Y + 24, width, 10)
+
+        growth_progress = min(
+            1.0,
+            max(0.0, (millis() - wet_ground_started_ms) / max(1, JUMP_BLOCK_FLOWER_GROW_MS)),
+        )
+        for flower in ground_flowers:
+            stem_h = flower["stem_h"] * growth_progress
+            bloom_r = flower["petal_r"] * growth_progress
+            stem_x = int(flower["x"])
+            stem_top_y = int(GROUND_Y - stem_h)
+            fill(*flower["stem"])
+            rect(stem_x, stem_top_y, 3, max(6, int(stem_h)))
+            if bloom_r >= 2.0:
+                bloom_x = stem_x + 1
+                bloom_y = stem_top_y
+                fill(*flower["petal"])
+                rect(int(bloom_x - bloom_r), int(bloom_y - 2), int(bloom_r * 2), 4)
+                rect(int(bloom_x - 2), int(bloom_y - bloom_r), 4, int(bloom_r * 2))
+                fill(*flower["center"])
+                rect(int(bloom_x - 1), int(bloom_y - 1), 3, 3)
+
+    alive_droplets = []
+    for droplet in jump_block_droplets:
+        if not game_paused and not game_over:
+            droplet["y"] += droplet["vy"]
+        if droplet["y"] >= GROUND_Y + 6:
+            continue
+        fill(92, 176, 226)
+        rect(int(droplet["x"]), int(droplet["y"]), droplet["size"], droplet["size"] + 2)
+        alive_droplets.append(droplet)
+    jump_block_droplets[:] = alive_droplets
+
+
 def point_in_rect(px, py, x, y, w, h):
     return x <= px <= x + w and y <= py <= y + h
 
@@ -2869,13 +3516,20 @@ def get_character_select_layout():
 def get_start_button_rect():
     btn_w = 150
     btn_h = 44
-    btn_x = width - btn_w - 36
-    btn_y = height // 2 - 10
+    btn_x = 36
+    _, _, card_y, _, _ = get_character_select_layout()[0]
+    total_stack_h = btn_h * 3 + 12 * 2
+    btn_y = card_y - total_stack_h - 34
     return btn_x, btn_y, btn_w, btn_h
 
 
 def get_explain_button_rect():
     btn_x, btn_y, btn_w, btn_h = get_start_button_rect()
+    return btn_x, btn_y + btn_h + 12, btn_w, btn_h
+
+
+def get_shop_button_rect():
+    btn_x, btn_y, btn_w, btn_h = get_explain_button_rect()
     return btn_x, btn_y + btn_h + 12, btn_w, btn_h
 
 
@@ -2906,6 +3560,113 @@ def draw_explain_button(theme):
     fill(*theme["accent"])
     text_size(22)
     text("Explain", btn_x + 44, btn_y + 29)
+
+
+def draw_shop_button(theme):
+    btn_x, btn_y, btn_w, btn_h = get_shop_button_rect()
+    fill(255, 255, 255)
+    no_stroke()
+    rect(btn_x, btn_y, btn_w, btn_h)
+    draw_rounded_rect_outline(btn_x, btn_y, btn_w, btn_h, 12, theme["accent"], 3)
+    fill(*theme["accent"])
+    text_size(22)
+    text("Shop", btn_x + 48, btn_y + 29)
+
+
+def get_shop_item_layout():
+    card_w = 280
+    card_h = 108
+    gap_x = 24
+    gap_y = 18
+    start_x = 92
+    start_y = 138
+    layout = []
+    for idx, item in enumerate(SHOP_ITEMS):
+        row = idx // 2
+        col = idx % 2
+        card_x = start_x + col * (card_w + gap_x)
+        card_y = start_y + row * (card_h + gap_y)
+        layout.append((item, card_x, card_y, card_w, card_h))
+    return layout
+
+
+def get_shop_buy_button_rect(card_x, card_y, card_w, card_h):
+    btn_w = 86
+    btn_h = 30
+    btn_x = card_x + card_w - btn_w - 12
+    btn_y = card_y + card_h - btn_h - 10
+    return btn_x, btn_y, btn_w, btn_h
+
+
+def get_shop_back_button_rect():
+    btn_w = 126
+    btn_h = 38
+    btn_x = width - btn_w - 34
+    btn_y = height - btn_h - 22
+    return btn_x, btn_y, btn_w, btn_h
+
+
+def draw_shop_seller_with_tie():
+    sx = 26
+    sy = 168
+    fill(255, 225, 186)
+    rect(sx + 24, sy, 62, 52)
+    fill(32, 32, 38)
+    rect(sx + 20, sy + 50, 72, 96)
+    fill(212, 40, 40)
+    rect(sx + 50, sy + 60, 12, 34)
+    fill(170, 24, 24)
+    rect(sx + 47, sy + 88, 18, 20)
+    fill(20, 20, 20)
+    rect(sx + 36, sy + 14, 10, 8)
+    rect(sx + 65, sy + 14, 10, 8)
+    fill(245, 245, 245)
+    rect(sx + 42, sy + 34, 24, 4)
+
+
+def draw_shop_screen(theme):
+    fill(*theme["text"])
+    text_size(40)
+    text("Powerup Shop", 252, 74)
+    text_size(20)
+    text("Tie salesman offers upgrades. Click Buy.", 252, 102)
+    text(f"Coin pouch: {coin_count}/{MAX_COIN_POUCH}", 252, 126)
+    draw_shop_seller_with_tie()
+
+    for item, card_x, card_y, card_w, card_h in get_shop_item_layout():
+        fill(255, 255, 255)
+        no_stroke()
+        rect(card_x, card_y, card_w, card_h)
+        draw_rounded_rect_outline(card_x, card_y, card_w, card_h, 12, theme["ground_line"], 2)
+
+        fill(*theme["text"])
+        text_size(21)
+        text(item["label"], card_x + 12, card_y + 30)
+        text_size(16)
+        text(item["desc"], card_x + 12, card_y + 54)
+        text(f"Cost: {item['cost']} coins", card_x + 12, card_y + 76)
+        text(f"Owned: {get_shop_item_count(item['key'])}", card_x + 12, card_y + 96)
+
+        buy_x, buy_y, buy_w, buy_h = get_shop_buy_button_rect(card_x, card_y, card_w, card_h)
+        fill(255, 255, 255)
+        rect(buy_x, buy_y, buy_w, buy_h)
+        draw_rounded_rect_outline(buy_x, buy_y, buy_w, buy_h, 8, theme["accent"], 2)
+        fill(*theme["text"])
+        text_size(18)
+        text("Buy", buy_x + 22, buy_y + 22)
+
+    back_x, back_y, back_w, back_h = get_shop_back_button_rect()
+    fill(255, 255, 255)
+    rect(back_x, back_y, back_w, back_h)
+    draw_rounded_rect_outline(back_x, back_y, back_w, back_h, 10, theme["accent"], 3)
+    fill(*theme["accent"])
+    text_size(20)
+    text("Back", back_x + 36, back_y + 26)
+
+    if millis() < shop_notice_until_ms and shop_notice_text:
+        fill(*theme["accent"])
+        text_size(20)
+        text(shop_notice_text, 250, height - 26)
 
 
 def draw_crown_badge_on_card(x, card_y, card_w, card_h):
@@ -2956,7 +3717,8 @@ def draw_menu_character_card(idx, x, card_y, card_w, card_h, character_key, char
 def draw_character_select(theme):
     text_size(22)
     fill(*theme["text"])
-    text("Choose character: left/right arrows", width // 2 - 185, height // 2 + 72)
+    _, _, card_y, _, _ = get_character_select_layout()[0]
+    text("Choose character: left/right arrows", width // 2 - 185, card_y - 18)
 
     pulse = (math.sin(millis() / 180.0) + 1.0) * 0.5
     pulse_pad = int(5 + pulse * 6)
@@ -2980,13 +3742,80 @@ def draw_character_select(theme):
 
     draw_start_button(theme)
     draw_explain_button(theme)
+    draw_shop_button(theme)
+
+
+def update_and_draw_bonus_coins():
+    global bonus_coins, score, coin_count
+    if not bonus_coins:
+        return
+
+    dino_hitbox = get_dino_hitbox()
+    remaining = []
+    for coin in bonus_coins:
+        if not game_paused and not game_over:
+            coin["x"] -= scroll_speed
+
+        if coin["x"] + coin["w"] < -8:
+            continue
+
+        draw_coin_pickup(coin["x"], coin["y"], coin["w"], coin["h"])
+        coin_rect = (coin["x"], coin["y"], coin["w"], coin["h"])
+        if (not game_paused and not game_over) and rects_overlap(dino_hitbox, coin_rect):
+            gained_coins = COIN_SCORE_VALUE * (2 if is_coin_boost_active() else 1)
+            coin_count = min(MAX_COIN_POUCH, coin_count + gained_coins)
+            score += gained_coins
+            play_sfx(COIN_SOUND)
+            update_level_from_score()
+            continue
+
+        remaining.append(coin)
+
+    bonus_coins[:] = remaining
+
+
+def update_and_draw_extra_obstacles(theme):
+    global extra_obstacles, score, game_over, is_ducking
+
+    if not extra_obstacles:
+        return
+
+    dino_hitbox = get_dino_hitbox()
+    remaining = []
+    for obstacle in extra_obstacles:
+        if not game_paused and not game_over:
+            obstacle["x"] -= scroll_speed
+        obstacle_type_local = obstacle["type"]
+        obstacle_cfg = OBSTACLE_CONFIG[obstacle_type_local]
+        draw_x, draw_y, draw_w, draw_h = get_extra_obstacle_draw_rect(obstacle)
+        image(obstacle_cfg["img"], draw_x, draw_y, draw_w, draw_h)
+
+        if not game_paused and not game_over and draw_x < -draw_w:
+            score += obstacle_cfg["points"]
+            update_level_from_score()
+            continue
+
+        obstacle_hitbox = get_extra_obstacle_hitbox(obstacle)
+        if not game_paused and not game_over and rects_overlap(dino_hitbox, obstacle_hitbox):
+            is_ducking = False
+            apply_player_hit(CRASH_SOUND)
+            if game_over:
+                remaining.append(obstacle)
+                break
+
+        remaining.append(obstacle)
+
+    extra_obstacles[:] = remaining
 
 
 def draw():
     global dino_y, velocity_y, on_ground, obstacle_x, score, high_score, coin_count, game_over, game_completed, game_started
     global is_ducking, bird_duck_scored, is_fast_falling, snake_hiss_played_for_current
+    global debug_coin_repeat_until_ms
     global high_jump_powerup_charges, high_jump_powerup_warning_until_ms
     global weapon_powerup_warning_until_ms, water_warning_until_ms
+    global missed_plane_notice_until_ms
+    global multi_jump_notice_until_ms, bonus_coins, extra_obstacles
     global weapon_powerup_ready, weapon_powerup_level, pending_weapon_powerup_level
     global final_boss_snapshot, final_boss_defeat_until_ms, final_boss_next_blast_ms
     global pending_credits_after_victory
@@ -2994,6 +3823,19 @@ def draw():
     update_background_music()
     if score > high_score:
         high_score = int(score)
+
+    keys_pressed = pygame.key.get_pressed() if pygame.get_init() else None
+    coin_key_held = bool(keys_pressed and keys_pressed[pygame.K_c])
+
+    if (
+        (debug_coin_pressed or coin_key_held)
+        and isDebugMode
+        and not credits_active
+        and not game_over
+        and millis() >= debug_coin_repeat_until_ms
+    ):
+        coin_count = min(MAX_COIN_POUCH, coin_count + 1)
+        debug_coin_repeat_until_ms = millis() + 90
 
     if credits_active:
         draw_credits_screen()
@@ -3006,6 +3848,7 @@ def draw():
     stroke_weight(2)
     line(0, GROUND_Y, width, GROUND_Y)
     no_stroke()
+    update_and_draw_jump_block_garden(theme)
     update_mini_boss_defeat_sequences()
 
     if shared.show_info:
@@ -3025,17 +3868,24 @@ def draw():
 
     if not game_started:
         draw_main_character()
+        if shop_active:
+            draw_shop_screen(theme)
+            draw_debug_overlay()
+            return
+        menu_info_y = height // 2 - 34
         fill(*theme["text"])
         text_size(44)
         text("Dino Game", width // 2 - 105, height // 2 - 55)
         text_size(26)
         text(f"Highscore: {high_score}", width // 2 - 92, height // 2 - 90)
         text_size(22)
-        text("Start: SPACE/A or click Start", width // 2 - 165, height // 2 - 10)
-        text("Jump: up arrow", width // 2 - 88, height // 2 + 20)
-        text("Duck: down arrow (air = fast fall)", width // 2 - 190, height // 2 + 50)
-        text("High jump: duck then jump within 0.5s", width // 2 - 220, height // 2 + 80)
-        text("Info: I", width // 2 - 45, height // 2 + 110)
+        text(f"Coin pouch: {coin_count}/{MAX_COIN_POUCH}", width // 2 - 122, height // 2 - 122)
+        text_size(22)
+        text("Start: SPACE/A or click Start", width // 2 - 165, menu_info_y)
+        text("Jump: up arrow", width // 2 - 88, menu_info_y + 28)
+        text("Duck: down arrow (air = fast fall)", width // 2 - 190, menu_info_y + 56)
+        text("High jump: duck then jump within 0.5s", width // 2 - 220, menu_info_y + 84)
+        text("Info: I", width // 2 - 45, menu_info_y + 108)
         draw_character_select(theme)
         if quit_confirm_active:
             fill(250, 250, 250)
@@ -3144,6 +3994,8 @@ def draw():
         draw_high_jump_powerup(obstacle_draw_x, obstacle_draw_y, obstacle_draw_w, obstacle_draw_h, theme)
     elif obstacle_type == "weapon_powerup":
         draw_weapon_powerup(obstacle_draw_x, obstacle_draw_y, obstacle_draw_w, obstacle_draw_h)
+    elif obstacle_type == "jump_block":
+        draw_jump_block_obstacle(obstacle_draw_x, obstacle_draw_y, obstacle_draw_w, obstacle_draw_h)
     elif obstacle_type == "coin":
         draw_coin_pickup(obstacle_draw_x, obstacle_draw_y, obstacle_draw_w, obstacle_draw_h)
     elif obstacle_type == "water_lily":
@@ -3152,6 +4004,8 @@ def draw():
         draw_ground_pipe_pair(obstacle_draw_x)
     else:
         image(obstacle_cfg["img"], obstacle_draw_x, obstacle_draw_y, obstacle_draw_w, obstacle_draw_h)
+    update_and_draw_bonus_coins()
+    update_and_draw_extra_obstacles(theme)
     draw_main_character()
 
     if game_paused:
@@ -3212,6 +4066,8 @@ def draw():
 
         obstacle_draw_x, _, obstacle_draw_w, _ = get_obstacle_draw_rect()
         if obstacle_draw_x < -obstacle_draw_w:
+            if obstacle_type == "airplane_pickup":
+                missed_plane_notice_until_ms = millis() + MISSED_PLANE_NOTICE_MS
             gained_points = obstacle_cfg["points"]
             if obstacle_cfg.get("requires_duck_score", False) and not bird_duck_scored:
                 gained_points = 0
@@ -3239,6 +4095,31 @@ def draw():
                 draw_hud(theme)
                 return
 
+        if obstacle_type == "jump_block":
+            dino_hitbox = get_dino_hitbox()
+            block_hitbox = get_obstacle_hitbox()
+            block_bottom = block_hitbox[1] + block_hitbox[3]
+            overlap_x = (
+                dino_hitbox[0] < block_hitbox[0] + block_hitbox[2] and
+                dino_hitbox[0] + dino_hitbox[2] > block_hitbox[0]
+            )
+            head_hits_block = (
+                overlap_x and
+                velocity_y < 0 and
+                dino_hitbox[1] <= block_bottom <= dino_hitbox[1] + 18
+            )
+            if head_hits_block:
+                velocity_y = 1.8
+                trigger_jump_block_rain(
+                    obstacle_draw_x,
+                    obstacle_draw_y,
+                    obstacle_draw_w,
+                )
+                spawn_obstacle()
+                draw_main_character()
+                draw_hud(theme)
+                return
+
         # Collision detection
         dino_hitbox = get_dino_hitbox()
         obstacle_hitbox = get_obstacle_hitbox()
@@ -3253,8 +4134,9 @@ def draw():
             weapon_powerup_warning_until_ms = millis() + WEAPON_POWERUP_NOTICE_MS
             spawn_obstacle()
         elif obstacle_type == "coin" and rects_overlap(dino_hitbox, obstacle_hitbox):
-            coin_count += 1
-            score += COIN_SCORE_VALUE
+            gained_coins = COIN_SCORE_VALUE * (2 if is_coin_boost_active() else 1)
+            coin_count = min(MAX_COIN_POUCH, coin_count + gained_coins)
+            score += gained_coins
             play_sfx(COIN_SOUND)
             update_level_from_score()
             spawn_obstacle()
@@ -3271,19 +4153,18 @@ def draw():
             )
             on_lily = any(rects_overlap(dino_feet_hitbox, lily_rect) for lily_rect in lily_pad_rects)
             if rects_overlap(dino_hitbox, water_hitbox) and not on_lily:
-                game_over = True
                 is_ducking = False
-                play_sfx(SPLASH_SOUND)
+                apply_player_hit(SPLASH_SOUND)
         elif obstacle_type == "pipe_pair":
             top_pipe, bottom_pipe = get_ground_pipe_rects()
             if rects_overlap(dino_hitbox, top_pipe) or rects_overlap(dino_hitbox, bottom_pipe):
-                game_over = True
                 is_ducking = False
-                play_sfx(CRASH_SOUND)
+                apply_player_hit(CRASH_SOUND)
+        elif obstacle_type == "jump_block":
+            pass
         elif rects_overlap(dino_hitbox, obstacle_hitbox):
-            game_over = True
             is_ducking = False
-            play_sfx(CRASH_SOUND)
+            apply_player_hit(CRASH_SOUND)
 
     if isDebugMode:
         no_fill()
@@ -3322,13 +4203,16 @@ def draw():
         text_size(14)
         text(screenshot_notice_text, 20, height - 20)
 
+
 def key_pressed():
     global velocity_y, on_ground, game_started, isDebugMode, is_ducking
     global game_paused, selected_character_idx, active_character_key
     global duck_jump_expires_ms, is_fast_falling, high_jump_powerup_charges, game_completed
-    global fly_left_pressed, fly_right_pressed, fly_up_pressed, fly_down_pressed
+    global fly_left_pressed, fly_right_pressed, fly_up_pressed
+    global fly_down_pressed
     global boss_left_pressed, boss_right_pressed
-    global quit_confirm_active, is_fullscreen
+    global quit_confirm_active, is_fullscreen, shop_active, coin_count
+    global debug_coin_pressed, debug_coin_repeat_until_ms
     pressed_key = key.lower() if isinstance(key, str) else key
     if credits_active and pressed_key == "i":
         return
@@ -3361,6 +4245,10 @@ def key_pressed():
             is_fullscreen = True
         return
 
+    if not game_started and shop_active and (pressed_key == "b" or key_code == pygame.K_ESCAPE):
+        shop_active = False
+        return
+
     if quit_confirm_active:
         if pressed_key == "y":
             exit()
@@ -3391,6 +4279,8 @@ def key_pressed():
 
     if key in ("d", "D"):
         isDebugMode = not isDebugMode
+        if not isDebugMode:
+            debug_coin_pressed = False
         return
 
     if pressed_key == "k":
@@ -3407,6 +4297,13 @@ def key_pressed():
     if isDebugMode and pressed_key == "v":
         game_completed = True
         start_credits_mode()
+        return
+
+    if isDebugMode and pressed_key == "c":
+        debug_coin_pressed = True
+        coin_count = min(MAX_COIN_POUCH, coin_count + 1)
+        debug_coin_repeat_until_ms = millis() + 160
+        set_shop_notice("Debug: +1 coin", duration_ms=900)
         return
 
     if key in ("p", "P") and game_started and not game_over:
@@ -3436,6 +4333,8 @@ def key_pressed():
         return
 
     if not game_started and key in (" ", "a", "A"):
+        if shop_active:
+            return
         start_game_from_selection()
         return
 
@@ -3451,6 +4350,9 @@ def key_pressed():
             return
 
     if game_started and not game_over and key == " " and boss_state is not None:
+        if boss_state.get("form") == "ReuzenCoyote":
+            try_throw_back_coyote_bomb()
+            return
         fire_player_weapon()
         return
 
@@ -3487,6 +4389,8 @@ def key_pressed():
             high_jump_powerup_charges = max(0, high_jump_powerup_charges - 1)
         elif used_duck_window:
             jump_velocity = HIGH_JUMP_VELOCITY
+        if is_jump_shoes_active():
+            jump_velocity *= SHOP_JUMP_SHOES_FACTOR
         is_ducking = False
         velocity_y = jump_velocity
         on_ground = False
@@ -3497,6 +4401,7 @@ def key_pressed():
 
 def key_released(released_key):
     global is_ducking, duck_jump_expires_ms, is_fast_falling
+    global debug_coin_pressed
     global fly_left_pressed, fly_right_pressed, fly_up_pressed, fly_down_pressed
     global boss_left_pressed, boss_right_pressed
     if flight_mode:
@@ -3514,6 +4419,8 @@ def key_released(released_key):
         boss_left_pressed = False
     elif released_key == pygame.K_RIGHT:
         boss_right_pressed = False
+    elif released_key == pygame.K_c:
+        debug_coin_pressed = False
 
     if released_key == pygame.K_DOWN:
         if on_ground:
@@ -3523,12 +4430,23 @@ def key_released(released_key):
 
 
 def mouse_clicked(x, y, button):
-    global selected_character_idx
+    global selected_character_idx, shop_active
     if button != 1:
         return
     if shared.show_info:
         return
     if game_started:
+        return
+
+    if shop_active:
+        for item, card_x, card_y, card_w, card_h in get_shop_item_layout():
+            buy_x, buy_y, buy_w, buy_h = get_shop_buy_button_rect(card_x, card_y, card_w, card_h)
+            if point_in_rect(x, y, buy_x, buy_y, buy_w, buy_h):
+                buy_shop_item(item["key"])
+                return
+        back_x, back_y, back_w, back_h = get_shop_back_button_rect()
+        if point_in_rect(x, y, back_x, back_y, back_w, back_h):
+            shop_active = False
         return
 
     for idx, card_x, card_y, card_w, card_h in get_character_select_layout():
@@ -3546,6 +4464,12 @@ def mouse_clicked(x, y, button):
         shared.show_info = True
         play_intro_speech(force_restart=True)
         update_background_music(force=True)
+        return
+
+    shop_x, shop_y, shop_w, shop_h = get_shop_button_rect()
+    if point_in_rect(x, y, shop_x, shop_y, shop_w, shop_h):
+        shop_active = True
+        quit_confirm_active = False
 
 
 def draw_equipped_weapon_on_character(pose):
@@ -3610,7 +4534,7 @@ def weapon_overlay_decorator(draw_fn):
             return None
         if game_started and not game_over and high_jump_powerup_charges > 0:
             draw_high_jump_powerup_effect(pose)
-        if game_started and not game_over and weapon_powerup_ready:
+        if game_started and not game_over and weapon_powerup_ready and (boss_state is None or boss_state.get("form") != "ReuzenCoyote"):
             draw_equipped_weapon_on_character(pose)
         return pose
     return wrapped

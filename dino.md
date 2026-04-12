@@ -77,6 +77,8 @@ Deze game is een variant op de Chrome Dino game, met meerdere speelbare karakter
 - Level 3, `High Jump Ridge`:
   - Verticale obstakels worden belangrijker.
   - Torencactus komt erbij.
+  - Ook een jump block: spring er van onderen tegenaan en er vallen waterdruppels uit.
+  - De grond wordt dan nat en er groeien bloemetjes uit de grond.
   - High-jump waarschuwing wordt relevant voor grotere obstakels.
 - Level 4, `Bird Boss Canyon`:
   - Eerste minibossfase.
@@ -101,12 +103,12 @@ Deze game is een variant op de Chrome Dino game, met meerdere speelbare karakter
   - De cactus heeft 5 takken met elk 5 hits; totaal 25 hits nodig.
 - Level 8, `Wild Flats`:
   - Snellere combinatie van grond- en luchtgevaar.
-  - Ook snel achter elkaar verschijnende cactussen, vaak twee direct na elkaar en soms zelfs drie als extra uitdaging.
-  - Sprongen vragen hier extra controle: tijdens sommige sprongen moet je ook `Pijl omlaag` gebruiken om goed uit te komen.
+  - Ook meerdere cactussen tegelijk in krappe packs, vaak twee direct na elkaar en soms drie.
+  - Sommige sprongen vragen snelle landing: gebruik dan ook `Pijl omlaag` om op tijd klaar te zijn voor de volgende jump.
   - Verdere opschaling van tempo, variatie en reactiedruk.
 - Level 9, `Last Stretch`:
   - Voorbereiding op de eindbaas.
-  - Hogere druk door snellere spawnmix en minder hersteltijd tussen obstakels.
+  - Hogere druk door snellere spawnmix, multi-cactus packs en minder hersteltijd tussen obstakels.
 - Level 10, `Giant Town`:
   - Eindbaasfase.
   - Eindbaas is een reuzenvariant per karakter:
