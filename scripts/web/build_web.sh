@@ -12,6 +12,7 @@ PYGBAG_TEMPLATE="${PYGBAG_TEMPLATE:-$ROOT_DIR/scripts/web/default.tmpl}"
 PYGBAG_ICON="${PYGBAG_ICON:-$ROOT_DIR/processing/icon.png}"
 LOCAL_CDN="${LOCAL_CDN:-1}"
 LOCAL_CDN_MODULES="${LOCAL_CDN_MODULES:-pygame}"
+PUBLIC_BASE_PATH="${PUBLIC_BASE_PATH:-}"
 
 # Pygbag concatenates CDN + template filename directly, so CDN must end with '/'.
 if [[ "$PYGBAG_CDN" != */ ]]; then
@@ -159,13 +160,22 @@ from pathlib import Path
 import re
 
 index = Path(r"$OUTPUT_DIR") / "index.html"
+base_path = str(r"$PUBLIC_BASE_PATH").strip()
+if base_path in ("", "/"):
+    base_prefix = ""
+else:
+    if not base_path.startswith("/"):
+        base_path = "/" + base_path
+    base_prefix = base_path.rstrip("/")
+
+cdn_prefix = f"{base_prefix}/cdn/0.9.3"
 if index.exists():
     html = index.read_text(encoding="utf-8")
-    html = html.replace('src="https://pygame-web.github.io/cdn/0.9.3/pythons.js"', 'src="cdn/0.9.3/pythons.js"')
-    html = html.replace('src="https://pygame-web.github.io/cdn/0.9.3/browserfs.min.js"', 'src="cdn/0.9.3/browserfs.min.js"')
-    html = html.replace('src="https://pygame-web.github.io/cdn/0.9.3//browserfs.min.js"', 'src="cdn/0.9.3/browserfs.min.js"')
-    html = html.replace("https://pygame-web.github.io/cdn/0.9.3/empty.html", "cdn/0.9.3/empty.html")
-    html = html.replace('cdn : "https://pygame-web.github.io/cdn/0.9.3/",', 'cdn : "cdn/0.9.3/",')
+    html = html.replace('src="https://pygame-web.github.io/cdn/0.9.3/pythons.js"', f'src="{cdn_prefix}/pythons.js"')
+    html = html.replace('src="https://pygame-web.github.io/cdn/0.9.3/browserfs.min.js"', f'src="{cdn_prefix}/browserfs.min.js"')
+    html = html.replace('src="https://pygame-web.github.io/cdn/0.9.3//browserfs.min.js"', f'src="{cdn_prefix}/browserfs.min.js"')
+    html = html.replace("https://pygame-web.github.io/cdn/0.9.3/empty.html", f"{cdn_prefix}/empty.html")
+    html = html.replace('cdn : "https://pygame-web.github.io/cdn/0.9.3/",', f'cdn : "{cdn_prefix}/",')
     html = html.replace('sandbox="allow-scripts allow-pointer-lock"', 'sandbox="allow-scripts allow-pointer-lock allow-same-origin"')
     html = re.sub(r'(<script[^>]*id="site"[^>]*?)\\s+async\\s+defer', r'\\1 defer', html, count=1)
     # Keep output lean: disable terminal addon that triggers extra CDN side-loads.

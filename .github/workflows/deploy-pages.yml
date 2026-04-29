@@ -34,7 +34,7 @@ jobs:
         run: scripts/web/setup_web.sh
 
       - name: Build Web App
-        run: ENTRY_FILE=dino_game.py INCLUDE_ASSETS=1 LOCAL_CDN=1 scripts/web/build_web.sh
+        run: ENTRY_FILE=dino_game.py INCLUDE_ASSETS=1 LOCAL_CDN=1 PUBLIC_BASE_PATH="/${{ github.event.repository.name }}" scripts/web/build_web.sh
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
