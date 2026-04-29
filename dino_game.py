@@ -1,4 +1,5 @@
 from processing import run, size, full_screen, frame_rate, title, background, fill, rect, line, arc
+from processing import circle, ellipse, triangle
 from processing import image, text_size, text, load_image, no_fill, stroke, stroke_weight, no_stroke, millis
 from processing import width, height, key, key_code, random
 from processing import PI, TWO_PI
@@ -29,6 +30,7 @@ import sys
 DINO_IMG = load_image("assets/dino-transparant.png")
 DINO_OOPS_IMG = load_image("assets/dino-oops-transparant.png")
 DINO_DUCK_IMG = load_image("assets/dino-duck-transparant.png")
+DINO_FALL_IMG = transform.rotate(DINO_OOPS_IMG, -90)
 COWBOY_IMG = load_image("assets/cowboy-transparant.png")
 COWBOY_RUN_IMG = load_image("assets/cowboy-run-transparant.png")
 COWBOY_FALL_IMG = load_image("assets/pc/cowboy-fall-transparant.png")
@@ -36,6 +38,7 @@ COWBOY_DUCK_IMG = load_image("assets/pc/cowboy-duck-transparant.png")
 ROADRUNNER_IMG = load_image("assets/roadrunner-transparant.png")
 ROADRUNNER_OOPS_IMG = load_image("assets/roadrunner-oops-transparant.png")
 ROADRUNNER_DUCK_IMG = load_image("assets/roadrunner-duck-transparant.png")
+ROADRUNNER_FALL_IMG = transform.rotate(ROADRUNNER_OOPS_IMG, -90)
 AIRPLANE_IMG = load_image("assets/plane-still.png")
 PLANE_SPRITE_SHEET = load_image("assets/plane-sprite.png") if os.path.exists("assets/plane-sprite.png") else None
 BIRD_IMG = load_image("assets/obstacles/bird-transparant.png")
@@ -99,6 +102,19 @@ SHOP_ITEM_ICONS = {
         "assets/shop/jump-shoes.png",
     )),
 }
+CACTUS_BOSS_IMG = load_optional_image((
+    "assets/npc/cactus-endboss/cactus_omgedraaid.png",
+    "assets/npc/cactus-endboss/cactus.png",
+))
+CACTUS_BOSS_TRUNK_IMG = load_optional_image((
+    "assets/npc/cactus-endboss/cactus_stam_omgedraaid.png",
+    "assets/npc/cactus-endboss/cactus_stam.png",
+))
+CACTUS_BOSS_ARMS_IMG = load_optional_image((
+    "assets/npc/cactus-endboss/generated/cactus_arms_overlay.png",
+))
+CACTUS_BOSS_TRUNK_FLIPPED_IMG = transform.flip(CACTUS_BOSS_TRUNK_IMG, True, False) if CACTUS_BOSS_TRUNK_IMG is not None else None
+CACTUS_BOSS_ARMS_FLIPPED_IMG = transform.flip(CACTUS_BOSS_ARMS_IMG, True, False) if CACTUS_BOSS_ARMS_IMG is not None else None
 
 
 def extract_plane_sprite_rows(sheet, cols=3, rows=3):
@@ -203,6 +219,25 @@ GIANT_COWBOY_SHOT_CROUCH_OFFSET = 34
 BOSS_INTRO_DURATION_MS = 1700
 BOSS_PLAYER_SPEED = 5.5
 BOSS_LEVEL_ORDER = (4, 7, 10)
+PIPE_ENTRY_DURATION_MS = 820
+PIPE_ENTRY_CROUCH_HOLD_MS = 240
+PIPE_ENTRY_CENTER_TOLERANCE_PX = 18
+PIPE_ENTRY_SINK_EXTRA_PX = 20
+CACTUS_ROTATION_INTERVAL_MS = 5000
+CACTUS_MINIBOSS_TRUNK_HITS_REQUIRED = 3
+CACTUS_ARM_SIDE_BY_INDEX = ("left", "right", "left", "right", "left")
+BIRD_NEST_ENTRY_RECT = (654, 146, 106, 58)
+BIRD_TREE_BRANCH_RECTS = (
+    (356, 386, 128, 14),
+    (494, 310, 124, 14),
+    (626, 232, 112, 14),
+)
+BIRD_BOSS_BRANCH_RECTS = (
+    (78, 396, 164, 14),
+    (256, 332, 136, 14),
+    (438, 274, 150, 14),
+    (596, 360, 126, 14),
+)
 FINAL_BOSS_JUMP_GRAVITY = 0.78
 FINAL_BOSS_JUMP_VELOCITY_MIN = -13.8
 FINAL_BOSS_JUMP_VELOCITY_MAX = -10.6
@@ -573,6 +608,7 @@ CHARACTER_CONFIG = {
         "label": "Dino",
         "stand": DINO_IMG,
         "duck": DINO_DUCK_IMG,
+        "pipe_crouch_path": "assets/dino-crouch-pipe-transparant.png",
         "oops": DINO_OOPS_IMG,
         "theme": {
             "bg": (245, 245, 245),
@@ -587,6 +623,7 @@ CHARACTER_CONFIG = {
         "stand": COWBOY_IMG,
         "run": COWBOY_RUN_IMG,
         "duck": COWBOY_DUCK_IMG,
+        "pipe_crouch_path": "assets/pc/cowboy-crouch-pipe-transparant.png",
         "oops": COWBOY_FALL_IMG,
         "theme": {
             "bg": (245, 220, 170),
@@ -600,6 +637,7 @@ CHARACTER_CONFIG = {
         "label": "Roadrunner",
         "stand": ROADRUNNER_IMG,
         "duck": ROADRUNNER_DUCK_IMG,
+        "pipe_crouch_path": "assets/roadrunner-crouch-pipe-transparant.png",
         "oops": ROADRUNNER_OOPS_IMG,
         "theme": {
             "bg": (154, 214, 242),
@@ -642,9 +680,16 @@ boss_shop_seen = {
     level: False for level in BOSS_LEVEL_ORDER
 }
 coyote_cave_flash_until_ms = 0
+pipe_entry_active = False
+pipe_entry_level = 0
+pipe_entry_started_ms = 0
+pipe_entry_start_x = float(DINO_X)
+pipe_entry_start_feet_y = float(DINO_Y + DINO_H)
+pipe_entry_sound_next_ms = 0
 player_x = float(DINO_X)
 JUMP_SOUND = None
-ROADRUNNER_JUMP_SOUND = None
+HIGH_JUMP_SOUND = None
+PIPE_ENTRY_SOUND = None
 CRASH_SOUND = None
 HISS_SOUND = None
 SPLASH_SOUND = None
@@ -668,6 +713,7 @@ checkpoint_level_by_character = {
 character_completed = {
     character_key: False for character_key in CHARACTER_ORDER
 }
+pipe_crouch_sprite_cache = {}
 duck_jump_expires_ms = 0
 is_fast_falling = False
 current_level = 1
@@ -761,6 +807,8 @@ def reset_game(show_splash=False):
     global shield_until_ms, coin_boost_until_ms, jump_shoes_until_ms
     global pre_boss_scene_level, pending_boss_shop_level, boss_shop_seen
     global coyote_cave_flash_until_ms
+    global pipe_entry_active, pipe_entry_level, pipe_entry_started_ms
+    global pipe_entry_start_x, pipe_entry_start_feet_y, pipe_entry_sound_next_ms
     global player_x
     global is_ducking, game_paused, bird_duck_scored, duck_jump_expires_ms, is_fast_falling
     global debug_coin_pressed, debug_coin_repeat_until_ms
@@ -796,6 +844,7 @@ def reset_game(show_splash=False):
     global credits_total_duration_ms, credits_starfield
     global pending_credits_after_victory
     global mini_boss_defeat_sequences
+    global pipe_crouch_sprite_cache
     global touch_active_button, touch_ignore_next_click
     stop_intro_speech()
     dino_y = DINO_Y
@@ -817,6 +866,12 @@ def reset_game(show_splash=False):
         level: False for level in BOSS_LEVEL_ORDER
     }
     coyote_cave_flash_until_ms = 0
+    pipe_entry_active = False
+    pipe_entry_level = 0
+    pipe_entry_started_ms = 0
+    pipe_entry_start_x = float(DINO_X)
+    pipe_entry_start_feet_y = float(DINO_Y + DINO_H)
+    pipe_entry_sound_next_ms = 0
     debug_coin_pressed = False
     debug_coin_repeat_until_ms = 0
     is_ducking = False
@@ -903,6 +958,7 @@ def reset_game(show_splash=False):
     credits_starfield = []
     pending_credits_after_victory = False
     mini_boss_defeat_sequences = []
+    pipe_crouch_sprite_cache = {}
     touch_active_button = None
     touch_ignore_next_click = False
     spawn_obstacle("cactus_low")
@@ -934,7 +990,6 @@ def update_player_vertical_motion():
     velocity_y += gravity_now
     if is_wind_swirl_active() and velocity_y > WIND_SWIRL_MAX_FALL_SPEED:
         velocity_y = WIND_SWIRL_MAX_FALL_SPEED
-
     dino_y += velocity_y
     if dino_y >= DINO_Y:
         dino_y = DINO_Y
@@ -1283,6 +1338,44 @@ def play_sfx(sound):
         pass
 
 
+def make_pipe_entry_sound():
+    try:
+        init_info = mixer.get_init()
+    except Exception:
+        init_info = None
+    if not init_info:
+        return None
+
+    sample_rate, _, channels = init_info
+    sample_rate = int(sample_rate or 44100)
+    channels = max(1, int(channels or 1))
+    total_samples = int(sample_rate * 0.52)
+    chirps = (
+        (0.02, 0.12, 540.0, 330.0),
+        (0.19, 0.29, 470.0, 280.0),
+        (0.36, 0.47, 390.0, 220.0),
+    )
+    sound_buffer = bytearray()
+
+    for sample_idx in range(total_samples):
+        t = sample_idx / sample_rate
+        value = 0.0
+        for start_t, end_t, start_freq, end_freq in chirps:
+            if start_t <= t <= end_t:
+                p = (t - start_t) / max(0.001, end_t - start_t)
+                freq = start_freq + ((end_freq - start_freq) * p)
+                envelope = math.sin(math.pi * p)
+                value += math.sin((2.0 * math.pi * freq * t) + (p * p * 8.0)) * envelope
+        sample = int(max(-1.0, min(1.0, value * 0.35)) * 32767)
+        for _ in range(channels):
+            sound_buffer.extend(sample.to_bytes(2, byteorder="little", signed=True))
+
+    try:
+        return mixer.Sound(buffer=bytes(sound_buffer))
+    except Exception:
+        return None
+
+
 def stop_intro_speech():
     global INTRO_SPEECH_CHANNEL
     try:
@@ -1314,17 +1407,14 @@ def is_intro_speech_playing():
         return False
 
 
-def get_jump_sound():
-    if (
-        get_current_character_key() == "roadrunner"
-        and ROADRUNNER_JUMP_SOUND is not None
-    ):
-        return ROADRUNNER_JUMP_SOUND
+def get_jump_sound(is_high_jump=False):
+    if is_high_jump and HIGH_JUMP_SOUND is not None:
+        return HIGH_JUMP_SOUND
     return JUMP_SOUND
 
 
 def setup():
-    global JUMP_SOUND, ROADRUNNER_JUMP_SOUND, CRASH_SOUND, HISS_SOUND
+    global JUMP_SOUND, HIGH_JUMP_SOUND, PIPE_ENTRY_SOUND, CRASH_SOUND, HISS_SOUND
     global SPLASH_SOUND, FIRE_PLAYER_SOUND, FIRE_ENEMY_SOUND
     global BOSS_EXPLOSION_SOUND, COIN_SOUND, MINI_BOSS_VICTORY_SOUND, INTRO_SPEECH_SOUND
     global TOUCH_CONTROLS_ENABLED
@@ -1346,9 +1436,11 @@ def setup():
         JUMP_SOUND = None
 
     try:
-        ROADRUNNER_JUMP_SOUND = mixer.Sound("assets/audio/weeh.wav")
+        HIGH_JUMP_SOUND = mixer.Sound("assets/audio/weeh.wav")
     except Exception:
-        ROADRUNNER_JUMP_SOUND = None
+        HIGH_JUMP_SOUND = None
+
+    PIPE_ENTRY_SOUND = make_pipe_entry_sound()
 
     try:
         CRASH_SOUND = mixer.Sound("assets/audio/crash.wav")
@@ -1784,6 +1876,11 @@ def end_flight_mode():
     spawn_obstacle()
 
 
+def crash_flight_mode():
+    apply_player_hit(CRASH_SOUND)
+    end_flight_mode()
+
+
 def get_ground_pipe_rects(draw_x=None):
     pipe_x = obstacle_x if draw_x is None else draw_x
     gap_top = int(ground_pipe_gap_top)
@@ -1828,21 +1925,26 @@ def draw_ground_pipe_pair(draw_x=None):
     draw_pipe_column(bx, by, bw, bh)
 
 
-def apply_one_way_platform_collision(platform_rect, prev_player_x, prev_dino_y, prev_ducking):
+def platform_supports_player(platform_rect):
+    platform_x, platform_y, platform_w, _ = platform_rect
+    current_hitbox = get_dino_hitbox()
+    current_bottom = current_hitbox[1] + current_hitbox[3]
+    return (
+        current_hitbox[0] + current_hitbox[2] > platform_x + 6
+        and current_hitbox[0] < platform_x + platform_w - 6
+        and abs(current_bottom - platform_y) <= 8
+    )
+
+
+def apply_one_way_platform_collision(platform_rect, prev_player_x, prev_dino_y, prev_ducking, drop_if_unsupported=True):
     global dino_y, velocity_y, on_ground, is_fast_falling
     platform_x, platform_y, platform_w, _ = platform_rect
     platform_left = platform_x
     platform_right = platform_x + platform_w
 
     # If we were standing on an elevated platform and moved past its edge, start falling.
-    current_hitbox = get_dino_hitbox()
-    current_bottom = current_hitbox[1] + current_hitbox[3]
-    support_overlap_x = (
-        current_hitbox[0] + current_hitbox[2] > platform_left + 6
-        and current_hitbox[0] < platform_right - 6
-    )
-    if on_ground and dino_y < DINO_Y:
-        if not (support_overlap_x and abs(current_bottom - platform_y) <= 8):
+    if drop_if_unsupported and on_ground and dino_y < DINO_Y:
+        if not platform_supports_player(platform_rect):
             on_ground = False
 
     prev_hitbox = get_dino_hitbox_for_state(prev_player_x, prev_dino_y, prev_ducking)
@@ -1940,6 +2042,19 @@ def get_current_character_key():
     if game_started:
         return active_character_key
     return get_selected_character_key()
+
+
+def get_pipe_crouch_sprite(character_key):
+    if character_key not in pipe_crouch_sprite_cache:
+        pipe_crouch_path = CHARACTER_CONFIG[character_key]["pipe_crouch_path"]
+        if os.path.exists(pipe_crouch_path):
+            pipe_crouch_sprite_cache[character_key] = load_image(pipe_crouch_path)
+        else:
+            pipe_crouch_sprite_cache[character_key] = CHARACTER_CONFIG[character_key].get(
+                "duck",
+                CHARACTER_CONFIG[character_key]["stand"],
+            )
+    return pipe_crouch_sprite_cache[character_key]
 
 
 def get_level_start_score(level):
@@ -2074,14 +2189,23 @@ def is_pre_boss_scene_active():
 
 
 def get_pre_boss_shop_rect():
-    return (64, GROUND_Y - 204, 276, 158)
+    shop_w = 276
+    shop_h = 158
+    return (64, GROUND_Y - shop_h, shop_w, shop_h)
 
 
 def get_pre_boss_entrance_rect(level=None):
     target_level = pre_boss_scene_level if level is None else level
+    if target_level == 4:
+        return BIRD_NEST_ENTRY_RECT
     if target_level >= 10:
         return (width - 168, GROUND_Y - 132, FLIGHT_PIPE_WIDTH, 132)
-    return (width - 196, GROUND_Y - 156, 132, 156)
+    return (width - 168, GROUND_Y - 96, FLIGHT_PIPE_WIDTH, 96)
+
+
+def pre_boss_scene_uses_pipe_entry(level=None):
+    target_level = pre_boss_scene_level if level is None else level
+    return target_level == 7 or target_level >= 10
 
 
 def get_shop_overlay_layout():
@@ -2089,17 +2213,42 @@ def get_shop_overlay_layout():
     stall_y = 136
     stall_w = 628
     stall_h = 246
-    icon_size = 76
-    icon_positions = (
-        (stall_x + 118, stall_y + 78),
-        (stall_x + 244, stall_y + 58),
-        (stall_x + 378, stall_y + 78),
-        (stall_x + 504, stall_y + 58),
-    )
     layout = []
-    for item, (icon_x, icon_y) in zip(SHOP_ITEMS, icon_positions):
-        layout.append((item, icon_x, icon_y, icon_size, icon_size))
+    if BADGER_SHOP_IMG is not None:
+        icon_positions = (
+            (stall_x + 84, stall_y + 136, 72, 60),
+            (stall_x + 206, stall_y + 132, 72, 64),
+            (stall_x + 326, stall_y + 134, 72, 60),
+            (stall_x + 464, stall_y + 132, 88, 62),
+        )
+    else:
+        icon_positions = (
+            (stall_x + 118, stall_y + 78, 76, 76),
+            (stall_x + 244, stall_y + 58, 76, 76),
+            (stall_x + 378, stall_y + 78, 76, 76),
+            (stall_x + 504, stall_y + 58, 76, 76),
+        )
+    for item, (icon_x, icon_y, icon_w, icon_h) in zip(SHOP_ITEMS, icon_positions):
+        layout.append((item, icon_x, icon_y, icon_w, icon_h))
     return stall_x, stall_y, stall_w, stall_h, layout
+
+
+def draw_shop_item_highlight(x, y, w, h, theme, selected=False):
+    base_color = theme["ground_line"]
+    glow_color = (255, 220, 104) if selected else theme["accent"]
+    draw_rounded_rect_outline(x, y, w, h, 14, base_color, 2)
+    if selected:
+        pulse = (math.sin(millis() / 190.0) + 1.0) * 0.5
+        pad = 3 + int(pulse * 5)
+        draw_rounded_rect_outline(
+            x - pad,
+            y - pad,
+            w + pad * 2,
+            h + pad * 2,
+            16,
+            glow_color,
+            2 + int(pulse * 2),
+        )
 
 
 def draw_shop_item_icon(item_key, x, y, size, theme):
@@ -2193,13 +2342,81 @@ def draw_pre_boss_shop_world(theme):
         image(BADGER_SHOP_IMG, shop_x, shop_y, shop_w, shop_h)
     else:
         draw_badger_shop_fallback(shop_x, shop_y, shop_w, shop_h, theme)
-    fill(*theme["text"])
-    text_size(16)
-    text("DOWN: open shop", shop_x + 74, shop_y + shop_h + 22)
+
+
+def draw_cactus_fortress_backdrop(theme):
+    fill(182, 143, 98)
+    ellipse(156, GROUND_Y - 18, 258, 92)
+    ellipse(380, GROUND_Y - 10, 344, 108)
+    ellipse(650, GROUND_Y - 16, 286, 96)
+
+    fill(144, 98, 66)
+    rect(94, 184, 118, 138)
+    rect(108, 162, 78, 28)
+    rect(522, 204, 142, 118)
+    rect(548, 176, 86, 32)
+
+    fill(199, 164, 120)
+    rect(112, 194, 74, 12)
+    rect(544, 214, 94, 12)
+
+    if CACTUS_BOSS_IMG is not None:
+        image(CACTUS_BOSS_IMG, 224, GROUND_Y - 176, 104, 176)
+        image(CACTUS_BOSS_IMG, 470, GROUND_Y - 142, 80, 142)
+    else:
+        image(CACTUS_IMGS[0], 234, GROUND_Y - 130, 72, 130)
+        image(CACTUS_IMGS[0], 482, GROUND_Y - 102, 56, 102)
+
+    if CACTUS_BOSS_TRUNK_IMG is not None:
+        image(CACTUS_BOSS_TRUNK_IMG, 618, GROUND_Y - 126, 64, 126)
+    else:
+        image(CACTUS_IMGS[0], 624, GROUND_Y - 104, 52, 104)
+
+    fill(128, 92, 60)
+    rect(0, GROUND_Y - 10, width, 18)
+
+
+def draw_bird_tree_entry(theme):
+    fill(72, 148, 74)
+    ellipse(586, 118, 168, 86)
+    ellipse(674, 104, 154, 90)
+    ellipse(726, 154, 118, 76)
+    fill(58, 126, 64)
+    ellipse(468, 166, 156, 76)
+    ellipse(540, 138, 136, 72)
+
+    fill(106, 68, 38)
+    rect(692, 186, 34, GROUND_Y - 186)
+    fill(138, 88, 46)
+    rect(700, 190, 12, GROUND_Y - 194)
+
+    for idx, (branch_x, branch_y, branch_w, branch_h) in enumerate(BIRD_TREE_BRANCH_RECTS):
+        fill(116, 72, 38)
+        rect(branch_x, branch_y, branch_w, branch_h)
+        fill(154, 96, 48)
+        rect(branch_x + 4, branch_y + 2, max(12, branch_w - 12), max(4, branch_h - 6))
+        fill(70, 138, 66)
+        leaf_x = branch_x + branch_w - 18 if idx % 2 == 0 else branch_x + 18
+        ellipse(leaf_x, branch_y - 8, 48, 24)
+
+    nest_x, nest_y, nest_w, nest_h = get_pre_boss_entrance_rect(4)
+    fill(112, 72, 42)
+    ellipse(nest_x + (nest_w // 2), nest_y + 30, nest_w, nest_h)
+    fill(84, 52, 28)
+    ellipse(nest_x + (nest_w // 2), nest_y + 24, nest_w - 24, nest_h - 18)
+    fill(188, 220, 232)
+    ellipse(nest_x + 42, nest_y + 24, 18, 24)
+    ellipse(nest_x + 62, nest_y + 22, 18, 24)
+    fill(102, 70, 44)
+    rect(nest_x + 10, nest_y + 34, nest_w - 20, 10)
 
 
 def draw_pre_boss_entrance(level, theme):
     entry_x, entry_y, entry_w, entry_h = get_pre_boss_entrance_rect(level)
+    if level == 4:
+        draw_bird_tree_entry(theme)
+        return
+
     if level >= 10:
         draw_pipe_column(entry_x, entry_y, entry_w, entry_h)
         fill(48, 48, 48)
@@ -2208,15 +2425,14 @@ def draw_pre_boss_entrance(level, theme):
         rect(entry_x + 20, entry_y + 22, max(10, entry_w - 40), 6)
         return
 
-    fill(128, 88, 52)
-    rect(entry_x + 18, entry_y + 16, entry_w - 36, entry_h - 16)
-    fill(72, 42, 24)
-    rect(entry_x + 36, entry_y + 44, entry_w - 72, entry_h - 44)
-    fill(210, 58, 52)
-    rect(entry_x + 10, entry_y, entry_w - 20, 24)
-    fill(*theme["text"])
-    text_size(16)
-    text("DOWN: face boss", entry_x - 2, entry_y + entry_h + 22)
+    if level == 7:
+        fill(124, 90, 60)
+        rect(entry_x - 18, entry_y + 56, entry_w + 36, 16)
+        fill(164, 120, 76)
+        rect(entry_x - 10, entry_y + 60, entry_w + 20, 8)
+    draw_pipe_column(entry_x, entry_y, entry_w, entry_h)
+    fill(44, 92, 48)
+    rect(entry_x + 14, entry_y + 16, max(16, entry_w - 28), 10)
 
 
 def player_on_platform_top(platform_rect, tolerance=10):
@@ -2225,6 +2441,68 @@ def player_on_platform_top(platform_rect, tolerance=10):
     platform_x, platform_y, platform_w, _ = platform_rect
     overlap_x = hitbox[0] + hitbox[2] > platform_x + 6 and hitbox[0] < platform_x + platform_w - 6
     return overlap_x and abs(feet_y - platform_y) <= tolerance
+
+
+def player_centered_on_pipe(pipe_rect):
+    hitbox = get_dino_hitbox()
+    hitbox_center_x = hitbox[0] + (hitbox[2] / 2.0)
+    pipe_x, _, pipe_w, _ = pipe_rect
+    pipe_center_x = pipe_x + (pipe_w / 2.0)
+    return abs(hitbox_center_x - pipe_center_x) <= PIPE_ENTRY_CENTER_TOLERANCE_PX
+
+
+def start_pipe_entry_sequence(level, pipe_rect):
+    global pipe_entry_active, pipe_entry_level, pipe_entry_started_ms
+    global pipe_entry_start_x, pipe_entry_start_feet_y, pipe_entry_sound_next_ms
+    global player_x, dino_y, velocity_y, on_ground, is_ducking, is_fast_falling
+    pipe_x, pipe_y, pipe_w, _ = pipe_rect
+    pipe_entry_active = True
+    pipe_entry_level = level
+    pipe_entry_started_ms = millis()
+    pipe_entry_start_x = float(player_x)
+    pipe_entry_start_feet_y = float(get_dino_hitbox()[1] + get_dino_hitbox()[3])
+    pipe_entry_sound_next_ms = pipe_entry_started_ms
+    player_x = float((pipe_x + (pipe_w / 2.0)) - (DINO_W / 2.0))
+    dino_y = float(pipe_y - DINO_H)
+    velocity_y = 0
+    on_ground = True
+    is_ducking = True
+    is_fast_falling = False
+    play_sfx(PIPE_ENTRY_SOUND if PIPE_ENTRY_SOUND is not None else HISS_SOUND)
+
+
+def update_pipe_entry_sequence():
+    global pipe_entry_active, pipe_entry_sound_next_ms
+    if not pipe_entry_active:
+        return
+    now = millis()
+    if now >= pipe_entry_sound_next_ms and PIPE_ENTRY_SOUND is None:
+        play_sfx(HISS_SOUND)
+        pipe_entry_sound_next_ms = now + 190
+    if now - pipe_entry_started_ms >= PIPE_ENTRY_DURATION_MS:
+        level = pipe_entry_level
+        pipe_entry_active = False
+        start_pending_boss_encounter(level)
+
+
+def get_pipe_entry_pose():
+    if not pipe_entry_active:
+        return None
+    pipe_rect = get_pre_boss_entrance_rect(pipe_entry_level)
+    pipe_x, pipe_y, pipe_w, pipe_h = pipe_rect
+    elapsed = millis() - pipe_entry_started_ms
+    target_x = (pipe_x + (pipe_w / 2.0)) - (DINO_W / 2.0)
+    center_progress = max(0.0, min(1.0, elapsed / max(1, PIPE_ENTRY_CROUCH_HOLD_MS)))
+    center_eased = center_progress * center_progress * (3.0 - (2.0 * center_progress))
+    draw_x = pipe_entry_start_x + ((target_x - pipe_entry_start_x) * center_eased)
+
+    sink_elapsed = max(0, elapsed - PIPE_ENTRY_CROUCH_HOLD_MS)
+    sink_duration = max(1, PIPE_ENTRY_DURATION_MS - PIPE_ENTRY_CROUCH_HOLD_MS)
+    sink_progress = max(0.0, min(1.0, sink_elapsed / sink_duration))
+    sink_eased = sink_progress * sink_progress * (3.0 - (2.0 * sink_progress))
+    target_feet_y = pipe_y + pipe_h + PIPE_ENTRY_SINK_EXTRA_PX
+    feet_y = pipe_entry_start_feet_y + ((target_feet_y - pipe_entry_start_feet_y) * sink_eased)
+    return int(draw_x), int(feet_y - DUCK_H), DINO_W, DUCK_H
 
 
 def draw_pre_boss_scene(theme):
@@ -2238,6 +2516,11 @@ def draw_pre_boss_scene(theme):
         rect(0, GROUND_Y, width, 40)
         fill(136, 132, 126)
         rect(0, 132, width, 44)
+    elif level == 7:
+        background(242, 210, 164)
+        fill(198, 156, 108)
+        rect(0, GROUND_Y, width, 40)
+        draw_cactus_fortress_backdrop(theme)
     else:
         muted_bg = tuple(max(28, int(channel * 0.82)) for channel in theme["bg"])
         muted_ground = tuple(max(36, int(channel * 0.8)) for channel in theme["ground_fill"])
@@ -2249,40 +2532,44 @@ def draw_pre_boss_scene(theme):
     stroke_weight(2)
     line(0, GROUND_Y, width, GROUND_Y)
     no_stroke()
-    fill(248, 242, 224)
-    rect(370, GROUND_Y - 46, 84, 8)
-    rect(394, GROUND_Y - 82, 40, 36)
     draw_pre_boss_shop_world(theme)
     draw_pre_boss_entrance(level, theme)
 
     fill(*theme["text"])
     text_size(24)
-    if level >= 10:
+    if level == 4:
+        text("Boss approach: climb the tree to the nest.", 132, 44)
+    elif level == 7:
+        text("Boss approach: jump on the pipe, then duck.", 120, 44)
+    elif level >= 10:
         text("Boss approach: visit the shop, then enter the pipe.", 116, 44)
     else:
-        text("Boss approach: visit the shop, then step into the arena.", 110, 44)
+        text("Boss approach: visit the shop, then enter the green pipe.", 102, 44)
     text_size(18)
     text(f"Level {level}: {LEVEL_NAMES.get(level, 'Boss Stage')}", 210, 74)
 
-    player_hitbox = get_dino_hitbox()
-    shop_rect = get_pre_boss_shop_rect()
-    entry_rect = get_pre_boss_entrance_rect(level)
-    if rects_overlap(player_hitbox, shop_rect):
-        fill(212, 60, 44)
-        text_size(20)
-        text("Press DOWN at the stall", 262, 108)
-    elif rects_overlap(player_hitbox, entry_rect) or (level >= 10 and player_on_platform_top(entry_rect)):
-        fill(212, 60, 44)
-        text_size(20)
-        if level >= 10:
-            text("Press DOWN to go underground", 238, 108)
-        else:
-            text("Press DOWN to start the boss fight", 214, 108)
-
 
 def apply_pre_boss_scene_collisions(prev_player_x, prev_dino_y, prev_ducking):
-    global player_x
-    if pre_boss_scene_level < 10:
+    global player_x, on_ground
+    if pre_boss_scene_level == 4:
+        platforms = tuple(BIRD_TREE_BRANCH_RECTS) + (get_pre_boss_entrance_rect(4),)
+        landed = False
+        for platform_rect in platforms:
+            if apply_one_way_platform_collision(
+                platform_rect,
+                prev_player_x,
+                prev_dino_y,
+                prev_ducking,
+                drop_if_unsupported=False,
+            ):
+                landed = True
+                break
+        if (not landed) and on_ground and dino_y < DINO_Y:
+            if not any(platform_supports_player(platform_rect) for platform_rect in platforms):
+                on_ground = False
+        return
+
+    if not pre_boss_scene_uses_pipe_entry():
         return
 
     pipe_rect = get_pre_boss_entrance_rect(pre_boss_scene_level)
@@ -2307,10 +2594,13 @@ def apply_pre_boss_scene_collisions(prev_player_x, prev_dino_y, prev_ducking):
 def start_pending_boss_encounter(level):
     global boss_state, boss_intro_until_ms, player_shot_cooldown_until_ms
     global pre_boss_scene_level, pending_boss_shop_level, shop_active
+    global pipe_entry_active, pipe_entry_level
     global player_x, boss_left_pressed, boss_right_pressed
     pre_boss_scene_level = 0
     pending_boss_shop_level = 0
     shop_active = False
+    pipe_entry_active = False
+    pipe_entry_level = 0
     player_x = float(DINO_X)
     boss_left_pressed = False
     boss_right_pressed = False
@@ -2320,9 +2610,19 @@ def start_pending_boss_encounter(level):
     player_shot_cooldown_until_ms = 0
 
 
+def maybe_start_bird_nest_encounter():
+    if pre_boss_scene_level != 4 or pipe_entry_active or game_over:
+        return False
+    nest_rect = get_pre_boss_entrance_rect(4)
+    if rects_overlap(get_dino_hitbox(), nest_rect) or player_on_platform_top(nest_rect, tolerance=14):
+        start_pending_boss_encounter(4)
+        return True
+    return False
+
+
 def try_interact_pre_boss_scene():
     global shop_active, shop_selected_index, pending_boss_shop_level
-    if not is_pre_boss_scene_active() or game_over:
+    if not is_pre_boss_scene_active() or game_over or pipe_entry_active:
         return False
 
     player_hitbox = get_dino_hitbox()
@@ -2334,9 +2634,19 @@ def try_interact_pre_boss_scene():
         return True
 
     entrance_rect = get_pre_boss_entrance_rect(pre_boss_scene_level)
-    if rects_overlap(player_hitbox, entrance_rect) or (
-        pre_boss_scene_level >= 10 and player_on_platform_top(entrance_rect)
-    ):
+    if pre_boss_scene_uses_pipe_entry():
+        ducking_on_pipe = (
+            is_ducking
+            and on_ground
+            and player_on_platform_top(entrance_rect)
+            and player_centered_on_pipe(entrance_rect)
+        )
+        if not ducking_on_pipe:
+            return False
+        start_pipe_entry_sequence(pre_boss_scene_level, entrance_rect)
+        return True
+
+    if rects_overlap(player_hitbox, entrance_rect):
         start_pending_boss_encounter(pre_boss_scene_level)
         return True
 
@@ -2367,29 +2677,17 @@ def move_shop_selection(key_code):
     if shop_selected_index < 0 or shop_selected_index > back_idx:
         shop_selected_index = 0
 
-    # Back row
     if shop_selected_index == back_idx:
         if key_code == K_UP:
-            shop_selected_index = 2
+            shop_selected_index = 0
         return
 
-    # 2x2 item grid
-    row = shop_selected_index // 2
-    col = shop_selected_index % 2
     if key_code == K_LEFT:
-        col = max(0, col - 1)
+        shop_selected_index = max(0, shop_selected_index - 1)
     elif key_code == K_RIGHT:
-        col = min(1, col + 1)
-    elif key_code == K_UP:
-        row = max(0, row - 1)
+        shop_selected_index = min(back_idx - 1, shop_selected_index + 1)
     elif key_code == K_DOWN:
-        if row == 1:
-            shop_selected_index = back_idx
-            return
-        row = min(1, row + 1)
-
-    shop_selected_index = row * 2 + col
-    shop_selected_index = max(0, min(back_idx, shop_selected_index))
+        shop_selected_index = back_idx
 
 
 def activate_shop_selection():
@@ -2615,7 +2913,14 @@ def draw_projectile(projectile):
         rect(x + 2, y + 2, max(2, w - 4), max(2, h - 4))
         return
 
-    # gun / wind / fallback
+    if kind == "bird_egg":
+        fill(248, 248, 232)
+        ellipse(x + (w // 2), y + (h // 2), w, h)
+        fill(216, 226, 214)
+        ellipse(x + (w // 2) - 4, y + (h // 2) + 2, max(4, w // 3), max(4, h // 3))
+        return
+
+    # gun / wind
     fill(*projectile["color"])
     rect(x, y, w, h)
 
@@ -2911,12 +3216,73 @@ def get_boss_hitbox(boss):
 
 def get_cactus_branch_rects(boss):
     branch_rects = []
-    branch_x = boss["x"] - 46
     base_y = boss["y"] + 22
     for idx in range(5):
         branch_y = base_y + idx * 38
-        branch_rects.append((branch_x, branch_y, 46, 14))
+        branch_side = get_cactus_arm_side(idx)
+        branch_x = boss["x"] - 62 if branch_side == "left" else boss["x"] + boss["w"] - 2
+        branch_rects.append((branch_x, branch_y, 54, 18))
     return branch_rects
+
+
+def cactus_boss_showing_right_side(boss):
+    interval_ms = max(1000, int(boss.get("rotation_interval_ms", CACTUS_ROTATION_INTERVAL_MS)))
+    started_ms = int(boss.get("rotation_started_ms", 0))
+    phase = ((millis() - started_ms) // interval_ms) % 2
+    return bool(phase)
+
+
+def get_cactus_visible_side(boss):
+    return "right" if cactus_boss_showing_right_side(boss) else "left"
+
+
+def get_cactus_arm_side(idx):
+    return CACTUS_ARM_SIDE_BY_INDEX[idx]
+
+
+def get_cactus_visible_arm_indices(boss):
+    visible_side = get_cactus_visible_side(boss)
+    return [idx for idx, hp in enumerate(boss["branch_hp"]) if hp > 0 and get_cactus_arm_side(idx) == visible_side]
+
+
+def cactus_all_arms_destroyed(boss):
+    return all(hp <= 0 for hp in boss["branch_hp"])
+
+
+def get_cactus_arm_segment_cache(surface):
+    if surface is None:
+        return []
+    cache = getattr(get_cactus_arm_segment_cache, "cache", None)
+    if cache is None:
+        cache = {}
+        setattr(get_cactus_arm_segment_cache, "cache", cache)
+    cache_key = id(surface)
+    if cache_key in cache:
+        return cache[cache_key]
+
+    segments = []
+    surface_w = max(1, surface.get_width())
+    surface_h = max(1, surface.get_height())
+    band_h = surface_h / 5.0
+    for idx in range(5):
+        band_top = int(round(idx * band_h))
+        band_bottom = surface_h if idx == 4 else int(round((idx + 1) * band_h))
+        band_rect = (0, band_top, surface_w, max(1, band_bottom - band_top))
+        band_surface = surface.subsurface(band_rect).copy()
+        bounds = band_surface.get_bounding_rect(min_alpha=8)
+        if bounds.width <= 0 or bounds.height <= 0:
+            segments.append(None)
+            continue
+        segment_surface = band_surface.subsurface(bounds).copy()
+        segments.append({
+            "surface": segment_surface,
+            "offset_x": bounds.x / float(surface_w),
+            "offset_y": (band_top + bounds.y) / float(surface_h),
+            "width_ratio": bounds.width / float(surface_w),
+            "height_ratio": bounds.height / float(surface_h),
+        })
+    cache[cache_key] = segments
+    return segments
 
 
 def draw_cactus_spines(area_x, area_y, area_w, area_h, step_x=14, step_y=16):
@@ -2974,12 +3340,15 @@ def spawn_boss_for_level(level):
             "min_y": 150.0,
             "max_y": 210.0,
             "branch_hp": [3, 3, 3, 3, 3],
+            "trunk_hp": CACTUS_MINIBOSS_TRUNK_HITS_REQUIRED,
             "hits_taken": 0,
-            "hits_required": CACTUS_MINIBOSS_HITS_REQUIRED,
-            "meter_steps": CACTUS_MINIBOSS_HITS_REQUIRED,
+            "hits_required": CACTUS_MINIBOSS_HITS_REQUIRED + CACTUS_MINIBOSS_TRUNK_HITS_REQUIRED,
+            "meter_steps": CACTUS_MINIBOSS_HITS_REQUIRED + CACTUS_MINIBOSS_TRUNK_HITS_REQUIRED,
             "enemy_projectiles": create_projectile_pool(),
             "attack_interval_ms": 860,
             "last_attack_ms": now,
+            "rotation_interval_ms": CACTUS_ROTATION_INTERVAL_MS,
+            "rotation_started_ms": now,
         }
 
     profile = get_player_weapon_profile()
@@ -3107,6 +3476,200 @@ def draw_coyote_pits(boss, theme):
         no_stroke()
 
 
+def draw_branch_platform(branch_rect):
+    branch_x, branch_y, branch_w, branch_h = branch_rect
+    fill(104, 64, 34)
+    rect(branch_x, branch_y, branch_w, branch_h)
+    fill(150, 94, 48)
+    rect(branch_x + 4, branch_y + 2, max(12, branch_w - 12), max(4, branch_h - 6))
+    fill(78, 142, 66)
+    ellipse(branch_x + 24, branch_y - 8, 52, 24)
+    ellipse(branch_x + branch_w - 26, branch_y - 10, 58, 26)
+
+
+def draw_bird_boss_arena(theme):
+    background(118, 184, 132)
+    fill(86, 154, 96)
+    ellipse(90, 120, 220, 98)
+    ellipse(244, 82, 270, 116)
+    ellipse(530, 102, 260, 108)
+    ellipse(708, 142, 210, 98)
+    fill(62, 128, 76)
+    ellipse(180, 198, 210, 86)
+    ellipse(438, 174, 250, 92)
+    ellipse(646, 216, 230, 90)
+
+    fill(92, 58, 34)
+    rect(704, 98, 42, GROUND_Y - 98)
+    fill(132, 84, 44)
+    rect(716, 104, 12, GROUND_Y - 110)
+    fill(82, 52, 30)
+    rect(28, 160, 32, GROUND_Y - 160)
+
+    for branch_rect in BIRD_BOSS_BRANCH_RECTS:
+        draw_branch_platform(branch_rect)
+
+    nest_x = 522
+    nest_y = 94
+    nest_w = 198
+    nest_h = 82
+    fill(118, 76, 42)
+    ellipse(nest_x + (nest_w // 2), nest_y + 52, nest_w, nest_h)
+    fill(86, 54, 30)
+    ellipse(nest_x + (nest_w // 2), nest_y + 44, nest_w - 34, nest_h - 24)
+    fill(248, 248, 232)
+    ellipse(nest_x + 74, nest_y + 42, 28, 38)
+    ellipse(nest_x + 104, nest_y + 36, 30, 42)
+    ellipse(nest_x + 132, nest_y + 44, 26, 36)
+    fill(108, 70, 40)
+    rect(nest_x + 22, nest_y + 62, nest_w - 44, 12)
+
+    fill(102, 76, 48)
+    rect(0, GROUND_Y, width, 40)
+    stroke(84, 58, 34)
+    stroke_weight(2)
+    line(0, GROUND_Y, width, GROUND_Y)
+    no_stroke()
+
+
+def draw_cactus_boss_arena(theme):
+    cave_light_phase = millis() / 230.0
+    background(106, 106, 114)
+    fill(82, 82, 90)
+    rect(0, 0, width, 36)
+    rect(0, 88, width, 46)
+    fill(70, 70, 78)
+    rect(0, GROUND_Y, width, 40)
+    fill(94, 94, 102)
+    rect(34, 112, 38, 250)
+    rect(width - 84, 100, 44, 272)
+    fill(134, 134, 142)
+    triangle(28, 0, 54, 48, 78, 0)
+    triangle(144, 0, 170, 54, 198, 0)
+    triangle(292, 0, 314, 40, 340, 0)
+    triangle(490, 0, 518, 58, 546, 0)
+    triangle(646, 0, 672, 42, 700, 0)
+    fill(126, 126, 134)
+    ellipse(124, GROUND_Y - 8, 208, 62)
+    ellipse(392, GROUND_Y - 12, 320, 78)
+    ellipse(676, GROUND_Y - 6, 236, 64)
+    fill(88, 88, 96)
+    ellipse(118, 184, 102, 54)
+    ellipse(236, 146, 126, 60)
+    ellipse(574, 164, 136, 70)
+    ellipse(706, 206, 94, 52)
+
+    cave_lights = (
+        (122, 92, 0.0, 1.0),
+        (278, 132, 1.7, 0.7),
+        (524, 104, 3.1, 0.9),
+        (676, 156, 4.4, 0.65),
+    )
+    for light_x, light_y, phase_offset, wobble in cave_lights:
+        flicker = 0.5 + (0.5 * math.sin(cave_light_phase + phase_offset))
+        jitter = math.sin((cave_light_phase * 2.2) + (phase_offset * 1.9)) * wobble
+        glow = 26 + int(flicker * 38)
+        core = 178 + int(flicker * 54)
+
+        fill(94 + glow, 86 + glow, 58 + (glow // 2))
+        ellipse(light_x + jitter, light_y + 8, 54 + glow, 34 + (glow // 2))
+        fill(66, 66, 74)
+        rect(light_x - 3, light_y - 22, 6, 18)
+        fill(core, 150 + int(flicker * 36), 88 + int(flicker * 24))
+        ellipse(light_x + jitter, light_y, 16, 16)
+        fill(232, 208, 128)
+        ellipse(light_x + jitter, light_y, 7 + int(flicker * 3), 7 + int(flicker * 3))
+
+    stroke(154, 154, 162)
+    stroke_weight(2)
+    line(0, GROUND_Y, width, GROUND_Y)
+    no_stroke()
+
+
+def draw_cactus_back_stems(boss, visible_right_side):
+    rear_direction = -1 if visible_right_side else 1
+    base_x = boss["x"] + (boss["w"] * 0.5)
+    base_y = boss["y"] + 34
+    for idx in range(3):
+        stem_len = 48 + idx * 14
+        stem_h = 16 + idx * 2
+        stem_y = base_y + idx * 54
+        body_x = base_x if rear_direction > 0 else base_x - stem_len
+        fill(94, 144, 88)
+        rect(body_x, stem_y, stem_len, stem_h)
+        ellipse(body_x + (stem_len if rear_direction > 0 else 0), stem_y + (stem_h / 2), stem_h + 10, stem_h + 6)
+        fill(132, 184, 122)
+        inner_w = max(12, stem_len - 12)
+        inner_x = body_x + 4 if rear_direction > 0 else body_x + stem_len - inner_w - 4
+        rect(inner_x, stem_y + 3, inner_w, max(6, stem_h - 6))
+
+
+def draw_cactus_branch_segment(boss, branch_rect, branch_hp):
+    idx = boss.get("active_branch_index", 0)
+    _, by, bw, bh = branch_rect
+    grow_right = get_cactus_arm_side(idx) == "right"
+    hp_ratio = max(0.2, min(1.0, branch_hp / 3.0))
+    arm_w = int(max(16, bw * hp_ratio))
+    arm_h = int(max(10, bh - 2))
+    trunk_anchor_x = boss["x"] + boss["w"] - 8 if grow_right else boss["x"] + 8
+    arm_x = trunk_anchor_x if grow_right else trunk_anchor_x - arm_w
+    arm_y = int(by + 1)
+
+    fill(84, 144, 74)
+    rect(arm_x, arm_y, arm_w, arm_h)
+    fill(132, 184, 118)
+    inner_w = max(6, arm_w - 10)
+    inner_x = arm_x + 4 if grow_right else arm_x + arm_w - inner_w - 4
+    rect(inner_x, arm_y + 3, inner_w, max(4, arm_h - 6))
+    tip_x = arm_x + arm_w if grow_right else arm_x
+    ellipse(tip_x, arm_y + (arm_h / 2), arm_h + 12, arm_h + 8)
+    fill(98, 152, 86)
+    ellipse(trunk_anchor_x, arm_y + (arm_h / 2), arm_h + 8, arm_h + 6)
+    draw_cactus_spines(arm_x + 2, arm_y + 1, max(6, arm_w - 4), arm_h - 2, step_x=12, step_y=8)
+
+
+def draw_cactus_arm_sprite_segment(boss, idx, hp_ratio, pose_surface, draw_x, draw_y, draw_w, draw_h):
+    segments = get_cactus_arm_segment_cache(pose_surface)
+    if idx >= len(segments) or segments[idx] is None:
+        return False
+
+    segment = segments[idx]
+    segment_surface = segment["surface"]
+    segment_w = max(6, int(segment_surface.get_width() * hp_ratio))
+    if segment_w <= 0:
+        return False
+
+    grow_right = get_cactus_arm_side(idx) == "right"
+    source_x = 0 if grow_right else max(0, segment_surface.get_width() - segment_w)
+    cropped_surface = segment_surface.subsurface((source_x, 0, segment_w, segment_surface.get_height())).copy()
+
+    dest_w = max(8, int(draw_w * segment["width_ratio"] * hp_ratio))
+    dest_h = max(8, int(draw_h * segment["height_ratio"]))
+    anchor_x = draw_x + int(draw_w * segment["offset_x"])
+    dest_x = anchor_x if grow_right else anchor_x + int(draw_w * segment["width_ratio"]) - dest_w
+    dest_y = draw_y + int(draw_h * segment["offset_y"])
+    image(cropped_surface, dest_x, dest_y, dest_w, dest_h)
+    return True
+
+
+def apply_bird_boss_branch_collisions(prev_player_x, prev_dino_y, prev_ducking):
+    global on_ground
+    landed = False
+    for platform_rect in BIRD_BOSS_BRANCH_RECTS:
+        if apply_one_way_platform_collision(
+            platform_rect,
+            prev_player_x,
+            prev_dino_y,
+            prev_ducking,
+            drop_if_unsupported=False,
+        ):
+            landed = True
+            break
+    if (not landed) and on_ground and dino_y < DINO_Y:
+        if not any(platform_supports_player(platform_rect) for platform_rect in BIRD_BOSS_BRANCH_RECTS):
+            on_ground = False
+
+
 def maybe_start_boss_encounter():
     global pending_weapon_powerup_level, pre_boss_scene_level
     global boss_left_pressed, boss_right_pressed, player_x
@@ -3161,52 +3724,63 @@ def draw_boss_entity(boss):
         trunk_y = y + 16
         trunk_w = w - 30
         trunk_h = h - 18
+        show_right_side = cactus_boss_showing_right_side(boss)
+        visible_side = get_cactus_visible_side(boss)
+        pose_arms_img = CACTUS_BOSS_ARMS_IMG if show_right_side else CACTUS_BOSS_ARMS_FLIPPED_IMG
+        sprite_draw_x = trunk_x - 26
+        sprite_draw_y = trunk_y - 10
+        sprite_draw_w = trunk_w + 28
+        sprite_draw_h = trunk_h + 12
 
-        # Outer contour
-        fill(38, 126, 48)
-        rect(trunk_x - 6, trunk_y + 8, trunk_w + 8, trunk_h - 10)
-        arc(trunk_x + (trunk_w // 2) - 1, trunk_y + 8, trunk_w + 8, 28, PI, TWO_PI)
+        if CACTUS_BOSS_TRUNK_IMG is not None:
+            trunk_img = CACTUS_BOSS_TRUNK_IMG if show_right_side else CACTUS_BOSS_TRUNK_FLIPPED_IMG
+            image(trunk_img, sprite_draw_x, sprite_draw_y, sprite_draw_w, sprite_draw_h)
+        else:
+            fill(38, 126, 48)
+            rect(trunk_x - 6, trunk_y + 8, trunk_w + 8, trunk_h - 10)
+            arc(trunk_x + (trunk_w // 2) - 1, trunk_y + 8, trunk_w + 8, 28, PI, TWO_PI)
 
-        # Inner body + highlight
-        fill(58, 168, 70)
-        rect(trunk_x + 2, trunk_y + 14, trunk_w - 8, trunk_h - 22)
-        arc(trunk_x + (trunk_w // 2) - 2, trunk_y + 14, trunk_w - 8, 22, PI, TWO_PI)
-        fill(71, 186, 84)
-        rect(trunk_x + 12, trunk_y + 28, trunk_w - 32, trunk_h - 52)
-        arc(trunk_x + (trunk_w // 2) - 4, trunk_y + 28, trunk_w - 32, 18, PI, TWO_PI)
+            fill(58, 168, 70)
+            rect(trunk_x + 2, trunk_y + 14, trunk_w - 8, trunk_h - 22)
+            arc(trunk_x + (trunk_w // 2) - 2, trunk_y + 14, trunk_w - 8, 22, PI, TWO_PI)
+            fill(71, 186, 84)
+            rect(trunk_x + 12, trunk_y + 28, trunk_w - 32, trunk_h - 52)
+            arc(trunk_x + (trunk_w // 2) - 4, trunk_y + 28, trunk_w - 32, 18, PI, TWO_PI)
 
-        # Vertical ribs on the cactus body.
-        stroke(48, 145, 58)
-        stroke_weight(2)
-        line(trunk_x + 18, trunk_y + 18, trunk_x + 18, trunk_y + trunk_h - 16)
-        line(trunk_x + trunk_w // 2, trunk_y + 16, trunk_x + trunk_w // 2, trunk_y + trunk_h - 14)
-        line(trunk_x + trunk_w - 22, trunk_y + 18, trunk_x + trunk_w - 22, trunk_y + trunk_h - 16)
-        no_stroke()
-        draw_cactus_spines(trunk_x + 4, trunk_y + 18, trunk_w - 12, trunk_h - 24, step_x=16, step_y=20)
+            stroke(48, 145, 58)
+            stroke_weight(2)
+            line(trunk_x + 18, trunk_y + 18, trunk_x + 18, trunk_y + trunk_h - 16)
+            line(trunk_x + trunk_w // 2, trunk_y + 16, trunk_x + trunk_w // 2, trunk_y + trunk_h - 14)
+            line(trunk_x + trunk_w - 22, trunk_y + 18, trunk_x + trunk_w - 22, trunk_y + trunk_h - 16)
+            no_stroke()
+            draw_cactus_spines(trunk_x + 4, trunk_y + 18, trunk_w - 12, trunk_h - 24, step_x=16, step_y=20)
 
         branch_rects = get_cactus_branch_rects(boss)
         for idx, branch_hp in enumerate(boss["branch_hp"]):
-            bx, by, bw, bh = branch_rects[idx]
-            if branch_hp <= 0:
-                # Remaining stump when a branch is gone.
-                fill(44, 133, 53)
-                rect(int(trunk_x - 4), int(by + 2), 8, int(bh - 3))
+            _, by, _, bh = branch_rects[idx]
+            if get_cactus_arm_side(idx) != visible_side:
                 continue
-
-            # Branch crumbles gradually: less HP = shorter arm.
-            hp_ratio = max(0.2, min(1.0, branch_hp / 5.0))
-            arm_w = int(max(10, bw * hp_ratio))
-            arm_x = int(bx + (bw - arm_w))
-            arm_y = int(by + 1)
-            arm_h = int(max(8, bh - 2))
-
-            fill(45, 140, 55)
-            rect(arm_x, arm_y, arm_w, arm_h)
-            fill(61, 172, 71)
-            rect(arm_x + 2, arm_y + 2, max(3, arm_w - 4), max(3, arm_h - 4))
-            # Rounded branch tip.
-            arc(arm_x + 1, arm_y + (arm_h // 2), arm_h, arm_h, PI / 2, PI + PI / 2)
-            draw_cactus_spines(arm_x + 2, arm_y + 1, max(6, arm_w - 4), arm_h - 2, step_x=10, step_y=8)
+            if branch_hp <= 0:
+                stump_x = boss["x"] + boss["w"] - 10 if show_right_side else boss["x"] + 2
+                fill(84, 136, 72)
+                rect(int(stump_x), int(by + 3), 10, int(max(8, bh - 5)))
+                ellipse(int(stump_x + (8 if show_right_side else 0)), int(by + (bh / 2)), 12, 10)
+                continue
+            hp_ratio = max(0.2, min(1.0, branch_hp / 3.0))
+            used_sprite_segment = False
+            if pose_arms_img is not None:
+                used_sprite_segment = draw_cactus_arm_sprite_segment(
+                    boss,
+                    idx,
+                    hp_ratio,
+                    pose_arms_img,
+                    sprite_draw_x,
+                    sprite_draw_y,
+                    sprite_draw_w,
+                    sprite_draw_h,
+                )
+            if not used_sprite_segment:
+                continue
         return
 
     # Final boss
@@ -3465,7 +4039,9 @@ def update_player_projectiles_against_boss(boss):
         hit = False
 
         if boss["type"] == "cactus_miniboss":
-            for idx, branch_rect in enumerate(branch_rects):
+            visible_arm_indices = get_cactus_visible_arm_indices(boss)
+            for idx in visible_arm_indices:
+                branch_rect = branch_rects[idx]
                 if boss["branch_hp"][idx] <= 0:
                     continue
                 if rects_overlap(projectile_rect, branch_rect):
@@ -3485,6 +4061,18 @@ def update_player_projectiles_against_boss(boss):
                         play_sfx(BOSS_EXPLOSION_SOUND)
                     hit = True
                     break
+            if (not hit) and cactus_all_arms_destroyed(boss) and rects_overlap(projectile_rect, boss_hitbox):
+                boss["trunk_hp"] = max(0, boss.get("trunk_hp", 0) - 1)
+                boss["hits_taken"] += 1
+                spawn_explosion_effect(
+                    projectile_rect[0] + (projectile_rect[2] / 2),
+                    projectile_rect[1] + (projectile_rect[3] / 2),
+                    BOSS_HIT_EXPLOSION_SIZE * 0.9,
+                    life_ms=430,
+                    alpha=220,
+                )
+                play_sfx(BOSS_EXPLOSION_SOUND)
+                hit = True
         elif rects_overlap(projectile_rect, boss_hitbox):
             boss["hits_taken"] += 1
             hit = True
@@ -3518,18 +4106,18 @@ def spawn_boss_attack_if_needed(boss):
         return
 
     if boss["type"] == "bird_miniboss":
-        proj_w = 30
-        proj_h = 14
-        origin_x = boss["x"] - 26
-        origin_y = boss["y"] + (boss["h"] * 0.45)
+        proj_w = 24
+        proj_h = 32
+        origin_x = boss["x"] + (boss["w"] * 0.24)
+        origin_y = boss["y"] + (boss["h"] * 0.72)
         vx, vy = get_linear_aim_velocity(
             origin_x + (proj_w / 2),
             origin_y + (proj_h / 2),
             player_center_x,
             player_center_y,
-            10.0,
-            min_vy=-4.0,
-            max_vy=4.0,
+            8.2,
+            min_vy=-2.8,
+            max_vy=5.2,
         )
         projectile.update({
             "x": origin_x,
@@ -3538,8 +4126,8 @@ def spawn_boss_attack_if_needed(boss):
             "h": proj_h,
             "vx": vx,
             "vy": vy,
-            "kind": "wind",
-            "color": (80, 80, 80),
+            "kind": "bird_egg",
+            "color": (248, 248, 232),
             "enemy": True,
         })
         play_sfx(FIRE_ENEMY_SOUND)
@@ -3547,18 +4135,19 @@ def spawn_boss_attack_if_needed(boss):
 
     if boss["type"] == "cactus_miniboss":
         branch_rects = get_cactus_branch_rects(boss)
-        living_idxs = [idx for idx, hp in enumerate(boss["branch_hp"]) if hp > 0]
+        living_idxs = get_cactus_visible_arm_indices(boss)
         if not living_idxs:
             projectile["active"] = False
             return
         pick = living_idxs[int(random(0, len(living_idxs)))]
         bx, by, bw, bh = branch_rects[pick]
-        hp_ratio = max(0.2, min(1.0, boss["branch_hp"][pick] / 5.0))
+        hp_ratio = max(0.2, min(1.0, boss["branch_hp"][pick] / 3.0))
         arm_w = int(max(10, bw * hp_ratio))
-        arm_x = int(bx + (bw - arm_w))
+        grow_right = get_cactus_arm_side(pick) == "right"
+        arm_x = int(bx if grow_right else bx + (bw - arm_w))
         proj_w = 22
         proj_h = 8
-        origin_x = arm_x - proj_w - 2
+        origin_x = arm_x + arm_w + 2 if grow_right else arm_x - proj_w - 2
         origin_y = by + (bh // 2) - 4
         vx, vy = get_linear_aim_velocity(
             origin_x + (proj_w / 2),
@@ -3719,6 +4308,9 @@ def update_and_draw_boss_mode(theme, update_world=True):
 
     if update_world:
         now = millis()
+        prev_player_x = player_x
+        prev_dino_y = dino_y
+        prev_ducking = bool(is_ducking and on_ground and not game_over)
 
         move_dir = int(boss_right_pressed) - int(boss_left_pressed)
         if move_dir != 0:
@@ -3735,6 +4327,7 @@ def update_and_draw_boss_mode(theme, update_world=True):
         update_player_vertical_motion()
 
         if boss["type"] == "bird_miniboss":
+            apply_bird_boss_branch_collisions(prev_player_x, prev_dino_y, prev_ducking)
             boss["x"] += boss["vx"]
             boss["y"] += boss["vy"]
             if boss["x"] <= boss["min_x"] or boss["x"] >= boss["max_x"]:
@@ -3763,7 +4356,11 @@ def update_and_draw_boss_mode(theme, update_world=True):
             apply_player_hit(CRASH_SOUND)
             return
 
-    if boss.get("form") == "ReuzenCoyote":
+    if boss["type"] == "bird_miniboss":
+        draw_bird_boss_arena(theme)
+    elif boss["type"] == "cactus_miniboss":
+        draw_cactus_boss_arena(theme)
+    elif boss.get("form") == "ReuzenCoyote":
         flash_ratio = max(0.0, (coyote_cave_flash_until_ms - millis()) / max(1, COYOTE_CAVE_FLASH_MS))
         cave_base = 72 + int(76 * flash_ratio)
         ground_base = 56 + int(84 * flash_ratio)
@@ -4065,7 +4662,7 @@ def update_and_draw_flight_mode(theme, update_world=True):
                 GROUND_Y - (pipe["gap_top"] + FLIGHT_PIPE_GAP_H),
             )
             if rects_overlap(plane_rect, top_rect) or rects_overlap(plane_rect, bottom_rect):
-                apply_player_hit(CRASH_SOUND)
+                crash_flight_mode()
                 break
 
     draw_flight_pipes()
@@ -4406,19 +5003,41 @@ def draw_shop_screen(theme):
         draw_badger_shop_fallback(stall_x, stall_y, stall_w, stall_h, theme)
 
     for idx, (item, icon_x, icon_y, icon_w, icon_h) in enumerate(item_layout):
-        draw_shop_icon_button(
-            item,
-            icon_x,
-            icon_y,
-            icon_w,
-            icon_h,
-            theme,
-            selected=(shop_selected_index == idx),
-        )
+        if BADGER_SHOP_IMG is not None:
+            draw_shop_item_highlight(
+                icon_x,
+                icon_y,
+                icon_w,
+                icon_h,
+                theme,
+                selected=(shop_selected_index == idx),
+            )
+        else:
+            draw_shop_icon_button(
+                item,
+                icon_x,
+                icon_y,
+                icon_w,
+                icon_h,
+                theme,
+                selected=(shop_selected_index == idx),
+            )
 
     fill(*theme["text"])
     text_size(14)
-    text("Click the glowing items on the stall to buy them.", stall_x + 124, stall_y + stall_h + 26)
+    text("Choose an item on the counter with arrows, then press SPACE.", stall_x + 72, stall_y + stall_h + 26)
+
+    if 0 <= shop_selected_index < len(SHOP_ITEMS):
+        selected_item = SHOP_ITEMS[shop_selected_index]
+        owned_count = get_shop_item_count(selected_item["key"])
+        text_size(18)
+        text(
+            f"{selected_item['label']}  {selected_item['cost']}c  owned x{owned_count}",
+            stall_x + 28,
+            stall_y + stall_h + 52,
+        )
+        text_size(15)
+        text(selected_item["desc"], stall_x + 28, stall_y + stall_h + 74)
 
     back_x, back_y, back_w, back_h = get_shop_back_button_rect()
     fill(255, 255, 255)
@@ -4755,15 +5374,26 @@ def draw():
         prev_dino_y = dino_y
         prev_ducking = bool(is_ducking and on_ground and not game_over)
         if not game_paused:
-            move_dir = int(boss_right_pressed) - int(boss_left_pressed)
-            if move_dir != 0:
-                min_player_x = 24.0
-                max_player_x = float(width - DINO_W - 24)
-                player_x = max(min_player_x, min(max_player_x, player_x + (move_dir * BOSS_PLAYER_SPEED)))
-            update_player_vertical_motion()
-            apply_pre_boss_scene_collisions(prev_player_x, prev_dino_y, prev_ducking)
+            if pipe_entry_active:
+                update_pipe_entry_sequence()
+                if not pipe_entry_active:
+                    return
+            else:
+                move_dir = int(boss_right_pressed) - int(boss_left_pressed)
+                if move_dir != 0:
+                    min_player_x = 24.0
+                    max_player_x = float(width - DINO_W - 24)
+                    player_x = max(min_player_x, min(max_player_x, player_x + (move_dir * BOSS_PLAYER_SPEED)))
+                update_player_vertical_motion()
+                apply_pre_boss_scene_collisions(prev_player_x, prev_dino_y, prev_ducking)
+                if maybe_start_bird_nest_encounter():
+                    return
         draw_pre_boss_scene(theme)
-        draw_main_character()
+        if pipe_entry_active:
+            draw_main_character()
+            draw_pre_boss_entrance(pre_boss_scene_level, theme)
+        else:
+            draw_main_character()
         if game_paused:
             fill(40)
             text_size(34)
@@ -5038,20 +5668,23 @@ def perform_jump_if_possible():
     # Buk-spring binnen half seconde geeft high jump.
     now = millis()
     used_duck_window = now <= duck_jump_expires_ms
+    used_jump_powerup = high_jump_powerup_charges > 0
+    jump_shoes_active = is_jump_shoes_active()
     jump_velocity = JUMP_VELOCITY
-    if high_jump_powerup_charges > 0:
+    if used_jump_powerup:
         jump_velocity = STACKED_POWER_HIGH_JUMP_VELOCITY if used_duck_window else POWERUP_HIGH_JUMP_VELOCITY
         high_jump_powerup_charges = max(0, high_jump_powerup_charges - 1)
     elif used_duck_window:
         jump_velocity = HIGH_JUMP_VELOCITY
-    if is_jump_shoes_active():
+    if jump_shoes_active:
         jump_velocity *= SHOP_JUMP_SHOES_FACTOR
+    is_high_jump = used_duck_window or used_jump_powerup or jump_shoes_active
     is_ducking = False
     velocity_y = jump_velocity
     on_ground = False
     is_fast_falling = False
     duck_jump_expires_ms = 0
-    play_sfx(get_jump_sound())
+    play_sfx(get_jump_sound(is_high_jump=is_high_jump))
     return True
 
 
@@ -5145,6 +5778,9 @@ def press_touch_control(name):
 
     touch_active_button = name
 
+    if pipe_entry_active:
+        return True
+
     if name == "left":
         if not game_started:
             selected_character_idx = (selected_character_idx - 1) % len(CHARACTER_ORDER)
@@ -5177,14 +5813,14 @@ def press_touch_control(name):
         if game_started and flight_mode and not game_over:
             fly_down_pressed = True
             return True
-        if game_started and pre_boss_scene_level > 0 and not game_over:
-            try_interact_pre_boss_scene()
         if game_started and not game_over and not game_paused:
             if on_ground:
                 is_ducking = True
                 duck_jump_expires_ms = millis() + HIGH_JUMP_WINDOW_MS
             else:
                 is_fast_falling = True
+        if game_started and pre_boss_scene_level > 0 and not game_over:
+            try_interact_pre_boss_scene()
         return True
 
     if name == "action":
@@ -5394,6 +6030,9 @@ def key_pressed():
     if game_paused:
         return
 
+    if pipe_entry_active:
+        return
+
     if game_started and (boss_state is not None or pre_boss_scene_level > 0) and not game_over:
         if key_code == K_LEFT:
             boss_left_pressed = True
@@ -5403,8 +6042,13 @@ def key_pressed():
             return
 
     if game_started and pre_boss_scene_level > 0 and not game_over and key_code == K_DOWN:
-        if try_interact_pre_boss_scene():
-            return
+        if on_ground:
+            is_ducking = True
+            duck_jump_expires_ms = millis() + HIGH_JUMP_WINDOW_MS
+        else:
+            is_fast_falling = True
+        try_interact_pre_boss_scene()
+        return
 
     if game_started and not game_over and key == " " and boss_state is not None:
         if boss_state.get("form") == "ReuzenCoyote":
@@ -5595,6 +6239,8 @@ def weapon_overlay_decorator(draw_fn):
         pose = draw_fn()
         if pose is None:
             return None
+        if pipe_entry_active:
+            return pose
         if game_started and not game_over and high_jump_powerup_charges > 0:
             draw_high_jump_powerup_effect(pose)
         if game_started and not game_over and weapon_powerup_ready and (boss_state is None or boss_state.get("form") != "ReuzenCoyote"):
@@ -5622,6 +6268,27 @@ def draw_main_character():
             no_stroke()
         return None
 
+    if pipe_entry_active:
+        pose = get_pipe_entry_pose()
+        if pose is not None:
+            draw_x, draw_y, draw_w, draw_h = pose
+            pipe_crouch_sprite = get_pipe_crouch_sprite(get_current_character_key())
+            image(pipe_crouch_sprite, draw_x, draw_y, draw_w, draw_h)
+            if isDebugMode:
+                no_fill()
+                stroke(255, 0, 0)
+                stroke_weight(2)
+                pipe_rect = get_pre_boss_entrance_rect(pipe_entry_level)
+                rect(*pipe_rect)
+                no_stroke()
+            return {
+                "x": draw_x,
+                "y": draw_y,
+                "w": draw_w,
+                "h": draw_h,
+                "ducking": True,
+            }
+
     dino_h = DUCK_H if (is_ducking and on_ground and not game_over) else DINO_H
     dino_y_draw = get_dino_draw_y()
     character = CHARACTER_CONFIG[get_current_character_key()]
@@ -5630,11 +6297,24 @@ def draw_main_character():
     draw_h = dino_h
     if game_over:
         dino_sprite = character["oops"]
-        if get_current_character_key() == "cowboy":
+        current_character_key = get_current_character_key()
+        if current_character_key == "dino":
+            dino_sprite = DINO_FALL_IMG
+            draw_x -= 8
+            draw_w = 84
+            draw_h = 44
+            dino_y_draw = GROUND_Y - draw_h
+        elif current_character_key == "cowboy":
             # Cowboy falls backward and lies on the ground.
             draw_x -= 10
             draw_w = 88
             draw_h = 40
+            dino_y_draw = GROUND_Y - draw_h
+        elif current_character_key == "roadrunner":
+            dino_sprite = ROADRUNNER_FALL_IMG
+            draw_x -= 6
+            draw_w = 86
+            draw_h = 42
             dino_y_draw = GROUND_Y - draw_h
     elif is_ducking and on_ground:
         dino_sprite = character["duck"]

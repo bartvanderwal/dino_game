@@ -47,6 +47,35 @@ De game gebruikt dezelfde visuele taal op meerdere plekken.
 
 ![Cowboy dead](cowboy-dead.png)
 
+## Geen Defensieve Gameplay-Fallbacks
+
+Gameplaycode mag niet stilletjes ander gedrag kiezen als een asset, API, state of aanname ontbreekt.
+
+Waarom:
+
+- Fallbacks maken fouten onzichtbaar en daardoor lastig te reproduceren.
+- Testen wordt onbetrouwbaar als code onder onbekende omstandigheden "iets anders" doet dan het ontworpen gedrag.
+- Bij AI-assisted development moeten ontbrekende assets, ontbrekende API's en kapotte aannames expliciet zichtbaar worden, anders bouwt de agent verder op een verborgen fout.
+- Een hard failure met een duidelijke oorzaak is beter dan een speelbare maar verkeerde toestand.
+
+- Geen stille fallback van ontbrekende gameplay-assets naar oude sprites.
+- Geen alternatieve mechanics bij ontbrekende functies of ongeldige state.
+- Geen brede `try/except` rond gameplaylogica om fouten te maskeren.
+- Wel toegestaan: expliciete platform-adapters voor technische runtimeverschillen, mits gameplaygedrag gelijk blijft en fouten zichtbaar blijven.
+
+## Audio Feedback
+
+Sprong-audio moet het type sprong duidelijk maken.
+
+Waarom:
+
+- Een high jump moet niet alleen visueel waarneembaar zijn, maar zowel visueel als auditief.
+- Het `weeh`-geluid past bij dat high-jump moment en maakt het effect direct herkenbaar.
+- Dit ondersteunt timingleren, vooral bij snelle obstacle-combinaties.
+
+- Normale sprong: gebruik `jump.wav` voor alle karakters.
+- Versterkte/high jump (duck-jump, high-jump powerup of actieve jump shoes): gebruik `weeh.wav` voor alle karakters.
+
 ## Shop En Powerups
 
 De badger shop verschijnt in het menu en vlak voor boss fights.

@@ -51,6 +51,10 @@ class _TransformProxy:
         return _resolve_pygame_module("transform").flip(surface, x_bool, y_bool)
 
     @staticmethod
+    def rotate(surface, angle):
+        return _resolve_pygame_module("transform").rotate(surface, angle)
+
+    @staticmethod
     def smoothscale(surface, size):
         return _resolve_pygame_module("transform").smoothscale(surface, size)
 
