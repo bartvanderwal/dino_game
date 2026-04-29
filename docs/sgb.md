@@ -11,6 +11,27 @@ Gebruik dit bestand als referentie voor:
 - boss-entrances en speciale arena's;
 - UI- en feedbackprincipes.
 
+## SGB Conventie
+
+Elk principe en elke structurele beslissing in dit document bevat expliciet een `Waarom`.
+
+- Zonder rationale zijn regels lastig te toetsen en verouderen ze sneller.
+- Met rationale kunnen we wijzigingen evalueren op intentie, niet alleen op letterlijke tekst.
+
+## Platform Parity (DEV/PROD)
+
+Lokaal draaien en web-deploy moeten dezelfde game opleveren qua gedrag.
+
+Waarom:
+- We willen lokaal snel itereren in Python-modus, zonder dat gedrag later op web functioneel afwijkt.
+- Dat voorkomt verrassingen bij release: wat lokaal speelbaar en correct is, moet online dezelfde mechanics tonen.
+- Performance kan tussen runtime-omgevingen verschillen; daarom testen we naast lokaal ook regelmatig de web-build zelf.
+
+- Geen platform-specifieke gameplayregels: obstaclelogica, powerups, hitboxes, timing en scoreprogressie zijn identiek op desktop en web.
+- Geen content-splitsing per platform: levels, patterns en balanswaarden worden centraal beheerd en niet gedupliceerd in `if IS_WEB` versus lokaal.
+- Platform-afhankelijke code mag alleen voor technische runtime-zaken (bijv. input/audio unlock, packaging, pad-resolutie), nooit voor gamebalans of mechanics.
+- Performanceproblemen worden opgelost met generieke optimalisaties die overal gelden (assets, renderpad, objectbeheer), niet met afwijkende spelregels op web.
+
 ## Creative Integrity
 
 De game gebruikt dezelfde visuele taal op meerdere plekken.
