@@ -69,6 +69,8 @@ CROWN_BADGE_IMG = load_optional_image((
     "assets/pc/crown.png",
 ))
 BADGER_SHOP_IMG = load_optional_image((
+    "assets/obstacles/badger-shop-crop.png",
+    "assets/obstacles/badger-shop.png",
     "assets/badger-shop.png",
     "assets/badger_shop.png",
     "assets/npc/badger-shop.png",
@@ -601,6 +603,7 @@ score = 0
 high_score = 0
 coin_count = 0
 shop_active = False
+shop_selected_index = 0
 shop_notice_text = ""
 shop_notice_until_ms = 0
 shop_extra_life_count = 0
@@ -731,7 +734,7 @@ web_audio_unlocked = not IS_WEB
 
 def reset_game(show_splash=False):
     global dino_y, velocity_y, on_ground, score, coin_count, game_over, game_completed, game_started
-    global shop_active, shop_notice_text, shop_notice_until_ms
+    global shop_active, shop_selected_index, shop_notice_text, shop_notice_until_ms
     global shield_until_ms, coin_boost_until_ms, jump_shoes_until_ms
     global pre_boss_scene_level, pending_boss_shop_level, boss_shop_seen
     global coyote_cave_flash_until_ms
@@ -782,6 +785,7 @@ def reset_game(show_splash=False):
     game_started = not show_splash
     if show_splash:
         shop_active = False
+    shop_selected_index = 0
     shop_notice_text = ""
     shop_notice_until_ms = 0
     pre_boss_scene_level = 0
@@ -1501,12 +1505,22 @@ def get_random_coin_spawn_y():
     return coin_ys[int(random(0, len(coin_ys)))]
 
 
+def get_active_coin_arc_lift():
+    lift = 0
+    if high_jump_powerup_charges > 0:
+        lift += 38
+    if is_jump_shoes_active():
+        lift += 26
+    return lift
+
+
 def get_coin_arc_spawn_ys(obstacle_kind):
     obstacle_cfg = OBSTACLE_CONFIG.get(obstacle_kind, OBSTACLE_CONFIG["cactus_low"])
     obstacle_top = int(obstacle_cfg["y"])
-    side_y = max(252, obstacle_top - 18)
-    inner_y = max(228, obstacle_top - 46)
-    apex_y = max(204, obstacle_top - 72)
+    lift = get_active_coin_arc_lift()
+    side_y = max(196, obstacle_top - 18 - lift)
+    inner_y = max(168, obstacle_top - 46 - lift)
+    apex_y = max(146, obstacle_top - 72 - lift)
     return [side_y, inner_y, apex_y, inner_y, side_y]
 
 
@@ -1568,9 +1582,16 @@ def maybe_spawn_bonus_coin_pattern(base_type, base_x):
     obstacle_h = obstacle_cfg["h"]
     obstacle_center_x = base_x + (obstacle_w / 2)
     coin_size = OBSTACLE_CONFIG["coin"]["w"]
+    lift = get_active_coin_arc_lift()
 
     if int(random(0, 100)) < BONUS_COIN_ARC_CHANCE_PCT:
-        arc_points = [(-56, -40), (-24, -68), (8, -88), (40, -68), (72, -40)]
+        arc_points = [
+            (-56, -40 - lift),
+            (-24, -68 - lift),
+            (8, -88 - lift),
+            (40, -68 - lift),
+            (72, -40 - lift),
+        ]
         for dx, dy in arc_points:
             bonus_coins.append({
                 "x": float(obstacle_center_x + dx),
@@ -1581,7 +1602,7 @@ def maybe_spawn_bonus_coin_pattern(base_type, base_x):
         return
 
     if int(random(0, 100)) < BONUS_COIN_LINE_CHANCE_PCT:
-        line_y = float(max(234, obstacle_y - obstacle_h - 8))
+        line_y = float(max(188, obstacle_y - obstacle_h - 8 - int(lift * 0.8)))
         start_x = obstacle_center_x - 54
         for idx in range(4):
             bonus_coins.append({
@@ -2014,20 +2035,29 @@ def draw_shop_item_icon(item_key, x, y, size, theme):
     rect(px + 36, py + 52, 28, 8)
 
 
-def draw_shop_icon_button(item, idx, x, y, w, h, theme):
-    pulse = (math.sin((millis() / 185.0) + idx * 0.85) + 1.0) * 0.5
-    glow_color = (255, 220, 104) if pulse > 0.52 else theme["accent"]
-    outer_pad = 3 + int(pulse * 3)
+def draw_shop_icon_button(item, x, y, w, h, theme, selected=False):
+    pulse = (math.sin(millis() / 190.0) + 1.0) * 0.5 if selected else 0.0
+    glow_color = (255, 220, 104) if selected else theme["ground_line"]
+    outer_pad = 2 + int(pulse * 4) if selected else 2
     fill(255, 250, 238)
     rect(x, y, w, h)
     draw_rounded_rect_outline(x, y, w, h, 12, theme["ground_line"], 2)
-    draw_rounded_rect_outline(x - outer_pad, y - outer_pad, w + outer_pad * 2, h + outer_pad * 2, 14, glow_color, 1 + int(pulse * 2))
+    draw_rounded_rect_outline(
+        x - outer_pad,
+        y - outer_pad,
+        w + outer_pad * 2,
+        h + outer_pad * 2,
+        14,
+        glow_color,
+        2 + int(pulse * 2) if selected else 1,
+    )
     draw_shop_item_icon(item["key"], x + 8, y + 6, w - 16, theme)
     fill(*theme["text"])
-    text_size(13)
-    text(item["label"], x - 8, y + h + 18)
-    text(f"{item['cost']}c", x + 8, y + h + 34)
-    text(f"x{get_shop_item_count(item['key'])}", x + 44, y + h + 34)
+    text_size(15)
+    text(item["label"], x - 10, y + h + 19)
+    text_size(14)
+    text(f"{item['cost']}c", x + 8, y + h + 35)
+    text(f"x{get_shop_item_count(item['key'])}", x + 46, y + h + 35)
 
 
 def draw_badger_shop_fallback(x, y, w, h, theme):
@@ -2154,7 +2184,7 @@ def start_pending_boss_encounter(level):
 
 
 def try_interact_pre_boss_scene():
-    global shop_active, pending_boss_shop_level
+    global shop_active, shop_selected_index, pending_boss_shop_level
     if not is_pre_boss_scene_active() or game_over:
         return False
 
@@ -2162,6 +2192,7 @@ def try_interact_pre_boss_scene():
     if rects_overlap(player_hitbox, get_pre_boss_shop_rect()):
         pending_boss_shop_level = pre_boss_scene_level
         shop_active = True
+        shop_selected_index = 0
         set_shop_notice("Buy gear from the badger stall, then press Back.", duration_ms=PRE_BOSS_SCENE_NOTICE_MS)
         return True
 
@@ -2182,6 +2213,53 @@ def get_shop_item_count(item_key):
     if item_key == "jump_shoes":
         return shop_jump_shoes_count
     return 0
+
+
+def get_shop_selection_count():
+    # 4 items + 1 Back button slot.
+    return len(SHOP_ITEMS) + 1
+
+
+def move_shop_selection(key_code):
+    global shop_selected_index
+
+    back_idx = len(SHOP_ITEMS)
+    if shop_selected_index < 0 or shop_selected_index > back_idx:
+        shop_selected_index = 0
+
+    # Back row
+    if shop_selected_index == back_idx:
+        if key_code == K_UP:
+            shop_selected_index = 2
+        return
+
+    # 2x2 item grid
+    row = shop_selected_index // 2
+    col = shop_selected_index % 2
+    if key_code == K_LEFT:
+        col = max(0, col - 1)
+    elif key_code == K_RIGHT:
+        col = min(1, col + 1)
+    elif key_code == K_UP:
+        row = max(0, row - 1)
+    elif key_code == K_DOWN:
+        if row == 1:
+            shop_selected_index = back_idx
+            return
+        row = min(1, row + 1)
+
+    shop_selected_index = row * 2 + col
+    shop_selected_index = max(0, min(back_idx, shop_selected_index))
+
+
+def activate_shop_selection():
+    back_idx = len(SHOP_ITEMS)
+    if shop_selected_index == back_idx:
+        close_shop()
+        return True
+    if 0 <= shop_selected_index < len(SHOP_ITEMS):
+        return buy_shop_item(SHOP_ITEMS[shop_selected_index]["key"])
+    return False
 
 
 def add_shop_item(item_key, amount=1):
@@ -3628,11 +3706,35 @@ def get_announcement_font(size):
     return font
 
 
+def wrap_announcement_lines(raw_lines, font, max_width):
+    wrapped = []
+    for raw_line in raw_lines:
+        line = str(raw_line).strip()
+        if not line:
+            wrapped.append("")
+            continue
+        words = line.split()
+        if len(words) <= 1:
+            wrapped.append(line)
+            continue
+        current = words[0]
+        for word in words[1:]:
+            candidate = f"{current} {word}"
+            if font.render(candidate, True, (255, 255, 255)).get_width() <= max_width:
+                current = candidate
+            else:
+                wrapped.append(current)
+                current = word
+        wrapped.append(current)
+    return wrapped
+
+
 def draw_transparent_blink_text(message, y, base_size=96, base_color=(255, 74, 56)):
     surface = pg_display.get_surface()
     if surface is None:
         return
-    lines = str(message).split("\n")
+    raw_lines = str(message).split("\n")
+    lines = raw_lines
     max_len = max((len(line) for line in lines), default=0)
     if max_len > 58:
         base_size = 56
@@ -3641,10 +3743,21 @@ def draw_transparent_blink_text(message, y, base_size=96, base_color=(255, 74, 5
     elif max_len > 28:
         base_size = 80
 
+    min_size = 46
+    max_width = max(240, width - 56)
+    font = get_announcement_font(base_size)
+    lines = wrap_announcement_lines(raw_lines, font, max_width)
+    while base_size > min_size:
+        widest = max((font.render(line, True, (255, 255, 255)).get_width() for line in lines), default=0)
+        if widest <= max_width and len(lines) <= 5:
+            break
+        base_size = max(min_size, base_size - 4)
+        font = get_announcement_font(base_size)
+        lines = wrap_announcement_lines(raw_lines, font, max_width)
+
     blink_on = int(millis() / 180) % 2 == 0
     alpha_main = 235 if blink_on else 110
     alpha_outline = 200 if blink_on else 95
-    font = get_announcement_font(base_size)
     line_height = int(base_size * 1.02)
     oy = int(y)
     for line in lines:
@@ -3676,17 +3789,17 @@ def draw_big_announcement_overlay(theme):
     elif millis() < weapon_powerup_warning_until_ms:
         message = "WEAPON POWERUP!"
     elif millis() < water_warning_until_ms:
-        message = "WATER! SPRING OP LELIEBLADEN"
+        message = "WATER!\nSPRING OP LELIEBLADEN"
         color = (66, 176, 242)
         y = 26
     elif millis() < airplane_warning_until_ms:
-        message = "JUMP ON THE AIRPLANE!"
+        message = "JUMP ON\nTHE AIRPLANE!"
         color = (255, 212, 78)
     elif millis() < missed_plane_notice_until_ms:
         message = "YOU MISSED\nTHE PLANE"
         color = (255, 212, 78)
     elif millis() < multi_jump_notice_until_ms:
-        message = "USE ↓ TO LAND QUICKER\nFOR MULTI JUMP"
+        message = "USE ↓ TO LAND QUICKER\nFOR A MULTI JUMP"
 
     if message is None:
         return
@@ -4128,14 +4241,18 @@ def draw_shop_seller_with_tie(sx=26, sy=168):
 
 
 def draw_shop_screen(theme):
+    global shop_selected_index
     stall_x, stall_y, stall_w, stall_h, item_layout = get_shop_overlay_layout()
+    back_selection_idx = len(SHOP_ITEMS)
+    if shop_selected_index < 0 or shop_selected_index > back_selection_idx:
+        shop_selected_index = 0
     fill(*theme["text"])
     text_size(40)
     title_text = "Powerup Shop"
-    subtitle_text = "Tie salesman offers upgrades. Click Buy."
+    subtitle_text = "Use arrows to choose, SPACE to buy."
     if game_started and pending_boss_shop_level > 0:
         title_text = f"Badger Shop L{pending_boss_shop_level}"
-        subtitle_text = "Boss prep: buy gear now, then press Back."
+        subtitle_text = "Boss prep: arrows + SPACE, then Back."
     text(title_text, 214, 64)
     text_size(20)
     text(subtitle_text, 214, 92)
@@ -4150,7 +4267,15 @@ def draw_shop_screen(theme):
         draw_badger_shop_fallback(stall_x, stall_y, stall_w, stall_h, theme)
 
     for idx, (item, icon_x, icon_y, icon_w, icon_h) in enumerate(item_layout):
-        draw_shop_icon_button(item, idx, icon_x, icon_y, icon_w, icon_h, theme)
+        draw_shop_icon_button(
+            item,
+            icon_x,
+            icon_y,
+            icon_w,
+            icon_h,
+            theme,
+            selected=(shop_selected_index == idx),
+        )
 
     fill(*theme["text"])
     text_size(14)
@@ -4160,6 +4285,18 @@ def draw_shop_screen(theme):
     fill(255, 255, 255)
     rect(back_x, back_y, back_w, back_h)
     draw_rounded_rect_outline(back_x, back_y, back_w, back_h, 10, theme["accent"], 3)
+    if shop_selected_index == back_selection_idx:
+        back_pulse = (math.sin(millis() / 190.0) + 1.0) * 0.5
+        pad = 3 + int(back_pulse * 4)
+        draw_rounded_rect_outline(
+            back_x - pad,
+            back_y - pad,
+            back_w + pad * 2,
+            back_h + pad * 2,
+            12,
+            (255, 220, 104),
+            2 + int(back_pulse * 2),
+        )
     fill(*theme["accent"])
     text_size(20)
     text("Back", back_x + 36, back_y + 26)
@@ -4983,8 +5120,16 @@ def key_pressed():
             is_fullscreen = True
         return
 
-    if shop_active and (pressed_key == "b" or key_code == K_ESCAPE):
-        close_shop()
+    if shop_active:
+        if pressed_key == "b" or key_code == K_ESCAPE:
+            close_shop()
+            return
+        if key_code in (K_LEFT, K_RIGHT, K_UP, K_DOWN):
+            move_shop_selection(key_code)
+            return
+        if pressed_key in (" ", "a", "A") or key_code in (10, 13):
+            activate_shop_selection()
+            return
         return
 
     if quit_confirm_active:
@@ -5052,9 +5197,6 @@ def key_pressed():
 
     if key in ("p", "P") and game_started and not game_over:
         game_paused = not game_paused
-        return
-
-    if shop_active:
         return
 
     if game_over and key == " ":
@@ -5181,7 +5323,7 @@ def mouse_released(x, y, button):
 
 
 def mouse_clicked(x, y, button):
-    global selected_character_idx, shop_active, quit_confirm_active
+    global selected_character_idx, shop_active, shop_selected_index, quit_confirm_active
     global touch_ignore_next_click
     if touch_ignore_next_click:
         touch_ignore_next_click = False
@@ -5225,6 +5367,7 @@ def mouse_clicked(x, y, button):
     shop_x, shop_y, shop_w, shop_h = get_shop_button_rect()
     if point_in_rect(x, y, shop_x, shop_y, shop_w, shop_h):
         shop_active = True
+        shop_selected_index = 0
         quit_confirm_active = False
 
 

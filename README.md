@@ -23,7 +23,7 @@ scripts/setup_venv.sh
 scripts/run_dino.sh
 ```
 
-`scripts/setup_venv.sh` prefers Python 3.13/3.12 and avoids Python 3.14, because some 3.14 pygame builds only support BMP images.
+`scripts/setup_venv.sh` installs from hash-locked requirements and supports Python 3.12+.
 
 ### Windows (PowerShell)
 
@@ -62,6 +62,8 @@ You can use functions like `size()`, `background()`, `circle()`, `text()`, `imag
 1. Have Python!
 2. Create a virtual environment
 3. Install dependencies from `requirements.txt`
+
+Dependency installs are hash-locked and use a single index policy (see `scripts/security/README.md`).
 
 ## Create Your First Sketch
 
@@ -123,6 +125,8 @@ The build script allows non-OGG audio files, because this project currently cont
 ```bash
 scripts/web/setup_web.sh
 ```
+
+Web dependencies are installed from `requirements-web.txt` (hash-locked).
 
 ### 2) Build web version
 

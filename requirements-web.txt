@@ -40,3 +40,9 @@ pygame-ce==2.5.7 \
     --hash=sha256:ecac266ccd459e354d693f2150a065fc695a6ffcdf15eaca06709620bb837fea \
     --hash=sha256:f5a7197096ef82d588539f13b0f7ade767f800c7b0b015a94e386f488e1039f6 \
     --hash=sha256:f6439100bdee81da96f5acffb280f20511c93dd67178d8a8cf29d6cfd1aa46dd
+
+pygbag==0.9.3 \
+    --hash=sha256:ada203ff5a214f721029cb3b3741f641b032cde1ccaac60bc8dd9e641f3da3d5
+
+certifi==2026.2.25 \
+    --hash=sha256:027692e4402ad994f1c42e52a4997a9763c646b73e4096e4d5d6db8af1d6f0fa
