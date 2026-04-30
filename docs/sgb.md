@@ -47,6 +47,20 @@ Waarom:
 - Platform-afhankelijke code mag alleen voor technische runtime-zaken (bijv. input/audio unlock, packaging, pad-resolutie), nooit voor gamebalans of mechanics.
 - Performanceproblemen worden opgelost met generieke optimalisaties die overal gelden (assets, renderpad, objectbeheer), niet met afwijkende spelregels op web.
 
+## Framework Boundary
+
+De map `processing/` is frameworkcode en heeft een andere wijzigingsdrempel dan gamecode zoals `dino_game.py`.
+
+Waarom:
+
+- Een wijziging in `processing/` heeft een veel grotere blast radius dan een wijziging in één sketch.
+- Frameworkwijzigingen veranderen impliciet het contract voor alle sketches en moeten daarom als library-werk behandeld worden, niet als lokale bugfix.
+- Als een bug alleen in één game of sketch zichtbaar is, lossen we die standaard eerst in de appcode op. Alleen bij bewezen frameworkschuld en expliciete afstemming passen we `processing/` aan.
+
+- Geen ad-hoc wijzigingen in `processing/` om een bug in één sketch te fixen.
+- Eerst het owning codepad in de app zelf onderzoeken.
+- Als een frameworkaanpassing toch nodig lijkt, eerst expliciet afstemmen en idealiter apart behandelen als library-bug of library-change.
+
 ## Creative Integrity
 
 De game gebruikt dezelfde visuele taal op meerdere plekken.
@@ -61,6 +75,52 @@ De game gebruikt dezelfde visuele taal op meerdere plekken.
 - Onmogelijke combinaties zijn verboden: runtime mag geen obstacleketens genereren die niet haalbaar zijn met normale timing/spronghoogte wanneer een powerup net is afgelopen.
 - Luchtlevels gebruiken decoratieve parallax-wolken als sfeerlaag en leesbare snelheidsreferentie, nooit als obstacle of misleidende hitbox.
 - Menu-tekst boven de luchtlaag gebruikt karakter-afhankelijke contrastkleuren en mag nooit visueel over elkaar heen vallen; titel, startprompt en character-select copy blijven gescheiden blokken.
+- Een echte sprite-asset vervangt procedurale placeholder-tekeningen zodra zo'n asset beschikbaar en geschikt is.
+
+### Character Asset Contract
+
+Voor character poses is een runtime sprite sheet niet verplicht, maar de assetset moet zich wel gedragen alsof de frames uit één sprite sheet komen.
+
+Begrippen:
+
+- `canvas`: de volledige rechthoek van een spritebestand, inclusief transparante marge.
+- `crop`: hoe strak het zichtbare figuur uit een groter beeld is uitgesneden.
+- `grondlijn`: de denkbeeldige horizontale lijn waarop voeten, poten of wielen de grond raken.
+- `anchor`: het vaste referentiepunt waarmee een pose op dezelfde plek wordt getekend als de vorige pose.
+
+Waarom:
+
+- Het grootste risico bij losse PNG's is niet het ontbreken van een sheet, maar inconsistente canvasmaat, baseline en anchor tussen poses.
+- Een crouch-pose die strakker of anders gecropt is dan de normale pose veroorzaakt zichtbaar verspringen tijdens posewissels, ook als de hitbox zelf correct blijft.
+- Een sprite sheet maakt zulke afwijkingen snel zichtbaar, maar dezelfde discipline is ook mogelijk met losse bestanden.
+
+- Losse PNG's per state zijn toegestaan; een sprite sheet is dus geen vereiste.
+- Binnen één character-set moeten alle poses exact dezelfde canvasbreedte en canvashoogte hebben: dus echt dezelfde pixelmaat per bestand binnen die set.
+- Binnen één character-set delen alle poses dezelfde grondlijn: voeten of laagste contactpunt landen op dezelfde horizontale lijn.
+- Binnen één character-set delen alle poses dezelfde horizontale anchor, zodat een posewissel niet naar links of rechts "springt".
+- Strakke crops zijn ondergeschikt aan consistentie: voeg liever transparante marge toe dan dat één pose kleiner of verschoven binnenkomt.
+- De concrete pixelmaat hoeft niet vooraf globaal voor alle characters gelijk te zijn, maar wordt per character-set expliciet gekozen zodra de eerste definitieve asset van die set wordt ingevoerd.
+- Zodra zo'n maat voor een character-set is gekozen, worden nieuwe poses in die set daarop gepad of uitgelijnd in plaats van opnieuw vrij gecropt.
+
+Foutvoorbeelden:
+
+- `normaal` is 220 x 160 pixels, maar `duck` is 184 x 109 pixels. Resultaat: de sprite lijkt kleiner te worden en verschuift bij het bukken.
+- `normaal` heeft 18 pixels transparante ruimte onder de voeten, maar `duck` maar 2 pixels. Resultaat: de crouch-variant zakt visueel door de grond of schiet omhoog.
+- `normaal` is gecentreerd op het midden van het canvas, maar `duck` is verder naar links gecropt. Resultaat: de pose "teleporteert" horizontaal tijdens het wisselen.
+- `oops` is veel strakker uitgesneden dan `normaal`. Resultaat: dezelfde character voelt ineens alsof die van schaal verandert.
+
+Goed voorbeeld:
+
+- Als de dino-set eenmaal op een vaste pixelmaat is gezet, moeten `normaal`, `duck`, `oops` en eventuele extra poses allemaal precies diezelfde canvasmaat, grondlijn en anchor gebruiken, ook als de zichtbare dino in de crouch-versie lager of compacter is.
+
+Repo-voorbeelden:
+
+- Losse sprite: `assets/dino-transparant.png`
+- Sprite sheet: `assets/plane-sprite.png`
+
+![Voorbeeld losse sprite](../assets/dino-transparant.png)
+
+![Voorbeeld sprite sheet](../assets/plane-sprite.png)
 
 Waarom:
 

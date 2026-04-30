@@ -14,6 +14,10 @@ python dino_game.py
 
 Uitgaande dat [Python 3](https://www.python.org/downloads/windows/) is geinstalleerd en op/in command line/PATH staat.
 
+## Projectdocumentatie
+
+Voor ontwerpkeuzes, spelregels en structurele principes, zie [docs/sgb.md](docs/sgb.md).
+
 ## Snelle Start Met Virtual Environment
 
 ### macOS / Linux
@@ -40,6 +44,29 @@ python dino_game.py
 ```bash
 source .venv/bin/activate
 python dino_game.py
+```
+
+### Flake8 handmatig draaien
+
+Als VS Code alleen toastmeldingen geeft, kun je Flake8 handmatig in de terminal draaien voor een volledig overzicht:
+
+```bash
+source .venv/bin/activate
+python -m flake8 dino_game.py
+```
+
+Voor de hele repository:
+
+```bash
+source .venv/bin/activate
+python -m flake8 .
+```
+
+Als je melding krijgt als `No module named flake8`, installeer Flake8 dan eerst in de actieve virtual environment:
+
+```bash
+source .venv/bin/activate
+python -m pip install flake8
 ```
 
 ## Original Intro and README

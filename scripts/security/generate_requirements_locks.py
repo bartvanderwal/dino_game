@@ -19,7 +19,11 @@ class Requirement:
 
 
 RUNTIME_REQUIREMENTS = [
+    Requirement("flake8", "7.3.0"),
+    Requirement("mccabe", "0.7.0"),
     Requirement("pygame-ce", "2.5.7"),
+    Requirement("pycodestyle", "2.14.0"),
+    Requirement("pyflakes", "3.4.0"),
 ]
 
 WEB_REQUIREMENTS = [
@@ -92,7 +96,7 @@ def render_requirements(requirements: list[Requirement], *, generated_on: str) -
 
 def main() -> int:
     root = Path(__file__).resolve().parents[2]
-    generated_on = "2026-04-29"
+    generated_on = "2026-04-30"
 
     runtime_text = render_requirements(RUNTIME_REQUIREMENTS, generated_on=generated_on)
     web_text = render_requirements(WEB_REQUIREMENTS, generated_on=generated_on)

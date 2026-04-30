@@ -1,5 +1,5 @@
 from processing import run, size, full_screen, frame_rate, title, background, fill, rect, line, arc
-from processing import circle, ellipse, triangle
+from processing import ellipse, triangle
 from processing import image, text_size, text, load_image, no_fill, stroke, stroke_weight, no_stroke, millis
 from processing import width, height, key, key_code, random
 from processing import PI, TWO_PI
@@ -166,6 +166,7 @@ def get_plane_frames_for_character(character_key):
         return PLANE_SPRITE_ROWS[preferred_row]
     first_row = sorted(PLANE_SPRITE_ROWS.keys())[0]
     return PLANE_SPRITE_ROWS[first_row]
+
 
 # Richtingsvarianten (naar rechts kijken) voor specifieke enemies/bosses.
 BIRD_RIGHT_IMG = transform.flip(BIRD_IMG, True, False)
@@ -368,6 +369,7 @@ CREDITS_FINISH_PAD_PX = 120
 ZEPPELIN_ART_ATTRIBUTION = "Zeppelin artwork reference/source: FreeSVG.org 'Zeppelin' by j4p4n (Public Domain / CC0) https://freesvg.org/zeppelin"
 SCREENSHOT_NOTICE_MS = 2200
 GROUND_Y = 460
+CACTUS_GUIDE_LINE_Y = 443
 IS_WEB = sys.platform == "emscripten"
 TOUCH_CONTROLS_ENABLED = IS_WEB
 TOUCH_BTN_SIZE = 78
@@ -423,6 +425,7 @@ def detect_touch_controls_enabled():
             once_key="detect_touch_controls_enabled",
         )
     return False
+
 
 # Progression per level: first chapter = 6 cleared obstacles, then +3 obstacles each chapter.
 LEVEL_OBSTACLE_REQUIREMENTS = [6, 9, 12, 15, 18, 21, 24, 27, 30, 33]
@@ -747,6 +750,7 @@ COIN_SOUND = None
 MINI_BOSS_VICTORY_SOUND = None
 INTRO_SPEECH_SOUND = None
 INTRO_SPEECH_CHANNEL = None
+pending_high_jump_landing_roar = False
 isDebugMode = False
 debug_coin_pressed = False
 debug_coin_repeat_until_ms = 0
@@ -788,6 +792,13 @@ scripted_obstacle_index = 0
 jump_block_droplets = []
 ground_flowers = []
 high_jump_powerup_charges = 0
+
+ARROW_KEY_NAMES = {
+    "arrowleft": K_LEFT,
+    "arrowright": K_RIGHT,
+    "arrowup": K_UP,
+    "arrowdown": K_DOWN,
+}
 pending_weapon_powerup_level = 0
 weapon_powerup_ready = False
 weapon_powerup_level = 0
@@ -850,7 +861,7 @@ web_audio_unlocked = not IS_WEB
 
 
 def reset_game(show_splash=False):
-    global dino_y, velocity_y, on_ground, score, coin_count, game_over, game_completed, game_started
+    global dino_y, velocity_y, on_ground, score, game_over, game_completed, game_started
     global shop_active, shop_selected_index, shop_notice_text, shop_notice_until_ms
     global shield_until_ms, coin_boost_until_ms, jump_shoes_until_ms
     global pre_boss_scene_level, pending_boss_shop_level, boss_shop_seen
@@ -894,6 +905,7 @@ def reset_game(show_splash=False):
     global mini_boss_defeat_sequences
     global pipe_crouch_sprite_cache
     global touch_active_button, touch_ignore_next_click
+    global pending_high_jump_landing_roar
     stop_intro_speech()
     dino_y = DINO_Y
     velocity_y = 0
@@ -922,6 +934,7 @@ def reset_game(show_splash=False):
     pipe_entry_sound_next_ms = 0
     debug_coin_pressed = False
     debug_coin_repeat_until_ms = 0
+    pending_high_jump_landing_roar = False
     is_ducking = False
     game_paused = False
     bird_duck_scored = False
@@ -1045,6 +1058,7 @@ def update_player_vertical_motion():
         velocity_y = 0
         on_ground = True
         is_fast_falling = False
+        play_pending_high_jump_landing_roar()
 
 
 def update_background_music(force=False):
@@ -1294,7 +1308,7 @@ def draw_credits_starfield(now_ms):
 
 
 def draw_credits_screen():
-    global credits_active, credits_finished
+    global credits_finished
     now = millis()
     background(0, 0, 8)
     draw_credits_starfield(now)
@@ -1377,6 +1391,7 @@ def draw_credits_screen():
         text("Credits complete. Press Q for menu", width // 2 - 166, height - 28)
     else:
         text("Press Q to skip credits", width // 2 - 111, height - 28)
+
 
 def capture_screenshot():
     global screenshot_notice_until_ms, screenshot_notice_text
@@ -1468,6 +1483,49 @@ def make_pipe_entry_sound():
         return None
 
 
+def make_high_jump_sound():
+    try:
+        init_info = mixer.get_init()
+    except Exception as exc:
+        log_soft_exception(
+            "Failed to query mixer init state for high jump sound",
+            exc,
+            once_key="high_jump_sound_get_init",
+        )
+        init_info = None
+    if not init_info:
+        return None
+
+    sample_rate, _, channels = init_info
+    sample_rate = int(sample_rate or 44100)
+    channels = max(1, int(channels or 1))
+    total_samples = int(sample_rate * 0.27)
+    start_freq = 420.0
+    end_freq = 930.0
+    sound_buffer = bytearray()
+
+    for sample_idx in range(total_samples):
+        progress = sample_idx / max(1, total_samples - 1)
+        t = sample_idx / sample_rate
+        freq = start_freq + ((end_freq - start_freq) * (progress * progress))
+        envelope = math.sin(math.pi * min(1.0, progress ** 0.72))
+        chirp = math.sin(2.0 * math.pi * freq * t)
+        shimmer = math.sin(2.0 * math.pi * (freq * 1.9) * t + (progress * 2.4)) * 0.22
+        sample = int(max(-1.0, min(1.0, (chirp + shimmer) * envelope * 0.38)) * 32767)
+        for _ in range(channels):
+            sound_buffer.extend(sample.to_bytes(2, byteorder="little", signed=True))
+
+    try:
+        return mixer.Sound(buffer=bytes(sound_buffer))
+    except Exception as exc:
+        log_soft_exception(
+            "Failed to create synthesized high jump sound",
+            exc,
+            once_key="high_jump_sound_create",
+        )
+        return None
+
+
 def stop_intro_speech():
     global INTRO_SPEECH_CHANNEL
     try:
@@ -1515,11 +1573,18 @@ def is_intro_speech_playing():
 
 def get_jump_sound(is_high_jump=False):
     if is_high_jump:
-        if active_character_key == "dino" and DINO_ROAR_SOUND is not None:
-            return DINO_ROAR_SOUND
         if HIGH_JUMP_SOUND is not None:
             return HIGH_JUMP_SOUND
     return JUMP_SOUND
+
+
+def play_pending_high_jump_landing_roar():
+    global pending_high_jump_landing_roar
+    if not pending_high_jump_landing_roar:
+        return
+    pending_high_jump_landing_roar = False
+    if DINO_ROAR_SOUND is not None:
+        play_sfx(DINO_ROAR_SOUND)
 
 
 def setup():
@@ -1545,7 +1610,7 @@ def setup():
         return
 
     JUMP_SOUND = load_sound_or_none("assets/audio/jump.wav")
-    HIGH_JUMP_SOUND = load_sound_or_none("assets/audio/weeh.wav")
+    HIGH_JUMP_SOUND = make_high_jump_sound()
     DINO_ROAR_SOUND = load_sound_or_none("assets/audio/roaarr.wav")
 
     PIPE_ENTRY_SOUND = make_pipe_entry_sound()
@@ -1616,7 +1681,7 @@ def get_dino_hitbox():
 
 
 def choose_obstacle_type():
-    global queued_obstacle_after_powerup, queued_spawn_sequence, queued_coin_spawn_ys
+    global queued_obstacle_after_powerup, queued_spawn_sequence
     if pending_weapon_powerup_level > 0 and not weapon_powerup_ready:
         return "weapon_powerup"
 
@@ -1790,7 +1855,6 @@ def is_ground_wet_active():
 
 
 def maybe_spawn_bonus_coin_pattern(base_type, base_x):
-    global bonus_coins
     if base_type not in ("cactus_low", "cactus_high", "cactus_tower", "snake"):
         return
 
@@ -1832,7 +1896,7 @@ def maybe_spawn_bonus_coin_pattern(base_type, base_x):
 
 
 def maybe_spawn_extra_obstacle_pack(base_type, base_x):
-    global extra_obstacles, multi_jump_notice_until_ms
+    global multi_jump_notice_until_ms
     if USE_SCRIPTED_OBSTACLE_PATTERNS:
         return
     if current_level < 8:
@@ -1880,10 +1944,10 @@ def get_extra_obstacle_hitbox(obstacle):
 
 def spawn_obstacle(force_type=None):
     global obstacle_x, obstacle_type, bird_duck_scored
-    global high_jump_warning_until_ms, high_jump_powerup_warning_until_ms
+    global high_jump_warning_until_ms
     global weapon_powerup_warning_until_ms, water_warning_until_ms
     global airplane_warning_until_ms, pending_airplane_spawn
-    global coin_spawn_y, queued_coin_spawn_ys
+    global coin_spawn_y
     global ground_pipe_gap_top
     global snake_hiss_played_for_current
     obstacle_type = force_type or choose_obstacle_type()
@@ -2094,6 +2158,7 @@ def apply_one_way_platform_collision(platform_rect, prev_player_x, prev_dino_y, 
     velocity_y = 0
     on_ground = True
     is_fast_falling = False
+    play_pending_high_jump_landing_roar()
     return True
 
 
@@ -2218,7 +2283,7 @@ def reset_scripted_obstacle_sequence(level=None):
 
 
 def get_next_scripted_obstacle_type():
-    global scripted_obstacle_level, scripted_obstacle_index
+    global scripted_obstacle_index
     if scripted_obstacle_level != current_level:
         reset_scripted_obstacle_sequence(current_level)
 
@@ -2384,8 +2449,6 @@ def draw_shop_item_icon(item_key, x, y, size, theme):
 
     px = int(x)
     py = int(y)
-    icon_w = int(size)
-    icon_h = int(size)
     if item_key == "extra_life":
         fill(214, 36, 58)
         rect(px + 14, py + 12, 16, 16)
@@ -4208,7 +4271,6 @@ def finish_boss_if_defeated(boss):
     global player_x, boss_left_pressed, boss_right_pressed
     global final_boss_snapshot, final_boss_defeat_until_ms, final_boss_next_blast_ms
     global pending_credits_after_victory
-    global mini_boss_defeat_sequences
     if boss["hits_taken"] < boss["hits_required"]:
         return
     if boss["type"] in ("bird_miniboss", "cactus_miniboss"):
@@ -4250,7 +4312,7 @@ def finish_boss_if_defeated(boss):
 
 
 def update_enemy_projectiles(boss):
-    global game_over, coyote_cave_flash_until_ms
+    global coyote_cave_flash_until_ms
     if flight_mode and boss.get("type") == "zeppelin_miniboss":
         player_hitbox = get_flight_plane_rect()
     else:
@@ -4672,7 +4734,7 @@ def update_final_boss_movement(boss, now):
 
 
 def update_and_draw_boss_mode(theme, update_world=True):
-    global dino_y, velocity_y, on_ground, is_fast_falling, game_over, player_x
+    global on_ground, player_x
     boss = boss_state
     if boss is None:
         return
@@ -4832,13 +4894,13 @@ def get_announcement_font(size):
 def wrap_announcement_lines(raw_lines, font, max_width):
     wrapped = []
     for raw_line in raw_lines:
-        line = str(raw_line).strip()
-        if not line:
+        raw_text = str(raw_line).strip()
+        if not raw_text:
             wrapped.append("")
             continue
-        words = line.split()
+        words = raw_text.split()
         if len(words) <= 1:
-            wrapped.append(line)
+            wrapped.append(raw_text)
             continue
         current = words[0]
         for word in words[1:]:
@@ -4883,10 +4945,10 @@ def draw_transparent_blink_text(message, y, base_size=96, base_color=(255, 74, 5
     alpha_outline = 200 if blink_on else 95
     line_height = int(base_size * 1.02)
     oy = int(y)
-    for line in lines:
-        outline = font.render(line, True, (255, 255, 255))
+    for text_line in lines:
+        outline = font.render(text_line, True, (255, 255, 255))
         outline.set_alpha(alpha_outline)
-        main = font.render(line, True, base_color)
+        main = font.render(text_line, True, base_color)
         main.set_alpha(alpha_main)
         x = (width - main.get_width()) // 2
         for dx, dy in ((-3, 0), (3, 0), (0, -3), (0, 3), (-2, -2), (2, 2)):
@@ -4999,7 +5061,7 @@ def draw_flight_pipes():
 
 
 def update_and_draw_flight_mode(theme, update_world=True):
-    global flight_plane_x, flight_plane_y, flight_pipe_spawn_due_ms, score, game_over
+    global flight_plane_x, flight_plane_y, flight_pipe_spawn_due_ms, score
     global boss_state, boss_intro_until_ms
     global flight_pipes
 
@@ -5593,7 +5655,7 @@ def draw_character_select(theme):
 
 
 def update_and_draw_bonus_coins():
-    global bonus_coins, score, coin_count
+    global score, coin_count
     if not bonus_coins:
         return
 
@@ -5621,7 +5683,7 @@ def update_and_draw_bonus_coins():
 
 
 def update_and_draw_extra_obstacles(theme):
-    global extra_obstacles, score, game_over, is_ducking
+    global score, is_ducking
 
     if not extra_obstacles:
         return
@@ -5655,16 +5717,15 @@ def update_and_draw_extra_obstacles(theme):
 
 
 def draw():
-    global dino_y, velocity_y, on_ground, obstacle_x, score, high_score, coin_count, game_over, game_completed, game_started
+    global dino_y, velocity_y, on_ground, obstacle_x, score, high_score, coin_count
     global is_ducking, bird_duck_scored, is_fast_falling, snake_hiss_played_for_current
     global debug_coin_repeat_until_ms
     global high_jump_powerup_charges, high_jump_powerup_warning_until_ms
-    global weapon_powerup_warning_until_ms, water_warning_until_ms
+    global weapon_powerup_warning_until_ms
     global missed_plane_notice_until_ms
-    global multi_jump_notice_until_ms, bonus_coins, extra_obstacles
+    global pending_weapon_powerup_level, weapon_powerup_ready, weapon_powerup_level
     global weapon_powerup_ready, weapon_powerup_level, pending_weapon_powerup_level
-    global final_boss_snapshot, final_boss_defeat_until_ms, final_boss_next_blast_ms
-    global pending_credits_after_victory
+    global final_boss_snapshot, final_boss_next_blast_ms
     global player_x
     theme = get_theme()
     update_background_music()
@@ -5691,8 +5752,10 @@ def draw():
     background(*theme["bg"])
     draw_parallax_clouds(theme)
     fill(*theme["ground_fill"])
-    rect(0, GROUND_Y, width, 40)  # ground
+    rect(0, CACTUS_GUIDE_LINE_Y, width, height - CACTUS_GUIDE_LINE_Y)  # ground
     stroke(*theme["ground_line"])
+    stroke_weight(1)
+    line(0, CACTUS_GUIDE_LINE_Y, width, CACTUS_GUIDE_LINE_Y)
     stroke_weight(2)
     line(0, GROUND_Y, width, GROUND_Y)
     no_stroke()
@@ -5953,6 +6016,7 @@ def draw():
                 velocity_y = 0
                 on_ground = True
                 is_fast_falling = False
+                play_pending_high_jump_landing_roar()
 
         obstacle_x -= scroll_speed
         if obstacle_type == "pipe_pair":
@@ -6117,6 +6181,7 @@ def draw():
 def perform_jump_if_possible():
     global velocity_y, on_ground, is_ducking, is_fast_falling
     global duck_jump_expires_ms, high_jump_powerup_charges
+    global pending_high_jump_landing_roar
     if not (game_started and not game_over and on_ground):
         return False
     # Buk-spring binnen half seconde geeft high jump.
@@ -6138,6 +6203,7 @@ def perform_jump_if_possible():
     on_ground = False
     is_fast_falling = False
     duck_jump_expires_ms = 0
+    pending_high_jump_landing_roar = active_character_key == "dino" and is_high_jump
     play_sfx(get_jump_sound(is_high_jump=is_high_jump))
     return True
 
@@ -6225,7 +6291,7 @@ def draw_touch_controls_overlay():
 
 def press_touch_control(name):
     global touch_active_button
-    global selected_character_idx, game_started
+    global selected_character_idx
     global fly_left_pressed, fly_right_pressed, fly_up_pressed, fly_down_pressed
     global boss_left_pressed, boss_right_pressed
     global is_ducking, duck_jump_expires_ms, is_fast_falling
@@ -6335,22 +6401,29 @@ def try_press_touch_control(x, y, button):
     return False
 
 
+def normalize_key_code(current_key, current_key_code):
+    if isinstance(current_key, str):
+        return ARROW_KEY_NAMES.get(current_key.lower(), current_key_code)
+    return current_key_code
+
+
 def key_pressed():
-    global velocity_y, on_ground, game_started, isDebugMode, is_ducking
-    global game_paused, selected_character_idx, active_character_key
-    global duck_jump_expires_ms, is_fast_falling, high_jump_powerup_charges, game_completed
+    global isDebugMode, is_ducking
+    global game_paused, selected_character_idx
+    global duck_jump_expires_ms, is_fast_falling, game_completed
     global fly_left_pressed, fly_right_pressed, fly_up_pressed
     global fly_down_pressed
     global boss_left_pressed, boss_right_pressed
-    global quit_confirm_active, is_fullscreen, shop_active, coin_count
+    global quit_confirm_active, is_fullscreen, coin_count
     global debug_coin_pressed, debug_coin_repeat_until_ms
     unlock_web_audio_if_needed()
     pressed_key = key.lower() if isinstance(key, str) else key
+    effective_key_code = normalize_key_code(key, key_code)
     if credits_active and pressed_key == "i":
         return
     shared.handle_common_keys(
         pressed_key,
-        key_code,
+        effective_key_code,
         info_text=INFO_TEXT,
         music_toggle_callback=lambda _enabled: update_background_music(force=True),
         allow_quit=False,
@@ -6375,13 +6448,13 @@ def key_pressed():
         return
 
     if shop_active:
-        if pressed_key == "b" or key_code == K_ESCAPE:
+        if pressed_key == "b" or effective_key_code == K_ESCAPE:
             close_shop()
             return
-        if key_code in (K_LEFT, K_RIGHT, K_UP, K_DOWN):
-            move_shop_selection(key_code)
+        if effective_key_code in (K_LEFT, K_RIGHT, K_UP, K_DOWN):
+            move_shop_selection(effective_key_code)
             return
-        if pressed_key in (" ", "a", "A") or key_code in (10, 13):
+        if pressed_key in (" ", "a", "A") or effective_key_code in (10, 13):
             activate_shop_selection()
             return
         return
@@ -6389,11 +6462,11 @@ def key_pressed():
     if quit_confirm_active:
         if pressed_key == "y":
             exit()
-        if pressed_key in ("n", "q") or key_code == K_ESCAPE:
+        if pressed_key in ("n", "q") or effective_key_code == K_ESCAPE:
             quit_confirm_active = False
         return
 
-    if pressed_key == "q" or key_code == K_ESCAPE:
+    if pressed_key == "q" or effective_key_code == K_ESCAPE:
         if game_started:
             if game_over and not isDebugMode:
                 save_character_checkpoint(level=1)
@@ -6467,11 +6540,11 @@ def key_pressed():
         # Avoid accidental skip when player is still hammering shoot during boss defeat.
         return
 
-    if not game_started and key_code == K_LEFT:
+    if not game_started and effective_key_code == K_LEFT:
         selected_character_idx = (selected_character_idx - 1) % len(CHARACTER_ORDER)
         return
 
-    if not game_started and key_code == K_RIGHT:
+    if not game_started and effective_key_code == K_RIGHT:
         selected_character_idx = (selected_character_idx + 1) % len(CHARACTER_ORDER)
         return
 
@@ -6488,14 +6561,14 @@ def key_pressed():
         return
 
     if game_started and (boss_state is not None or pre_boss_scene_level > 0) and not game_over:
-        if key_code == K_LEFT:
+        if effective_key_code == K_LEFT:
             boss_left_pressed = True
             return
-        if key_code == K_RIGHT:
+        if effective_key_code == K_RIGHT:
             boss_right_pressed = True
             return
 
-    if game_started and pre_boss_scene_level > 0 and not game_over and key_code == K_DOWN:
+    if game_started and pre_boss_scene_level > 0 and not game_over and effective_key_code == K_DOWN:
         if on_ground:
             is_ducking = True
             duck_jump_expires_ms = millis() + HIGH_JUMP_WINDOW_MS
@@ -6516,21 +6589,21 @@ def key_pressed():
         return
 
     if game_started and flight_mode and not game_over:
-        if key_code == K_LEFT:
+        if effective_key_code == K_LEFT:
             fly_left_pressed = True
             return
-        if key_code == K_RIGHT:
+        if effective_key_code == K_RIGHT:
             fly_right_pressed = True
             return
-        if key_code == K_UP:
+        if effective_key_code == K_UP:
             fly_up_pressed = True
             return
-        if key_code == K_DOWN:
+        if effective_key_code == K_DOWN:
             fly_down_pressed = True
             return
         return
 
-    if game_started and not game_over and key_code == K_DOWN:
+    if game_started and not game_over and effective_key_code == K_DOWN:
         if on_ground:
             is_ducking = True
             duck_jump_expires_ms = millis() + HIGH_JUMP_WINDOW_MS
@@ -6538,7 +6611,7 @@ def key_pressed():
             is_fast_falling = True
         return
 
-    if game_started and not game_over and key_code == K_UP:
+    if game_started and not game_over and effective_key_code == K_UP:
         perform_jump_if_possible()
 
 
@@ -6547,25 +6620,26 @@ def key_released(released_key):
     global debug_coin_pressed
     global fly_left_pressed, fly_right_pressed, fly_up_pressed, fly_down_pressed
     global boss_left_pressed, boss_right_pressed
+    effective_released_key = normalize_key_code(released_key, released_key)
     if flight_mode:
-        if released_key == K_LEFT:
+        if effective_released_key == K_LEFT:
             fly_left_pressed = False
-        elif released_key == K_RIGHT:
+        elif effective_released_key == K_RIGHT:
             fly_right_pressed = False
-        elif released_key == K_UP:
+        elif effective_released_key == K_UP:
             fly_up_pressed = False
-        elif released_key == K_DOWN:
+        elif effective_released_key == K_DOWN:
             fly_down_pressed = False
         return
 
-    if released_key == K_LEFT:
+    if effective_released_key == K_LEFT:
         boss_left_pressed = False
-    elif released_key == K_RIGHT:
+    elif effective_released_key == K_RIGHT:
         boss_right_pressed = False
-    elif released_key == K_c:
+    elif effective_released_key == K_c:
         debug_coin_pressed = False
 
-    if released_key == K_DOWN:
+    if effective_released_key == K_DOWN:
         if on_ground:
             duck_jump_expires_ms = millis() + HIGH_JUMP_WINDOW_MS
         is_ducking = False

@@ -1,5 +1,5 @@
 # Locked dependencies for deterministic and secure installs.
-# Generated from PyPI metadata on 2026-04-29.
+# Generated from PyPI metadata on 2026-04-30.
 # Enforced by setup scripts with --require-hashes and --only-binary=:all:.
 pygame-ce==2.5.7 \
     --hash=sha256:01c48daf8fccb66e8750d5d26bf20e3f0dc484a5f7748fa98fd7e2ac69a2f7f5 \
