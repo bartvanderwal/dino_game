@@ -8,7 +8,12 @@ import sys
 import threading
 import time
 import traceback
-import pygame
+try:
+    import pygame
+except ModuleNotFoundError:
+    raise ModuleNotFoundError(
+        "Python-processing is gebaseerd op pygame-ce. Installeer met: pip install -r requirements.txt."
+    ) from None
 
 from .core.constants import LEFT, RIGHT, CENTER, TOP, BOTTOM, BASELINE, OPEN, CHORD, PIE, PI, TWO_PI
 from .core.public_globals import PUBLIC_GLOBAL_NAMES

@@ -59,7 +59,7 @@ def init_window(state, pygame, set_public_global, apply_window_icon_func):
     if state.get("_screen") is not None:
         return
     pygame.init()
-    print("and hello from python-processing. https://github.com/AIM-HBO-ICT-Voorlichting/python-processing")
+    print("Hello from python-processing. Docs on https://github.com/AIM-HBO-ICT-Voorlichting/python-processing")
     pygame.font.init()
     info = pygame.display.Info()
     set_public_global("display_width", int(info.current_w))
