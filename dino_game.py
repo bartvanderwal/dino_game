@@ -30,15 +30,15 @@ import traceback
 # Dino game assets
 DINO_IMG = load_image("assets/dino-transparant.png")
 DINO_OOPS_IMG = load_image("assets/dino-oops-transparant.png")
-DINO_DUCK_IMG = load_image("assets/dino-duck-transparant.png")
+DINO_CROUCH_SPRITE = load_image("assets/dino-duck-transparant.png")
 DINO_FALL_IMG = transform.rotate(DINO_OOPS_IMG, -90)
 COWBOY_IMG = load_image("assets/cowboy-transparant.png")
 COWBOY_RUN_IMG = load_image("assets/cowboy-run-transparant.png")
 COWBOY_FALL_IMG = load_image("assets/pc/cowboy-fall-transparant.png")
-COWBOY_DUCK_IMG = load_image("assets/pc/cowboy-duck-transparant.png")
+COWBOY_CROUCH_SPRITE = load_image("assets/pc/cowboy-duck-transparant.png")
 ROADRUNNER_IMG = load_image("assets/roadrunner-transparant.png")
 ROADRUNNER_OOPS_IMG = load_image("assets/roadrunner-oops-transparant.png")
-ROADRUNNER_DUCK_IMG = load_image("assets/roadrunner-duck-transparant.png")
+ROADRUNNER_CROUCH_SPRITE = load_image("assets/roadrunner-duck-transparant.png")
 ROADRUNNER_FALL_IMG = transform.rotate(ROADRUNNER_OOPS_IMG, -90)
 AIRPLANE_IMG = load_image("assets/plane-still.png")
 PLANE_SPRITE_SHEET = load_image("assets/plane-sprite.png") if os.path.exists("assets/plane-sprite.png") else None
@@ -176,7 +176,7 @@ def get_plane_frames_for_character(character_key):
 BIRD_RIGHT_IMG = transform.flip(BIRD_IMG, True, False)
 GIANT_DINO_RIGHT_IMG = transform.flip(DINO_IMG, True, False)
 GIANT_COWBOY_RIGHT_IMG = transform.flip(COWBOY_IMG, True, False)
-GIANT_COWBOY_DUCK_RIGHT_IMG = transform.flip(COWBOY_DUCK_IMG, True, False)
+GIANT_COWBOY_CROUCH_RIGHT_IMG = transform.flip(COWBOY_CROUCH_SPRITE, True, False)
 
 # Dino properties
 BASE_GAME_WIDTH = 800
@@ -235,6 +235,10 @@ PIPE_ENTRY_DURATION_MS = 820
 PIPE_ENTRY_CROUCH_HOLD_MS = 240
 PIPE_ENTRY_CENTER_TOLERANCE_PX = 18
 PIPE_ENTRY_SINK_EXTRA_PX = 20
+CACTUS_BOSS_ENTRY_PIPE_X = 132
+CACTUS_BOSS_ENTRY_PIPE_Y = -8
+CACTUS_BOSS_ENTRY_PIPE_W = FLIGHT_PIPE_WIDTH
+CACTUS_BOSS_ENTRY_PIPE_H = 118
 CACTUS_ROTATION_INTERVAL_MS = 5000
 CACTUS_MINIBOSS_TRUNK_HITS_REQUIRED = 3
 CACTUS_ARM_SIDE_BY_INDEX = ("left", "right", "left", "right", "left")
@@ -349,28 +353,10 @@ SHOP_ITEMS = (
 )
 MENU_MUSIC_PATH = "assets/audio/loading-atmosphere.wav"
 GAME_MUSIC_PATH = "assets/audio/pixel-leap.wav"
-VICTORY_MUSIC_CANDIDATES = (
-    "assets/audio/victory-music.wav",
-    "assets/audio/victory.wav",
-    "assets/audio/victory.mp3",
-    "assets/audio/victory.m4a",
-)
-CREDITS_MUSIC_CANDIDATES = (
-    "assets/audio/finish-game-music-victory.mp3",
-    "assets/audio/finish-game-music-victory.wav",
-    "assets/audio/finish-game-music-victory.m4a",
-    "assets/audio/victory-music.wav",
-    "assets/audio/victory.wav",
-    "assets/audio/victory.mp3",
-    "assets/audio/victory.m4a",
-)
+VICTORY_MUSIC_PATH = "assets/audio/victory-music.wav"
+CREDITS_MUSIC_PATH = "assets/audio/finish-game-music-victory.wav"
 MUSIC_VOLUME = 0.35
-INTRO_SPEECH_CANDIDATES = (
-    "assets/audio/welcome-to-the-dino-game.mp3",
-    "assets/audio/intro-speech.mp3",
-    "assets/audio/intro-speech.m4a",
-    "assets/audio/intro-speech.wav",
-)
+INTRO_SPEECH_PATH = "assets/audio/welcome-to-the-dino-game.mp3"
 CREDITS_DURATION_MS = 60000
 CREDITS_TOP_MARGIN = 30
 CREDITS_BOTTOM_MARGIN = 110
@@ -399,16 +385,56 @@ def log_soft_exception(context, exc, *, once_key=None):
     traceback.print_exception(type(exc), exc, exc.__traceback__)
 
 
+def get_runtime_asset_path_candidates(path):
+    normalized_path = str(path).replace("\\", "/")
+    candidates = [normalized_path]
+    if normalized_path.startswith("assets/"):
+        candidates.append(normalized_path[len("assets/"):])
+    unique_candidates = []
+    for candidate in candidates:
+        if candidate not in unique_candidates:
+            unique_candidates.append(candidate)
+    return tuple(unique_candidates)
+
+
+def resolve_existing_runtime_asset_path(path):
+    for candidate in get_runtime_asset_path_candidates(path):
+        if os.path.exists(candidate):
+            return candidate
+    return None
+
+
+def resolve_runtime_asset_path(path):
+    resolved_path = resolve_existing_runtime_asset_path(path)
+    if resolved_path is not None:
+        return resolved_path
+    return get_runtime_asset_path_candidates(path)[0]
+
+
+def pick_existing_runtime_asset_path(paths, fallback_path=None):
+    for path in paths:
+        resolved_path = resolve_existing_runtime_asset_path(path)
+        if resolved_path is not None:
+            return resolved_path
+    if fallback_path is None:
+        return None
+    return resolve_runtime_asset_path(fallback_path)
+
+
 def load_sound_or_none(path):
-    try:
-        return mixer.Sound(path)
-    except Exception as exc:
+    last_exc = None
+    for candidate in get_runtime_asset_path_candidates(path):
+        try:
+            return mixer.Sound(candidate)
+        except Exception as exc:
+            last_exc = exc
+    if last_exc is not None:
         log_soft_exception(
-            f"Failed to load sound '{path}'",
-            exc,
+            f"Failed to load sound '{path}' via {get_runtime_asset_path_candidates(path)}",
+            last_exc,
             once_key=f"load_sound:{path}",
         )
-        return None
+    return None
 
 
 def detect_touch_controls_enabled():
@@ -657,7 +683,7 @@ CHARACTER_CONFIG = {
     "dino": {
         "label": "Dino",
         "stand": DINO_IMG,
-        "duck": DINO_DUCK_IMG,
+        "crouch_sprite": DINO_CROUCH_SPRITE,
         "pipe_crouch_path": "assets/dino-crouch-pipe-transparant.png",
         "oops": DINO_OOPS_IMG,
         "theme": {
@@ -675,7 +701,7 @@ CHARACTER_CONFIG = {
         "label": "Cowboy",
         "stand": COWBOY_IMG,
         "run": COWBOY_RUN_IMG,
-        "duck": COWBOY_DUCK_IMG,
+        "crouch_sprite": COWBOY_CROUCH_SPRITE,
         "pipe_crouch_path": "assets/pc/cowboy-crouch-pipe-transparant.png",
         "oops": COWBOY_FALL_IMG,
         "theme": {
@@ -692,7 +718,7 @@ CHARACTER_CONFIG = {
     "roadrunner": {
         "label": "Roadrunner",
         "stand": ROADRUNNER_IMG,
-        "duck": ROADRUNNER_DUCK_IMG,
+        "crouch_sprite": ROADRUNNER_CROUCH_SPRITE,
         "pipe_crouch_path": "assets/roadrunner-crouch-pipe-transparant.png",
         "oops": ROADRUNNER_OOPS_IMG,
         "theme": {
@@ -1124,13 +1150,13 @@ def update_background_music(force=False):
         return
 
     if target_mode == "menu":
-        target_path = MENU_MUSIC_PATH
+        target_path = resolve_runtime_asset_path(MENU_MUSIC_PATH)
     elif target_mode == "credits":
-        target_path = next((p for p in CREDITS_MUSIC_CANDIDATES if os.path.exists(p)), GAME_MUSIC_PATH)
+        target_path = resolve_runtime_asset_path(CREDITS_MUSIC_PATH)
     elif target_mode == "victory":
-        target_path = next((p for p in VICTORY_MUSIC_CANDIDATES if os.path.exists(p)), GAME_MUSIC_PATH)
+        target_path = resolve_runtime_asset_path(VICTORY_MUSIC_PATH)
     else:
-        target_path = GAME_MUSIC_PATH
+        target_path = resolve_runtime_asset_path(GAME_MUSIC_PATH)
     try:
         mixer.music.load(target_path)
         mixer.music.set_volume(MUSIC_VOLUME)
@@ -1651,19 +1677,17 @@ def setup():
         MINI_BOSS_VICTORY_SOUND = COIN_SOUND
 
     INTRO_SPEECH_SOUND = None
-    for speech_path in INTRO_SPEECH_CANDIDATES:
-        if not os.path.exists(speech_path):
-            continue
-        try:
-            INTRO_SPEECH_SOUND = mixer.Sound(speech_path)
-            break
-        except Exception as exc:
-            log_soft_exception(
-                f"Failed to load intro speech '{speech_path}'",
-                exc,
-                once_key=f"intro_speech:{speech_path}",
-            )
-            INTRO_SPEECH_SOUND = None
+    try:
+        resolved_speech_path = resolve_existing_runtime_asset_path(INTRO_SPEECH_PATH)
+        if resolved_speech_path is not None:
+            INTRO_SPEECH_SOUND = mixer.Sound(resolved_speech_path)
+    except Exception as exc:
+        log_soft_exception(
+            f"Failed to load intro speech '{INTRO_SPEECH_PATH}' via '{resolved_speech_path}'",
+            exc,
+            once_key=f"intro_speech:{INTRO_SPEECH_PATH}",
+        )
+        INTRO_SPEECH_SOUND = None
 
     update_background_music(force=True)
 
@@ -2400,6 +2424,18 @@ def get_dino_draw_y():
     return dino_y
 
 
+def get_crouch_sprite_render_pose(character_key):
+    crouch_sprite = CHARACTER_CONFIG[character_key]["crouch_sprite"]
+    sprite_w = max(1, crouch_sprite.get_width())
+    sprite_h = max(1, crouch_sprite.get_height())
+    scale = min(DINO_W / sprite_w, DINO_H / sprite_h)
+    draw_w = max(1, int(round(sprite_w * scale)))
+    draw_h = max(1, int(round(sprite_h * scale)))
+    draw_x = int(get_player_x() + ((DINO_W - draw_w) / 2.0))
+    draw_y = int(dino_y + (DINO_H - draw_h))
+    return crouch_sprite, draw_x, draw_y, draw_w, draw_h
+
+
 def get_selected_character_key():
     return CHARACTER_ORDER[selected_character_idx]
 
@@ -2417,7 +2453,7 @@ def get_pipe_crouch_sprite(character_key):
             pipe_crouch_sprite_cache[character_key] = load_image(pipe_crouch_path)
         else:
             pipe_crouch_sprite_cache[character_key] = CHARACTER_CONFIG[character_key].get(
-                "duck",
+                "crouch_sprite",
                 CHARACTER_CONFIG[character_key]["stand"],
             )
     return pipe_crouch_sprite_cache[character_key]
@@ -3008,12 +3044,26 @@ def start_pending_boss_encounter(level):
     global pre_boss_scene_level, pending_boss_shop_level, shop_active
     global pipe_entry_active, pipe_entry_level
     global player_x, boss_left_pressed, boss_right_pressed
+    global dino_y, velocity_y, on_ground, is_ducking, is_fast_falling
     pre_boss_scene_level = 0
     pending_boss_shop_level = 0
     shop_active = False
     pipe_entry_active = False
     pipe_entry_level = 0
-    player_x = float(DINO_X)
+    if level == 7:
+        player_x = float(CACTUS_BOSS_ENTRY_PIPE_X + ((CACTUS_BOSS_ENTRY_PIPE_W - DINO_W) / 2.0))
+        dino_y = float(CACTUS_BOSS_ENTRY_PIPE_Y + CACTUS_BOSS_ENTRY_PIPE_H - DINO_H + 6)
+        velocity_y = 0
+        on_ground = False
+        is_ducking = False
+        is_fast_falling = False
+    else:
+        player_x = float(DINO_X)
+        dino_y = float(DINO_Y)
+        velocity_y = 0
+        on_ground = True
+        is_ducking = False
+        is_fast_falling = False
     boss_left_pressed = False
     boss_right_pressed = False
     boss_state = spawn_boss_for_level(level)
@@ -3642,7 +3692,7 @@ def get_boss_hitbox(boss):
             crouch_h = int(boss["h"] * 0.62)
             crouch_y = boss["y"] + (boss["h"] - crouch_h)
             return hitbox_from_sprite(
-                GIANT_COWBOY_DUCK_RIGHT_IMG,
+                GIANT_COWBOY_CROUCH_RIGHT_IMG,
                 boss["x"],
                 crouch_y,
                 boss["w"],
@@ -4041,6 +4091,12 @@ def draw_cactus_boss_arena(theme):
     ellipse(124, GROUND_Y - 8, 208, 62)
     ellipse(392, GROUND_Y - 12, 320, 78)
     ellipse(676, GROUND_Y - 6, 236, 64)
+    draw_pipe_column(
+        CACTUS_BOSS_ENTRY_PIPE_X,
+        CACTUS_BOSS_ENTRY_PIPE_Y,
+        CACTUS_BOSS_ENTRY_PIPE_W,
+        CACTUS_BOSS_ENTRY_PIPE_H,
+    )
     fill(88, 88, 96)
     ellipse(118, 184, 102, 54)
     ellipse(236, 146, 126, 60)
@@ -4326,7 +4382,6 @@ def draw_boss_entity(boss):
     w = int(boss["w"])
     h = int(boss["h"])
     crouching = boss.get("is_crouching", False) and not boss.get("jumping", False)
-
     if boss["type"] == "bird_miniboss":
         image(BIRD_RIGHT_IMG, x, y, w, h)
         return
@@ -4444,7 +4499,7 @@ def draw_boss_entity(boss):
         if crouching:
             crouch_h = int(h * 0.62)
             crouch_y = y + (h - crouch_h)
-            image(GIANT_COWBOY_DUCK_RIGHT_IMG, x, crouch_y, w, crouch_h)
+            image(GIANT_COWBOY_CROUCH_RIGHT_IMG, x, crouch_y, w, crouch_h)
         else:
             image(GIANT_COWBOY_RIGHT_IMG, x, y, w, h)
         return
@@ -7187,15 +7242,14 @@ def draw_main_character():
                 "ducking": True,
             }
 
-    dino_h = DUCK_H if (is_ducking and on_ground and not game_over) else DINO_H
-    dino_y_draw = get_dino_draw_y()
     character = CHARACTER_CONFIG[get_current_character_key()]
+    current_character_key = get_current_character_key()
     draw_x = int(get_player_x())
     draw_w = DINO_W
-    draw_h = dino_h
+    draw_h = DINO_H
+    dino_y_draw = dino_y
     if game_over:
         dino_sprite = character["oops"]
-        current_character_key = get_current_character_key()
         if current_character_key == "dino":
             dino_sprite = DINO_FALL_IMG
             draw_x -= 8
@@ -7215,9 +7269,9 @@ def draw_main_character():
             draw_h = 42
             dino_y_draw = GROUND_Y - draw_h
     elif is_ducking and on_ground:
-        dino_sprite = character["duck"]
+        dino_sprite, draw_x, dino_y_draw, draw_w, draw_h = get_crouch_sprite_render_pose(current_character_key)
     elif (
-        get_current_character_key() == "cowboy" and
+        current_character_key == "cowboy" and
         game_started and
         not game_paused and
         on_ground

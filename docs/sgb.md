@@ -77,6 +77,21 @@ De game gebruikt dezelfde visuele taal op meerdere plekken.
 - Menu-tekst boven de luchtlaag gebruikt karakter-afhankelijke contrastkleuren en mag nooit visueel over elkaar heen vallen; titel, startprompt en character-select copy blijven gescheiden blokken.
 - Een echte sprite-asset vervangt procedurale placeholder-tekeningen zodra zo'n asset beschikbaar en geschikt is.
 
+## Semi-Realistische Continuiteit
+
+Interacties mogen gestileerd zijn, maar de wereld mag niet abrupt vergeten wat er net nog zichtbaar of fysiek aanwezig was.
+
+Waarom:
+
+- De game is arcadeachtig, maar voelt sterker als objecten en gevolgen logisch doorlopen in beeld.
+- Een vliegtuigcrash die direct omslaat naar een grond-lijk zonder wrak of luchtobstakels breekt de ruimtelijke continuiteit.
+- Semi-realistische consequentie maakt verlies, impact en level-geometrie leesbaarder zonder dat de game een simulator hoeft te worden.
+
+- Bestaande wereldobjecten verdwijnen niet zomaar op het moment van impact als daar geen zichtbare reden voor is.
+- Een crash in `flight_mode` hoort visueel eerst als vliegtuigcrash leesbaar te blijven voordat de game reset of naar een andere state springt.
+- Obstakels en arena-elementen blijven in principe zichtbaar tijdens een defeat-state als zij direct onderdeel waren van de aanleiding van die defeat.
+- Stylization is toegestaan, maar alleen zolang oorzaak en gevolg voor de speler visueel navolgbaar blijven.
+
 ### Character Asset Contract
 
 Voor character poses is een runtime sprite sheet niet verplicht, maar de assetset moet zich wel gedragen alsof de frames uit één sprite sheet komen.
@@ -353,3 +368,20 @@ Waarom:
 - Speluitleg en projectnotities: [dino.md](dino.md)
 - Contributierichtlijnen: [CONTRIBUTING.md](CONTRIBUTING.md)
 - Agent/projectrichtlijnen: [AGENTS.md](AGENTS.md)
+
+## Audioformaat en webcompatibiliteit
+
+Voor audio-assets in web builds (pygbag) geldt:
+
+> ".wav and .mp3 are safe, .ogg is not always supported on all browsers"
+> (pygbag README, 2024, https://github.com/pygame-web/pygbag#assets)
+
+- .wav en .mp3 werken in alle moderne browsers, inclusief Safari/iOS.
+- .ogg werkt niet in Safari/iOS en is dus niet universeel web-compatibel.
+- Zie ook: [MDN Web Docs: Audio codecs](https://developer.mozilla.org/en-US/docs/Web/HTML/Supported_media_formats#browser_compatibility)
+
+### Waarom
+
+- Fallbacks op .ogg/.mp3/.wav maken foutmeldingen onduidelijk en maskeren assetproblemen.
+- Alleen het juiste, verwachte bestand wordt geladen; ontbreekt dat, dan volgt een duidelijke foutmelding.
+- Dit voorkomt verwarring over missende .ogg-bestanden en zorgt voor dev/prod parity.
