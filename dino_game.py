@@ -7269,7 +7269,12 @@ def draw_main_character():
             draw_h = 42
             dino_y_draw = GROUND_Y - draw_h
     elif is_ducking and on_ground:
-        dino_sprite, draw_x, dino_y_draw, draw_w, draw_h = get_crouch_sprite_render_pose(current_character_key)
+        # Gebruik de crouch_sprite uit CHARACTER_CONFIG voor het actieve karakter
+        dino_sprite = character.get("crouch_sprite", character["stand"])
+        draw_x = int(get_player_x())
+        draw_w = DINO_W
+        draw_h = DINO_H
+        dino_y_draw = dino_y + (DINO_H - draw_h)
     elif (
         current_character_key == "cowboy" and
         game_started and
