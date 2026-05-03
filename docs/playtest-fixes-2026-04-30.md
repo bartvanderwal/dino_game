@@ -1,0 +1,25 @@
+### Playtest 30/4/2026: realisme, boss tweaks, geluid, knoppen
+
+Labels: enhancement, gameplay
+
+#### Samenvatting
+Nieuwe fixes en verbeteringen na de playtest van 30 april 2026, met focus op realisme, boss battle tweaks, geluid en mobiele bediening.
+
+#### Taken
+- [ ] **Laat speler level uitlopen na eindbaas (deur, realisme)**
+    - Na de eindbaas moet de speler zelf de level uitlopen, niet direct overgang. Grote deur in achterwand die openklapt na explosie. Speler moet pijl omhoog/omlaag of jump indrukken om door te gaan.
+- [ ] **Vogel eindbaas: alleen 3 takken, vloer weg, val = dood, 'aaahhh' geluid**
+    - Alleen 3 takken als platforms, vaste vloer verwijderen. Val je van de takken, dan val je door de vloer en ben je af. Voeg 'aaahhh' geluid toe bij val (todo: geluid).
+- [ ] **Verwijder high jump bonus vlak voor vliegtuig**
+    - Geen high jump powerup meer vlak voor het vliegtuig, voorkomt dat je het vliegtuig mist.
+- [ ] **Maak land-geluid dino zachter**
+    - Volume van het land-geluid van de dino verlagen.
+- [ ] **(Optioneel) Voeg grotere touch-knoppen toe voor mobiel**
+    - Zie bestaand issue, maar herbevestigd als wens.
+
+#### Context
+Zie SGB voor realisme-principes en eerdere gameplay-wensen. Playtest feedback verwerkt.
+
+---
+
+*Automatisch aangemaakt door Copilot na playtest feedback.*

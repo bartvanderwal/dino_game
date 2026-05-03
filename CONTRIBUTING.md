@@ -2,6 +2,22 @@
 
 Bedankt voor je bijdrage aan dit project.
 
+## Werken met GitHub in deze repo
+
+Werk in deze codebase vanuit de daadwerkelijke git-configuratie van de repo, niet op basis van aannames of oude projectnamen.
+
+### Huidige remotes
+
+- `origin`: `https://github.com/bartvanderwal/dino_game.git`
+- `upstream`: `git@github.com:AIM-HBO-ICT-Voorlichting/python-processing.git`
+
+### Praktische werkwijze
+
+**Let op:** Alle commit messages en issues (inclusief titels, beschrijvingen en comments) zijn altijd in het Nederlands, niet in het Engels.
+
+- In deze workspace lijken projectnaam, upstream-herkomst en actieve GitHub-repo op elkaar, maar ze zijn niet hetzelfde.
+- Door altijd vanuit de echte remotes te werken voorkom je zoekwerk, verkeerde issue-links en acties in de verkeerde repository.
+
 ## Python syntax-check met `py_compile`
 
 Python is geen klassieke compile-taal zoals C/Java, maar je kunt wel een snelle syntax-check doen met de standaard Python-module `py_compile`.

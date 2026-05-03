@@ -35,6 +35,7 @@ game_over = False
 ## Zie ook
 
 - [api.md](api.md)
+- [CONTRIBUTING.md](CONTRIBUTING.md)
 - [processing/processing.py](processing/processing.py)
 - [processing/system.py](processing/system.py)
 - [processing/utils.py](processing/utils.py)
@@ -49,4 +50,5 @@ game_over = False
 
 ## Git remote afspraak
 
-- Als er gepusht moet worden en de `personal` remote schrijfrechten heeft, push dan standaard naar `personal` in plaats van `origin`.
+- Voor GitHub-issues, PR's, remote-URL's en repo-acties: lees eerst de GitHub-sectie in [CONTRIBUTING.md](CONTRIBUTING.md).
+- Gebruik de daadwerkelijk geconfigureerde remotes van deze repo als bron van waarheid; ga niet uit van oude repo-namen of niet-bestaande remotes.

@@ -3275,7 +3275,15 @@ def debug_step_level(level_delta):
     show_level_name_announcement(current_level)
     save_character_checkpoint(current_level)
 
-    if current_level in (5, 6) and not flight_mode:
+    # Zorg dat bij debug-jump naar level 6 de Zeppelin miniboss en flight_mode correct starten
+    if current_level == 6:
+        if not flight_mode:
+            start_flight_mode()
+        # Start de Zeppelin miniboss encounter als deze nog niet actief is
+        if boss_state is None or boss_state.get("type") != "zeppelin_miniboss":
+            start_pending_boss_encounter(6)
+        pending_airplane_spawn = False
+    elif current_level == 5 and not flight_mode:
         pending_airplane_spawn = True
     else:
         pending_airplane_spawn = False
