@@ -12,6 +12,10 @@ Deze codebase is een eigen Python-implementatie van Processing en wijkt op veel 
 - **Voorbeeld:** Er zijn géén functies als `loop()` of `no_loop()`. De event-loop wordt geregeld door `run()` in `processing/processing.py`.
 - **`processing/` is frameworkcode, geen gewone appcode.** Pas bestanden onder `processing/` niet aan voor gamebugs of sketchespecifiek gedrag zonder expliciete toestemming van de gebruiker. Zoek eerst een oplossing in de sketch zelf (`dino_game.py` of andere appcode). Alleen als de gebruiker bewust een library/frameworkwijziging wil, mag `processing/` aangepast worden.
 - **Slik exceptions niet stil in.** Als je bewust een fout opvangt om runtime of tooling door te laten lopen, log dan minimaal context + exception naar console of stderr. Geen `except Exception: pass` of vergelijkbare stille fallbacks.
+- **Schrijf technische documentatie helder en ondubbelzinnig.** Vermijd onnodige bijvoeglijke naamwoorden en bijwoorden; zie ook de waarschuwing van Google Technical Writing: "adjectives and adverbs sometimes make technical readers bark loudly and ferociously."
+- **Schrijf actief.** Gebruik liever de `we`-vorm of een directe `is/heeft/doet`-zin dan lijdende vormen zoals `wordt gedaan` of `worden vastgelegd`.
+- **Verwerk bronduiding in de lopende tekst en houd de bronnenlijst neutraal.** Schrijf dus in de tekst waarom je Brown, AIM/ENE of een andere bron gebruikt, en zet in `Bronnen` alleen de bron zelf.
+- **Volg APA op hoofdlijnen.** Verwijs in de lopende tekst met auteur + jaar of gebruik `z.d.` als geen datum bekend is; zet achterin een aparte bronnenlijst; houd bronregels consistent en feitelijk.
 - **Wil je gedrag aanpassen (zoals stoppen met tekenen bij game over), gebruik dan een eigen variabele:**
 
 ```python
@@ -39,8 +43,6 @@ game_over = False
 - [processing/processing.py](processing/processing.py)
 - [processing/system.py](processing/system.py)
 - [processing/utils.py](processing/utils.py)
-
----
 
 ## Opmerking over pygame-patterns
 

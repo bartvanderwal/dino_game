@@ -26,33 +26,103 @@ import os
 import platform as py_platform
 import sys
 import traceback
+from pathlib import Path
+
+
+def get_required_image_asset_paths():
+    return {
+        "DINO_IMG": "assets/dino-transparant.png",
+        "DINO_OOPS_IMG": "assets/pc/dino-oops-transparant.png",
+        "DINO_CROUCH_SPRITE": "assets/pc/dino_crouch_crop.png",
+        "COWBOY_IMG": "assets/pc/cowboy-transparant.png",
+        "COWBOY_RUN_IMG": "assets/pc/cowboy-run-transparant.png",
+        "COWBOY_FALL_IMG": "assets/pc/cowboy-fall-transparant.png",
+        "COWBOY_CROUCH_SPRITE": "assets/pc/cowboy_crouch_crop.png",
+        "ROADRUNNER_IMG": "assets/pc/roadrunner-transparant.png",
+        "ROADRUNNER_OOPS_IMG": "assets/pc/roadrunner-oops-transparant.png",
+        "ROADRUNNER_CROUCH_SPRITE": "assets/roadrunner-duck-transparant.png",
+        "AIRPLANE_IMG": "assets/plane-still.png",
+        "PLANE_SPRITE_SHEET": "assets/plane-sprite.png",
+        "BIRD_IMG": "assets/obstacles/bird-transparant.png",
+        "SNAKE_IMG": "assets/snake-transparant.png",
+        "EXPLOSION_IMG": "assets/explosion.png",
+        "EXPLOSION_FRAMES": tuple(
+            f"assets/explosion-frame-{idx:02d}.png" for idx in range(12)
+        ),
+        "CACTUS_IMGS": (
+            "assets/obstacles/cactus-transparant.png",
+            "assets/obstacles/3Cacti-transparant.png",
+        ),
+    }
+
+
+def iter_required_image_asset_paths():
+    for value in get_required_image_asset_paths().values():
+        if isinstance(value, str):
+            yield value
+            continue
+        for path in value:
+            yield path
+
+
+def find_missing_required_image_assets(project_root=None):
+    root = Path(project_root) if project_root is not None else Path(__file__).resolve().parent
+    missing_paths = []
+    for relative_path in iter_required_image_asset_paths():
+        if not (root / relative_path).exists():
+            missing_paths.append(relative_path)
+    return missing_paths
+
+
+def load_required_game_images(load_image_fn, rotate_fn):
+    paths = get_required_image_asset_paths()
+    loaded = {
+        "DINO_IMG": load_image_fn(paths["DINO_IMG"]),
+        "DINO_OOPS_IMG": load_image_fn(paths["DINO_OOPS_IMG"]),
+        "DINO_CROUCH_SPRITE": load_image_fn(paths["DINO_CROUCH_SPRITE"]),
+        "COWBOY_IMG": load_image_fn(paths["COWBOY_IMG"]),
+        "COWBOY_RUN_IMG": load_image_fn(paths["COWBOY_RUN_IMG"]),
+        "COWBOY_FALL_IMG": load_image_fn(paths["COWBOY_FALL_IMG"]),
+        "COWBOY_CROUCH_SPRITE": load_image_fn(paths["COWBOY_CROUCH_SPRITE"]),
+        "ROADRUNNER_IMG": load_image_fn(paths["ROADRUNNER_IMG"]),
+        "ROADRUNNER_OOPS_IMG": load_image_fn(paths["ROADRUNNER_OOPS_IMG"]),
+        "ROADRUNNER_CROUCH_SPRITE": load_image_fn(paths["ROADRUNNER_CROUCH_SPRITE"]),
+        "AIRPLANE_IMG": load_image_fn(paths["AIRPLANE_IMG"]),
+        "PLANE_SPRITE_SHEET": load_image_fn(paths["PLANE_SPRITE_SHEET"]),
+        "BIRD_IMG": load_image_fn(paths["BIRD_IMG"]),
+        "SNAKE_IMG": load_image_fn(paths["SNAKE_IMG"]),
+        "EXPLOSION_IMG": load_image_fn(paths["EXPLOSION_IMG"]),
+        "EXPLOSION_FRAMES": [load_image_fn(path) for path in paths["EXPLOSION_FRAMES"]],
+        "CACTUS_IMGS": [load_image_fn(path) for path in paths["CACTUS_IMGS"]],
+    }
+    loaded["DINO_FALL_IMG"] = rotate_fn(loaded["DINO_OOPS_IMG"], -90)
+    loaded["ROADRUNNER_FALL_IMG"] = rotate_fn(loaded["ROADRUNNER_OOPS_IMG"], -90)
+    return loaded
+
 
 # Dino game assets
-DINO_IMG = load_image("assets/dino-transparant.png")
-DINO_OOPS_IMG = load_image("assets/dino-oops-transparant.png")
-DINO_CROUCH_SPRITE = load_image("assets/dino-duck-transparant.png")
-DINO_FALL_IMG = transform.rotate(DINO_OOPS_IMG, -90)
-COWBOY_IMG = load_image("assets/cowboy-transparant.png")
-COWBOY_RUN_IMG = load_image("assets/cowboy-run-transparant.png")
-COWBOY_FALL_IMG = load_image("assets/pc/cowboy-fall-transparant.png")
-COWBOY_CROUCH_SPRITE = load_image("assets/pc/cowboy-duck-transparant.png")
-ROADRUNNER_IMG = load_image("assets/roadrunner-transparant.png")
-ROADRUNNER_OOPS_IMG = load_image("assets/roadrunner-oops-transparant.png")
-ROADRUNNER_CROUCH_SPRITE = load_image("assets/roadrunner-duck-transparant.png")
-ROADRUNNER_FALL_IMG = transform.rotate(ROADRUNNER_OOPS_IMG, -90)
-AIRPLANE_IMG = load_image("assets/plane-still.png")
-PLANE_SPRITE_SHEET = load_image("assets/plane-sprite.png") if os.path.exists("assets/plane-sprite.png") else None
-BIRD_IMG = load_image("assets/obstacles/bird-transparant.png")
-SNAKE_IMG = load_image("assets/snake-transparant.png")
-EXPLOSION_IMG = load_image("assets/explosion.png")
-EXPLOSION_FRAMES = [
-    load_image(f"assets/explosion-frame-{idx:02d}.png")
-    for idx in range(12)
-]
-CACTUS_IMGS = [
-    load_image("assets/obstacles/cactus-transparant.png"),
-    load_image("assets/obstacles/3Cacti-transparant.png")
-]
+REQUIRED_IMAGE_ASSET_PATHS = get_required_image_asset_paths()
+REQUIRED_GAME_IMAGES = load_required_game_images(load_image, transform.rotate)
+
+DINO_IMG = REQUIRED_GAME_IMAGES["DINO_IMG"]
+DINO_OOPS_IMG = REQUIRED_GAME_IMAGES["DINO_OOPS_IMG"]
+DINO_CROUCH_SPRITE = REQUIRED_GAME_IMAGES["DINO_CROUCH_SPRITE"]
+DINO_FALL_IMG = REQUIRED_GAME_IMAGES["DINO_FALL_IMG"]
+COWBOY_IMG = REQUIRED_GAME_IMAGES["COWBOY_IMG"]
+COWBOY_RUN_IMG = REQUIRED_GAME_IMAGES["COWBOY_RUN_IMG"]
+COWBOY_FALL_IMG = REQUIRED_GAME_IMAGES["COWBOY_FALL_IMG"]
+COWBOY_CROUCH_SPRITE = REQUIRED_GAME_IMAGES["COWBOY_CROUCH_SPRITE"]
+ROADRUNNER_IMG = REQUIRED_GAME_IMAGES["ROADRUNNER_IMG"]
+ROADRUNNER_OOPS_IMG = REQUIRED_GAME_IMAGES["ROADRUNNER_OOPS_IMG"]
+ROADRUNNER_CROUCH_SPRITE = REQUIRED_GAME_IMAGES["ROADRUNNER_CROUCH_SPRITE"]
+ROADRUNNER_FALL_IMG = REQUIRED_GAME_IMAGES["ROADRUNNER_FALL_IMG"]
+AIRPLANE_IMG = REQUIRED_GAME_IMAGES["AIRPLANE_IMG"]
+PLANE_SPRITE_SHEET = REQUIRED_GAME_IMAGES["PLANE_SPRITE_SHEET"]
+BIRD_IMG = REQUIRED_GAME_IMAGES["BIRD_IMG"]
+SNAKE_IMG = REQUIRED_GAME_IMAGES["SNAKE_IMG"]
+EXPLOSION_IMG = REQUIRED_GAME_IMAGES["EXPLOSION_IMG"]
+EXPLOSION_FRAMES = REQUIRED_GAME_IMAGES["EXPLOSION_FRAMES"]
+CACTUS_IMGS = REQUIRED_GAME_IMAGES["CACTUS_IMGS"]
 
 
 def load_optional_image(path_candidates):
@@ -205,6 +275,7 @@ WEAPON_POWERUP_NOTICE_MS = 1600
 WATER_WARNING_DURATION_MS = 1800
 AIRPLANE_WARNING_DURATION_MS = 1800
 MISSED_PLANE_NOTICE_MS = 1600
+FLIGHT_CRASH_GROUND_HOLD_MS = 900
 JUMP_BLOCK_WET_GROUND_MS = 7000
 JUMP_BLOCK_FLOWER_GROW_MS = 1700
 JUMP_BLOCK_DROPLET_COUNT = 14
@@ -353,8 +424,12 @@ SHOP_ITEMS = (
 )
 MENU_MUSIC_PATH = "assets/audio/loading-atmosphere.wav"
 GAME_MUSIC_PATH = "assets/audio/pixel-leap.wav"
-VICTORY_MUSIC_PATH = "assets/audio/victory-music.wav"
-CREDITS_MUSIC_PATH = "assets/audio/finish-game-music-victory.wav"
+FINAL_VICTORY_MUSIC_PATH = "assets/audio/finish-game-music-victory.mp3"
+VICTORY_MUSIC_PATH = FINAL_VICTORY_MUSIC_PATH
+CREDITS_MUSIC_PATH = FINAL_VICTORY_MUSIC_PATH
+# Mini-boss stinger attribution lives in code and credits so the source stays
+# traceable even if asset filenames change later.
+MINI_BOSS_VICTORY_SOUND_PATH = "assets/audio/pixabay-mini-boss-tadaa.mp3"
 APP_VERSION = "0.2.0"
 MUSIC_VOLUME = 0.35
 INTRO_SPEECH_PATH = "assets/audio/welcome-to-the-dino-game.mp3"
@@ -364,6 +439,7 @@ CREDITS_BOTTOM_MARGIN = 110
 CREDITS_SCROLL_SPEED_FACTOR = 0.82
 CREDITS_FINISH_PAD_PX = 120
 ZEPPELIN_ART_ATTRIBUTION = "Zeppelin artwork reference/source: FreeSVG.org 'Zeppelin' by j4p4n (Public Domain / CC0) https://freesvg.org/zeppelin"
+MINI_BOSS_VICTORY_ATTRIBUTION_URL = "Pixabay license summary: https://pixabay.com/service/license-summary/"
 SCREENSHOT_NOTICE_MS = 2200
 GROUND_Y = 460
 CACTUS_GUIDE_LINE_Y = 443
@@ -685,7 +761,7 @@ CHARACTER_CONFIG = {
         "label": "Dino",
         "stand": DINO_IMG,
         "crouch_sprite": DINO_CROUCH_SPRITE,
-        "pipe_crouch_path": "assets/dino-crouch-pipe-transparant.png",
+        "pipe_crouch_path": "assets/pc/dino_crouch_crop.png",
         "oops": DINO_OOPS_IMG,
         "theme": {
             "bg": (245, 245, 245),
@@ -703,7 +779,7 @@ CHARACTER_CONFIG = {
         "stand": COWBOY_IMG,
         "run": COWBOY_RUN_IMG,
         "crouch_sprite": COWBOY_CROUCH_SPRITE,
-        "pipe_crouch_path": "assets/pc/cowboy-crouch-pipe-transparant.png",
+        "pipe_crouch_path": "assets/pc/cowboy_crouch_crop.png",
         "oops": COWBOY_FALL_IMG,
         "theme": {
             "bg": (245, 220, 170),
@@ -775,6 +851,7 @@ pipe_entry_sound_next_ms = 0
 player_x = float(DINO_X)
 JUMP_SOUND = None
 HIGH_JUMP_SOUND = None
+WEEH_SOUND = None
 DINO_ROAR_SOUND = None
 PIPE_ENTRY_SOUND = None
 CRASH_SOUND = None
@@ -855,6 +932,12 @@ fly_left_pressed = False
 fly_right_pressed = False
 fly_up_pressed = False
 fly_down_pressed = False
+flight_crash_active = False
+flight_crash_rotation_deg = 0.0
+flight_crash_velocity_y = 0.0
+flight_crash_landed_until_ms = 0
+flight_crash_plane_frame = None
+flight_crash_plane_rect = (0.0, 0.0, AIRPLANE_PICKUP_W, AIRPLANE_PICKUP_H)
 boss_left_pressed = False
 boss_right_pressed = False
 snake_hiss_played_for_current = False
@@ -929,6 +1012,9 @@ def reset_game(show_splash=False):
     global flight_mode, flight_plane_x, flight_plane_y, flight_mode_entry_level, flight_mode_exit_level
     global flight_pipe_spawn_due_ms, flight_pipes, ground_pipe_gap_top
     global fly_left_pressed, fly_right_pressed, fly_up_pressed, fly_down_pressed
+    global flight_crash_active, flight_crash_rotation_deg, flight_crash_velocity_y
+    global flight_crash_landed_until_ms
+    global flight_crash_plane_frame, flight_crash_plane_rect
     global boss_left_pressed, boss_right_pressed
     global snake_hiss_played_for_current
     global player_projectiles, player_shot_cooldown_until_ms
@@ -1023,6 +1109,12 @@ def reset_game(show_splash=False):
     fly_right_pressed = False
     fly_up_pressed = False
     fly_down_pressed = False
+    flight_crash_active = False
+    flight_crash_rotation_deg = 0.0
+    flight_crash_velocity_y = 0.0
+    flight_crash_landed_until_ms = 0
+    flight_crash_plane_frame = None
+    flight_crash_plane_rect = (0.0, 0.0, AIRPLANE_PICKUP_W, AIRPLANE_PICKUP_H)
     boss_left_pressed = False
     boss_right_pressed = False
     snake_hiss_played_for_current = False
@@ -1128,6 +1220,8 @@ def update_background_music(force=False):
         target_mode = "credits"
     elif game_completed:
         target_mode = "victory"
+    elif flight_crash_active:
+        target_mode = None
     elif game_over:
         target_mode = None
     elif not game_started or shared.show_info:
@@ -1159,6 +1253,9 @@ def update_background_music(force=False):
     else:
         target_path = resolve_runtime_asset_path(GAME_MUSIC_PATH)
     try:
+        # Pygbag/web audio can leave the previous music track audible unless we
+        # stop it explicitly before loading the next background track.
+        mixer.music.stop()
         mixer.music.load(target_path)
         mixer.music.set_volume(MUSIC_VOLUME)
         mixer.music.play(-1)
@@ -1182,6 +1279,23 @@ def unlock_web_audio_if_needed():
     web_audio_unlocked = True
     # Start or resume background music only after user interaction in the browser.
     update_background_music(force=True)
+
+
+def stop_background_music():
+    global current_music_mode
+    if not mixer.get_init():
+        return
+    if current_music_mode is None:
+        return
+    try:
+        mixer.music.stop()
+    except Exception as exc:
+        log_soft_exception(
+            "Failed to stop background music for a scripted transition",
+            exc,
+            once_key="music_stop_scripted_transition",
+        )
+    current_music_mode = None
 
 
 def get_credits_font(size, mono=False, bold=False):
@@ -1243,6 +1357,8 @@ def build_credits_items():
     add_text("Credits", 40, (255, 220, 86), bold=True, spacing=62)
     add_text("Thanks to Codex GPT-5.3", 28, (255, 238, 152), spacing=44)
     add_text("https://toolkit.artlist.io/ for the epic over-the-top finale music...", 23, (255, 238, 152), spacing=48)
+    add_text("Mini-boss tadaa sound: Pixabay-sourced asset.", 22, (255, 238, 152), spacing=34)
+    add_text(MINI_BOSS_VICTORY_ATTRIBUTION_URL, 20, (188, 224, 255), mono=True, spacing=34)
     add_text("Zeppelin source: FreeSVG.org / 'Zeppelin' by j4p4n (Public Domain)", 22, (255, 238, 152), spacing=36)
     add_text("https://freesvg.org/zeppelin", 20, (188, 224, 255), mono=True, spacing=34)
     try:
@@ -1623,6 +1739,8 @@ def toggle_intro_speech_playback():
 
 
 def get_jump_sound(is_high_jump=False):
+    if get_current_character_key() == "roadrunner" and WEEH_SOUND is not None:
+        return WEEH_SOUND
     if is_high_jump:
         if HIGH_JUMP_SOUND is not None:
             return HIGH_JUMP_SOUND
@@ -1639,7 +1757,7 @@ def play_pending_high_jump_landing_roar():
 
 
 def setup():
-    global JUMP_SOUND, HIGH_JUMP_SOUND, DINO_ROAR_SOUND, PIPE_ENTRY_SOUND, CRASH_SOUND, HISS_SOUND
+    global JUMP_SOUND, HIGH_JUMP_SOUND, WEEH_SOUND, DINO_ROAR_SOUND, PIPE_ENTRY_SOUND, CRASH_SOUND, HISS_SOUND
     global SPLASH_SOUND, FIRE_PLAYER_SOUND, FIRE_ENEMY_SOUND
     global BOSS_EXPLOSION_SOUND, COIN_SOUND, MINI_BOSS_VICTORY_SOUND, INTRO_SPEECH_SOUND
     global TOUCH_CONTROLS_ENABLED
@@ -1662,6 +1780,7 @@ def setup():
 
     JUMP_SOUND = load_sound_or_none("assets/audio/jump.wav")
     HIGH_JUMP_SOUND = make_high_jump_sound()
+    WEEH_SOUND = load_sound_or_none("assets/audio/weeh.wav")
     DINO_ROAR_SOUND = load_sound_or_none("assets/audio/roaarr.wav")
 
     PIPE_ENTRY_SOUND = make_pipe_entry_sound()
@@ -1673,7 +1792,7 @@ def setup():
     FIRE_ENEMY_SOUND = load_sound_or_none("assets/audio/fire-enemy.wav")
     BOSS_EXPLOSION_SOUND = load_sound_or_none("assets/audio/boss-explosion.wav")
     COIN_SOUND = load_sound_or_none("assets/audio/ping.wav")
-    MINI_BOSS_VICTORY_SOUND = load_sound_or_none("assets/audio/victory.wav")
+    MINI_BOSS_VICTORY_SOUND = load_sound_or_none(MINI_BOSS_VICTORY_SOUND_PATH)
     if MINI_BOSS_VICTORY_SOUND is None:
         MINI_BOSS_VICTORY_SOUND = COIN_SOUND
 
@@ -2083,6 +2202,9 @@ def start_flight_mode():
     global flight_pipe_spawn_due_ms, flight_pipes
     global flight_plane_hp, flight_plane_smoke_next_ms, flight_plane_smoke_puffs
     global fly_left_pressed, fly_right_pressed, fly_up_pressed, fly_down_pressed
+    global flight_crash_active, flight_crash_rotation_deg, flight_crash_velocity_y
+    global flight_crash_landed_until_ms
+    global flight_crash_plane_frame, flight_crash_plane_rect
     flight_mode = True
     flight_plane_x = 120.0
     flight_plane_y = float(GROUND_Y - 90)
@@ -2097,12 +2219,20 @@ def start_flight_mode():
     fly_right_pressed = False
     fly_up_pressed = False
     fly_down_pressed = False
+    flight_crash_active = False
+    flight_crash_rotation_deg = 0.0
+    flight_crash_velocity_y = 0.0
+    flight_crash_landed_until_ms = 0
+    flight_crash_plane_frame = None
+    flight_crash_plane_rect = (0.0, 0.0, AIRPLANE_PICKUP_W, AIRPLANE_PICKUP_H)
 
 
 def end_flight_mode():
     global flight_mode, flight_pipes, flight_pipe_spawn_due_ms
     global flight_plane_hp, flight_plane_smoke_next_ms, flight_plane_smoke_puffs
     global fly_left_pressed, fly_right_pressed, fly_up_pressed, fly_down_pressed
+    global flight_crash_active, flight_crash_rotation_deg, flight_crash_velocity_y
+    global flight_crash_plane_frame, flight_crash_plane_rect
     global dino_y, velocity_y, on_ground, is_ducking, is_fast_falling, player_x
     flight_mode = False
     flight_pipes = []
@@ -2114,6 +2244,11 @@ def end_flight_mode():
     fly_right_pressed = False
     fly_up_pressed = False
     fly_down_pressed = False
+    flight_crash_active = False
+    flight_crash_rotation_deg = 0.0
+    flight_crash_velocity_y = 0.0
+    flight_crash_plane_frame = None
+    flight_crash_plane_rect = (0.0, 0.0, AIRPLANE_PICKUP_W, AIRPLANE_PICKUP_H)
     player_x = float(flight_plane_x)
     dino_y = float(flight_plane_y)
     velocity_y = 0
@@ -2121,6 +2256,56 @@ def end_flight_mode():
     is_ducking = False
     is_fast_falling = False
     spawn_obstacle()
+
+
+def start_flight_crash_sequence():
+    global flight_crash_active, flight_crash_rotation_deg, flight_crash_velocity_y
+    global flight_crash_landed_until_ms
+    global flight_crash_plane_frame, flight_crash_plane_rect
+    now = millis()
+    plane_x, plane_y, plane_w, plane_h = get_flight_plane_rect()
+    plane_frames = get_plane_frames_for_character(get_current_character_key())
+    if plane_frames:
+        frame_idx = int(now / 120) % len(plane_frames)
+        flight_crash_plane_frame = plane_frames[frame_idx]
+    else:
+        flight_crash_plane_frame = AIRPLANE_IMG
+    flight_crash_active = True
+    flight_crash_rotation_deg = 0.0
+    flight_crash_velocity_y = 1.8
+    flight_crash_landed_until_ms = 0
+    flight_crash_plane_rect = (float(plane_x), float(plane_y), plane_w, plane_h)
+    stop_background_music()
+
+
+def update_flight_crash_sequence():
+    global flight_plane_x, flight_plane_y, flight_crash_rotation_deg, flight_crash_velocity_y
+    global flight_crash_landed_until_ms
+    global flight_crash_plane_rect
+    plane_x, plane_y, plane_w, plane_h = flight_crash_plane_rect
+    ground_y = float(GROUND_Y - plane_h)
+    if plane_y >= ground_y:
+        if flight_crash_landed_until_ms == 0:
+            flight_crash_landed_until_ms = millis() + FLIGHT_CRASH_GROUND_HOLD_MS
+            flight_crash_velocity_y = 0.0
+            flight_crash_rotation_deg = 90.0
+        return
+    plane_x -= 2.2
+    plane_y = min(ground_y, plane_y + flight_crash_velocity_y)
+    flight_crash_velocity_y += 0.34
+    flight_crash_rotation_deg = min(90.0, flight_crash_rotation_deg + 8.0)
+    flight_crash_plane_rect = (plane_x, plane_y, plane_w, plane_h)
+    flight_plane_x = plane_x
+    flight_plane_y = plane_y
+
+
+def finish_flight_crash_sequence():
+    apply_player_hit(play_sound=False)
+    end_flight_mode()
+
+
+def is_flight_crash_ground_hold_complete():
+    return flight_crash_landed_until_ms > 0 and millis() >= flight_crash_landed_until_ms
 
 
 def begin_post_boss_fall_in(fall_x=None, fall_y=None):
@@ -2201,8 +2386,10 @@ def draw_post_boss_transition(theme):
 
 
 def crash_flight_mode():
-    apply_player_hit(CRASH_SOUND)
-    end_flight_mode()
+    if flight_crash_active or game_over:
+        return
+    play_sfx(CRASH_SOUND)
+    start_flight_crash_sequence()
 
 
 def spawn_flight_plane_smoke_puff():
@@ -3142,15 +3329,21 @@ def move_shop_selection(key_code):
     if shop_selected_index < 0 or shop_selected_index > back_idx:
         shop_selected_index = 0
 
+    if back_idx <= 0:
+        shop_selected_index = 0
+        return
+
     if shop_selected_index == back_idx:
         if key_code == K_UP:
-            shop_selected_index = 0
+            shop_selected_index = back_idx - 1
+        elif key_code == K_LEFT:
+            shop_selected_index = back_idx - 1
         return
 
     if key_code == K_LEFT:
         shop_selected_index = max(0, shop_selected_index - 1)
     elif key_code == K_RIGHT:
-        shop_selected_index = min(back_idx - 1, shop_selected_index + 1)
+        shop_selected_index = min(back_idx, shop_selected_index + 1)
     elif key_code == K_DOWN:
         shop_selected_index = back_idx
 
@@ -3209,7 +3402,7 @@ def buy_shop_item(item_key):
     return True
 
 
-def apply_player_hit(hit_sound=None):
+def apply_player_hit(hit_sound=None, play_sound=True):
     global game_over, player_damage_cooldown_until_ms, shop_extra_life_count
     now = millis()
     if now < player_damage_cooldown_until_ms:
@@ -3217,23 +3410,28 @@ def apply_player_hit(hit_sound=None):
 
     if is_shield_active():
         player_damage_cooldown_until_ms = now + PLAYER_DAMAGE_COOLDOWN_MS
-        play_sfx(hit_sound if hit_sound is not None else CRASH_SOUND)
+        if play_sound:
+            play_sfx(hit_sound if hit_sound is not None else CRASH_SOUND)
         return
 
     if shop_extra_life_count > 0:
         shop_extra_life_count -= 1
         player_damage_cooldown_until_ms = now + PLAYER_DAMAGE_COOLDOWN_MS
         set_shop_notice("Extra life used!", duration_ms=1200)
-        play_sfx(hit_sound if hit_sound is not None else CRASH_SOUND)
+        if play_sound:
+            play_sfx(hit_sound if hit_sound is not None else CRASH_SOUND)
         return
 
     game_over = True
-    play_sfx(hit_sound if hit_sound is not None else CRASH_SOUND)
+    if play_sound:
+        play_sfx(hit_sound if hit_sound is not None else CRASH_SOUND)
 
 
 def update_level_from_progress():
     global current_level, scroll_speed, next_level_obstacle_goal, level_blink_until_ms, pending_airplane_spawn
     global scripted_obstacle_level, scripted_obstacle_index
+    global player_x, dino_y, velocity_y, on_ground, is_ducking, is_fast_falling
+    global boss_left_pressed, boss_right_pressed
     new_level = get_level_for_obstacle_count(obstacles_cleared)
     if new_level > current_level:
         current_level = new_level
@@ -3243,7 +3441,17 @@ def update_level_from_progress():
         next_level_obstacle_goal = get_level_total_obstacle_count(current_level)
         level_blink_until_ms = millis() + LEVEL_BLINK_DURATION_MS
         show_level_name_announcement(current_level)
+        play_sfx(MINI_BOSS_VICTORY_SOUND)
         save_character_checkpoint(current_level)
+        if not flight_mode and boss_state is None and pre_boss_scene_level == 0:
+            player_x = float(DINO_X)
+            dino_y = DINO_Y
+            velocity_y = 0
+            on_ground = True
+            is_ducking = False
+            is_fast_falling = False
+            boss_left_pressed = False
+            boss_right_pressed = False
         if current_level in (5, 6) and not flight_mode:
             pending_airplane_spawn = True
         elif current_level > 6:
@@ -3259,6 +3467,8 @@ def register_cleared_obstacle(amount=1):
 def debug_step_level(level_delta):
     global current_level, score, scroll_speed, obstacles_cleared, next_level_obstacle_goal, level_blink_until_ms, pending_airplane_spawn
     global scripted_obstacle_level, scripted_obstacle_index
+    global boss_state, boss_intro_until_ms, pre_boss_scene_level, pending_boss_shop_level
+    global pipe_entry_active, pipe_entry_level, pipe_entry_started_ms
     old_level = current_level
     target_level = max(1, min(MAX_LEVEL, current_level + level_delta))
     if target_level == old_level:
@@ -3276,13 +3486,20 @@ def debug_step_level(level_delta):
     show_level_name_announcement(current_level)
     save_character_checkpoint(current_level)
 
-    # Zorg dat bij debug-jump naar level 6 de Zeppelin miniboss en flight_mode correct starten
+    # A debug level jump should start from the selected level state, not from a
+    # leftover boss intro, pre-boss hub, or pipe-entry transition.
+    boss_state = None
+    boss_intro_until_ms = 0
+    pre_boss_scene_level = 0
+    pending_boss_shop_level = 0
+    pipe_entry_active = False
+    pipe_entry_level = 0
+    pipe_entry_started_ms = 0
+
+    # Level 6 starts in the flight/pipes phase; the Zeppelin arrives later.
     if current_level == 6:
         if not flight_mode:
             start_flight_mode()
-        # Start de Zeppelin miniboss encounter als deze nog niet actief is
-        if boss_state is None or boss_state.get("type") != "zeppelin_miniboss":
-            start_pending_boss_encounter(6)
         pending_airplane_spawn = False
     elif current_level == 5 and not flight_mode:
         pending_airplane_spawn = True
@@ -5384,6 +5601,9 @@ def update_and_draw_flight_mode(theme, update_world=True):
 
     now = millis()
     boss = boss_state if boss_state is not None and boss_state.get("type") == "zeppelin_miniboss" else None
+    if flight_crash_active:
+        update_flight_crash_sequence()
+        update_world = False
     if update_world:
         # During the zeppelin section the plane can roam the whole arena.
         if fly_left_pressed:
@@ -5962,21 +6182,70 @@ def draw_shop_screen(theme):
                 selected=(shop_selected_index == idx),
             )
 
-    fill(*theme["text"])
-    text_size(14)
-    text("Choose an item on the counter with arrows, then press SPACE.", stall_x + 72, stall_y + stall_h + 26)
-
     if 0 <= shop_selected_index < len(active_items):
         selected_item = active_items[shop_selected_index]
         owned_count = get_shop_item_count(selected_item["key"])
+        detail_panel_x = stall_x + 12
+        detail_panel_y = stall_y + stall_h + 10
+        detail_panel_w = stall_w + 12
+        detail_panel_h = 112
+        fill(255, 250, 232)
+        rect(detail_panel_x, detail_panel_y, detail_panel_w, detail_panel_h)
+        draw_rounded_rect_outline(
+            detail_panel_x,
+            detail_panel_y,
+            detail_panel_w,
+            detail_panel_h,
+            14,
+            theme["accent"],
+            3,
+        )
+
+        fill(*theme["text"])
+        text_size(34)
+        text(
+            selected_item["label"],
+            detail_panel_x + 18,
+            detail_panel_y + 36,
+        )
+        fill(*theme["accent"])
+        text_size(52)
+        text(
+            f"{selected_item['cost']} coins",
+            detail_panel_x + 18,
+            detail_panel_y + 82,
+        )
+        fill(*theme["text"])
         text_size(18)
         text(
-            f"{selected_item['label']}  {selected_item['cost']}c  owned x{owned_count}",
-            stall_x + 28,
-            stall_y + stall_h + 52,
+            f"Owned: {owned_count}   SPACE = buy",
+            detail_panel_x + 280,
+            detail_panel_y + 80,
         )
-        text_size(15)
-        text(selected_item["desc"], stall_x + 28, stall_y + stall_h + 74)
+        text_size(20)
+        text(selected_item["desc"], detail_panel_x + 18, detail_panel_y + 106)
+    elif shop_selected_index == back_selection_idx:
+        detail_panel_x = stall_x + 12
+        detail_panel_y = stall_y + stall_h + 10
+        detail_panel_w = stall_w + 12
+        detail_panel_h = 96
+        fill(255, 250, 232)
+        rect(detail_panel_x, detail_panel_y, detail_panel_w, detail_panel_h)
+        draw_rounded_rect_outline(
+            detail_panel_x,
+            detail_panel_y,
+            detail_panel_w,
+            detail_panel_h,
+            14,
+            theme["accent"],
+            3,
+        )
+        fill(*theme["text"])
+        text_size(34)
+        text("Back", detail_panel_x + 18, detail_panel_y + 38)
+        fill(*theme["accent"])
+        text_size(24)
+        text("Return to the level path", detail_panel_x + 18, detail_panel_y + 74)
 
     back_x, back_y, back_w, back_h = get_shop_back_button_rect()
     fill(255, 255, 255)
@@ -6290,6 +6559,32 @@ def draw():
             draw_debug_overlay()
             return
         draw_main_character()
+        if flight_crash_active:
+            plane_x, plane_y, _plane_w, plane_h = flight_crash_plane_rect
+            if plane_y >= (GROUND_Y - plane_h) and is_flight_crash_ground_hold_complete():
+                finish_flight_crash_sequence()
+                draw_hud(theme, force_visible=True)
+                fill(255, 0, 0)
+                text_size(40)
+                text("Game Over!", width // 2 - 120, height // 2)
+                fill(*theme["text"])
+                text_size(22)
+                text("Press SPACE for start screen", width // 2 - 165, height // 2 + 40)
+                draw_touch_controls_overlay()
+                draw_debug_overlay()
+                return
+            draw_hud(theme, force_visible=True)
+            fill(*theme["text"])
+            text_size(22)
+            if plane_y >= (GROUND_Y - plane_h):
+                text("Plane crash!", width // 2 - 62, height // 2 - 26)
+                text("The wreck stays visible for a brief impact beat.", width // 2 - 174, height // 2 + 2)
+            else:
+                text("Plane crash!", width // 2 - 62, height // 2 - 26)
+                text("The world is frozen until impact.", width // 2 - 154, height // 2 + 2)
+            draw_touch_controls_overlay()
+            draw_debug_overlay()
+            return
         if game_paused and not game_over:
             fill(40)
             text_size(34)
@@ -6991,7 +7286,7 @@ def key_pressed():
     if pipe_entry_active:
         return
 
-    if game_started and (boss_state is not None or pre_boss_scene_level > 0) and not game_over:
+    if game_started and (boss_state is not None or pre_boss_scene_level > 0) and not game_over and not flight_mode:
         if effective_key_code == K_LEFT:
             boss_left_pressed = True
             return
@@ -7216,14 +7511,19 @@ def weapon_overlay_decorator(draw_fn):
 @weapon_overlay_decorator
 def draw_main_character():
     if flight_mode:
-        plane_x, plane_y, plane_w, plane_h = get_flight_plane_rect()
-        plane_frames = get_plane_frames_for_character(get_current_character_key())
-        if plane_frames:
-            frame_idx = int(millis() / 120) % len(plane_frames)
-            plane_frame = plane_frames[frame_idx]
-            image(plane_frame, plane_x, plane_y, plane_w, plane_h)
+        if flight_crash_active:
+            plane_x, plane_y, plane_w, plane_h = flight_crash_plane_rect
+            plane_frame = flight_crash_plane_frame if flight_crash_plane_frame is not None else AIRPLANE_IMG
+            image(transform.rotate(plane_frame, -flight_crash_rotation_deg), plane_x, plane_y, plane_w, plane_h)
         else:
-            image(AIRPLANE_IMG, plane_x, plane_y, plane_w, plane_h)
+            plane_x, plane_y, plane_w, plane_h = get_flight_plane_rect()
+            plane_frames = get_plane_frames_for_character(get_current_character_key())
+            if plane_frames:
+                frame_idx = int(millis() / 120) % len(plane_frames)
+                plane_frame = plane_frames[frame_idx]
+                image(plane_frame, plane_x, plane_y, plane_w, plane_h)
+            else:
+                image(AIRPLANE_IMG, plane_x, plane_y, plane_w, plane_h)
         if isDebugMode:
             no_fill()
             stroke(255, 0, 0)
@@ -7280,12 +7580,9 @@ def draw_main_character():
             draw_h = 42
             dino_y_draw = GROUND_Y - draw_h
     elif is_ducking and on_ground:
-        # Gebruik de crouch_sprite uit CHARACTER_CONFIG voor het actieve karakter
-        dino_sprite = character.get("crouch_sprite", character["stand"])
-        draw_x = int(get_player_x())
-        draw_w = DINO_W
-        draw_h = DINO_H
-        dino_y_draw = dino_y + (DINO_H - draw_h)
+        dino_sprite, draw_x, dino_y_draw, draw_w, draw_h = get_crouch_sprite_render_pose(
+            current_character_key
+        )
     elif (
         current_character_key == "cowboy" and
         game_started and
