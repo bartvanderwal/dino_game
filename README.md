@@ -18,6 +18,8 @@ Uitgaande dat [Python 3](https://www.python.org/downloads/windows/) is geinstall
 
 Voor ontwerpkeuzes, spelregels en structurele principes, zie [docs/sgb.md](docs/sgb.md).
 
+Gameplaygedrag zoals vogelpatronen, levelregels en obstacleflow hoort ook daar thuis, niet in deze korte README.
+
 ## Snelle Start Met Virtual Environment
 
 ### macOS / Linux

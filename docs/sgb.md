@@ -168,6 +168,16 @@ Waarom:
 
 ### 2.4 Levels
 
+### 2.4.0 Vogelgedrag
+
+- `bird_low` is de basisvogel op de grondchapters: een enkele lage passage die vooral leert wanneer de speler moet bukken of springen.
+- `bird_swarm` is een samengestelde passage van meerdere vogels tegelijk en doorbreekt bewust de gewone enkel-obstakelcadans.
+- In level 5 gebruiken flight-vogels vaste veilige lanes binnen het gat tussen de pijpen; ze kiezen dus geen vrije botsingsroute door de hele luchtlaag.
+- In level 8 hoort de eerste uitbreiding van grondvogels te zitten: vogels die tijdens hun passage ook verticaal bewegen in een eenvoudig patroon omhoog of omlaag.
+- In level 9 mag vogelgedrag sneller worden en mag een passage een volledige sinus volgen, zodat een vogel over zijn hele schermpassage precies één volledige golf maakt.
+- Nieuwe vogelpatronen moeten leesbaar blijven: de speler moet uit silhouette, hoogte en bewegingsrichting vroeg genoeg kunnen aflezen of springen, bukken of lateraal corrigeren nodig is.
+- Vogelgedrag mag moeilijker worden per level, maar niet willekeurig; patronen horen curated en testbaar te blijven.
+
 ### 2.4.1 Level 1: `Enter Cactus Land...`
 
 - Introductie van de woestijn.
@@ -222,12 +232,17 @@ Waarom:
 
 - Meer tempo en krappe obstacle-combinaties.
 - Multi-cactus packs vragen snelle landingen.
+- Hier verschijnen voor het eerst vogels die tijdens hun passage ook verticaal bewegen.
+- De eerste verticale patronen blijven eenvoudig en lineair: een vogel gaat of omhoog of omlaag terwijl hij van rechts naar links over het scherm beweegt.
 
 ### 2.4.9 Level 9: `Bird Storm`
 
 - Voorbereiding op de eindbaas.
 - Hogere reactiedruk en minder hersteltijd.
 - Vogelzwermen doorbreken hier de oude enkelvoudige obstakelcadans.
+- Vogels bewegen hier sneller dan in level 8.
+- Naast lineaire verticale passages mag level 9 ook sinus-passages gebruiken.
+- Een sinus-passage hoort over de volledige schermpassage precies één hele golf te maken, zodat begin, midden en eind van de beweging voorspelbaar blijven.
 
 ### 2.4.10 Level 10: `Giant Town`
 
@@ -552,6 +567,22 @@ Rel(mainpy, canvas, "Rendert frames en UI", "pygame-ce / SDL")
 - Applicatiecode blijft bewust in de single-file modular monolith `dino_game.py`.
 - `processing/` is frameworkcode en wordt niet licht aangepast voor sketchspecifiek gedrag.
 - Tests mogen buiten de monolith staan, maar nieuwe gamefeatures horen standaard in de appcode.
+
+### 7.1 Schermcoordinaten
+
+- Deze game gebruikt schermcoordinaten, geen cartesisch assenstelsel zoals in een wiskundegrafiek.
+- Het nulpunt `(0, 0)` zit linksboven in het venster.
+- `x` groeit naar rechts.
+- `y` groeit naar beneden.
+- Een grotere `y` betekent dus visueel lager op het scherm, niet hoger.
+- `GROUND_Y` is in deze code de grondlijn; vliegende obstacles zoals vogels mogen daar niet onder renderen.
+
+Waarom:
+
+- De game draait op onze Processing-achtige wrapper bovenop Pygame en volgt daarom het gewone schermmodel van beide omgevingen.
+- De Pygame-documentatie zegt bij `pygame.mouse.get_pos()` dat de positie relatief is aan de `top-left corner of the display`.
+- De Processing-documentatie beschrijft `mouseY` als de `current vertical coordinate of the mouse`, wat hier ook een scherm-`y` is en geen wiskundige `y`-as die omhoog groeit.
+- Zonder deze afspraak ontstaan bugs waarbij objecten wel mathematisch lijken te stijgen of dalen, maar in de game uit de grond of buiten het speelvlak renderen.
 
 ## 8. Data
 

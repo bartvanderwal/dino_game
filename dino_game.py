@@ -298,15 +298,26 @@ FLIGHT_LEVEL5_BIRD_EXTRA_SPEED = 1.35
 FLIGHT_CAVE_GAP_SWAY_SPEED = 0.42
 FLIGHT_CAVE_GAP_SWAY_RANGE = 42
 FLIGHT_CAVE_DROP_CHANCE_PCT = 34
-FLIGHT_CAVE_TREMOR_MS = 520
-FLIGHT_CAVE_FALL_CHUNK_W = 26
-FLIGHT_CAVE_FALL_CHUNK_H = 26
+FLIGHT_CAVE_TREMOR_MS = 1180
+FLIGHT_CAVE_FALL_CHUNK_W = 28
+FLIGHT_CAVE_FALL_CHUNK_H = 28
 FLIGHT_CAVE_FALL_CHUNK_GRAVITY = 0.34
+FLIGHT_CAVE_WARNING_MS = 1400
+FLIGHT_CAVE_BOTTOM_LAUNCH_SPEED = -6.4
 ZEPPELIN_SMOKE_INTERVAL_MS = 1200
 ZEPPELIN_EXPLOSION_INTERVAL_MS = 4000
 ZEPPELIN_CITY_APPROACH_DURATION_MS = 2400
 AIRPLANE_PICKUP_W = 104
 AIRPLANE_PICKUP_H = 40
+CAR_PICKUP_W = 106
+CAR_PICKUP_H = 34
+CAR_RAMP_W = 74
+CAR_RAMP_H = 38
+CLIFF_GAP_W = 188
+CLIFF_GAP_H = 42
+CAR_RAMP_LAUNCH_VELOCITY = -30
+BIRD_VERTICAL_TRAVEL_PX = 78
+BIRD_SINE_AMPLITUDE_PX = 54
 PLAYER_SHOOT_COOLDOWN_MS = 180
 CACTUS_SHOT_VERTICAL_BOOST = 1.45
 CACTUS_SHOT_UPWARD_OFFSET_PX = 12
@@ -441,8 +452,11 @@ SHOP_ITEMS = (
 )
 MENU_MUSIC_PATH = "assets/audio/loading-atmosphere.wav"
 GAME_MUSIC_PATH = "assets/audio/pixel-leap.wav"
+BIRD_BOSS_MUSIC_PATH = "assets/audio/Bigbird-in-the-tree-high-energy.mp3"
+AIR_BOSS_MUSIC_PATH = "assets/audio/Bigbird-in-the-tree-2.mp3"
+COYOTE_BOSS_MUSIC_PATH = "assets/audio/big-coyote-in-the-tree-1.mp3"
 FINAL_VICTORY_MUSIC_PATH = "assets/audio/finish-game-music-victory.mp3"
-VICTORY_MUSIC_PATH = FINAL_VICTORY_MUSIC_PATH
+VICTORY_MUSIC_PATH = "assets/audio/pixabay-mini-boss-tadaa.mp3"
 CREDITS_MUSIC_PATH = FINAL_VICTORY_MUSIC_PATH
 # Mini-boss stinger attribution lives in code and credits so the source stays
 # traceable even if asset filenames change later.
@@ -450,7 +464,7 @@ MINI_BOSS_VICTORY_SOUND_PATH = "assets/audio/pixabay-mini-boss-tadaa.mp3"
 APP_VERSION = "0.4.0"
 MUSIC_VOLUME = 0.35
 INTRO_SPEECH_PATH = "assets/audio/welcome-to-the-dino-game.mp3"
-CREDITS_DURATION_MS = 60000
+CREDITS_DURATION_MS = 66000
 CREDITS_TOP_MARGIN = 30
 CREDITS_BOTTOM_MARGIN = 110
 CREDITS_SCROLL_SPEED_FACTOR = 0.82
@@ -618,14 +632,14 @@ LEVEL_SCRIPTED_OBSTACLE_PATTERNS = {
         "cactus_low", "snake", "bird_low", "cactus_tower",
     ],
     8: [
-        "cactus_low", "snake", "cactus_high", "bird_low",
-        "cactus_low", "cactus_tower", "snake", "bird_swarm",
+        "bird_rise", "cactus_low", "bird_dive", "snake",
+        "cactus_high", "bird_rise", "cactus_tower", "bird_swarm",
         "cactus_high", "cactus_low",
     ],
     9: [
-        "cactus_low", "snake", "cactus_high", "bird_swarm",
-        "cactus_low", "snake", "cactus_tower", "bird_low",
-        "bird_swarm", "snake", "cactus_high", "cactus_low",
+        "bird_sine", "snake", "car_ramp", "cliff_gap",
+        "cactus_low", "bird_swarm", "car_ramp", "cliff_gap",
+        "bird_sine", "snake", "car_ramp", "cliff_gap",
     ],
     10: [
         "cactus_high", "snake", "bird_low", "cactus_tower",
@@ -739,6 +753,33 @@ OBSTACLE_CONFIG = {
         "points": 3,
         "requires_duck_score": True,
     },
+    "bird_rise": {
+        "img": BIRD_RIGHT_IMG,
+        "w": 56,
+        "h": 34,
+        "y": 402,
+        "hitbox_insets": (8, 8, 6, 6),
+        "points": 3,
+        "requires_duck_score": True,
+    },
+    "bird_dive": {
+        "img": BIRD_RIGHT_IMG,
+        "w": 56,
+        "h": 34,
+        "y": 348,
+        "hitbox_insets": (8, 8, 6, 6),
+        "points": 3,
+        "requires_duck_score": True,
+    },
+    "bird_sine": {
+        "img": BIRD_RIGHT_IMG,
+        "w": 58,
+        "h": 36,
+        "y": 376,
+        "hitbox_insets": (8, 8, 6, 6),
+        "points": 4,
+        "requires_duck_score": True,
+    },
     "bird_swarm": {
         "img": None,
         "w": 156,
@@ -755,6 +796,30 @@ OBSTACLE_CONFIG = {
         "y": 378,
         "hitbox_insets": (8, 8, 6, 4),
         "points": 0,
+    },
+    "car_pickup": {
+        "img": None,
+        "w": CAR_PICKUP_W,
+        "h": CAR_PICKUP_H,
+        "y": 396,
+        "hitbox_insets": (8, 8, 6, 4),
+        "points": 0,
+    },
+    "car_ramp": {
+        "img": None,
+        "w": CAR_RAMP_W,
+        "h": CAR_RAMP_H,
+        "y": GROUND_Y - CAR_RAMP_H,
+        "hitbox_insets": (0, 0, 0, 0),
+        "points": 2,
+    },
+    "cliff_gap": {
+        "img": None,
+        "w": CLIFF_GAP_W,
+        "h": CLIFF_GAP_H,
+        "y": GROUND_Y,
+        "hitbox_insets": (0, 0, 0, 0),
+        "points": 4,
     },
     "pipe_pair": {
         "img": None,
@@ -841,6 +906,7 @@ CHARACTER_CONFIG = {
 
 # Game state
 obstacle_x = 800
+obstacle_spawn_x = 800
 obstacle_type = "cactus_low"
 bird_duck_scored = False
 
@@ -924,11 +990,13 @@ high_jump_powerup_warning_until_ms = 0
 weapon_powerup_warning_until_ms = 0
 water_warning_until_ms = 0
 airplane_warning_until_ms = 0
+cave_warning_until_ms = 0
 missed_plane_notice_until_ms = 0
 multi_jump_notice_until_ms = 0
 wet_ground_until_ms = 0
 wet_ground_started_ms = 0
 pending_airplane_spawn = False
+pending_car_spawn = False
 queued_obstacle_after_powerup = None
 queued_spawn_sequence = []
 queued_coin_spawn_ys = []
@@ -975,6 +1043,7 @@ flight_crash_landed_until_ms = 0
 flight_crash_plane_frame = None
 flight_crash_plane_rect = (0.0, 0.0, AIRPLANE_PICKUP_W, AIRPLANE_PICKUP_H)
 flight_crash_wreck_visible = False
+car_mode = False
 boss_left_pressed = False
 boss_right_pressed = False
 snake_hiss_played_for_current = False
@@ -990,6 +1059,7 @@ boss_completed = {
 }
 bird_boss_exit_obstacles_remaining = 0
 current_music_mode = None
+current_music_path = None
 player_max_hp = 1
 player_hp = 1
 player_damage_cooldown_until_ms = 0
@@ -1034,9 +1104,10 @@ def reset_game(show_splash=False):
     global is_ducking, game_paused, bird_duck_scored, duck_jump_expires_ms, is_fast_falling
     global debug_coin_pressed, debug_coin_repeat_until_ms
     global current_level, scroll_speed, obstacles_cleared, next_level_obstacle_goal, level_blink_until_ms
+    global obstacle_x, obstacle_spawn_x, obstacle_type
     global high_jump_warning_until_ms, high_jump_powerup_warning_until_ms
     global weapon_powerup_warning_until_ms, water_warning_until_ms
-    global airplane_warning_until_ms, missed_plane_notice_until_ms
+    global airplane_warning_until_ms, cave_warning_until_ms, missed_plane_notice_until_ms
     global multi_jump_notice_until_ms
     global wet_ground_until_ms, wet_ground_started_ms
     global pending_airplane_spawn, queued_obstacle_after_powerup
@@ -1110,6 +1181,9 @@ def reset_game(show_splash=False):
     is_fast_falling = False
     current_level = 1
     scroll_speed = BASE_SCROLL_SPEED
+    obstacle_x = width
+    obstacle_spawn_x = width
+    obstacle_type = "cactus_low"
     obstacles_cleared = 0
     next_level_obstacle_goal = LEVEL_OBSTACLE_TOTAL_THRESHOLDS[0]
     level_blink_until_ms = 0
@@ -1118,6 +1192,7 @@ def reset_game(show_splash=False):
     weapon_powerup_warning_until_ms = 0
     water_warning_until_ms = 0
     airplane_warning_until_ms = 0
+    cave_warning_until_ms = 0
     missed_plane_notice_until_ms = 0
     multi_jump_notice_until_ms = 0
     wet_ground_until_ms = 0
@@ -1240,8 +1315,23 @@ def update_player_vertical_motion():
         play_pending_high_jump_landing_roar()
 
 
+def get_boss_music_selection():
+    if boss_state is None:
+        return None, None
+
+    boss_type = boss_state.get("type")
+    boss_level = boss_state.get("level")
+    if boss_type == "bird_miniboss" or boss_level == 4:
+        return "boss:bird", resolve_runtime_asset_path(BIRD_BOSS_MUSIC_PATH)
+    if boss_type == "zeppelin_miniboss" or boss_level == 5:
+        return "boss:air", resolve_runtime_asset_path(AIR_BOSS_MUSIC_PATH)
+    if boss_type == "final_boss" and boss_state.get("form") == "ReuzenCoyote":
+        return "boss:coyote", resolve_runtime_asset_path(COYOTE_BOSS_MUSIC_PATH)
+    return None, None
+
+
 def update_background_music(force=False):
-    global current_music_mode
+    global current_music_mode, current_music_path
     if IS_WEB and not web_audio_unlocked:
         return
     if not mixer.get_init():
@@ -1258,6 +1348,7 @@ def update_background_music(force=False):
                     once_key="music_stop_disable",
                 )
             current_music_mode = None
+            current_music_path = None
         return
 
     if credits_active:
@@ -1268,6 +1359,11 @@ def update_background_music(force=False):
         target_mode = None
     elif game_over:
         target_mode = None
+    elif boss_state is not None:
+        target_mode, target_path = get_boss_music_selection()
+        if target_mode is None:
+            target_mode = "game"
+            target_path = resolve_runtime_asset_path(GAME_MUSIC_PATH)
     elif not game_started or shared.show_info:
         target_mode = "menu"
     else:
@@ -1283,6 +1379,7 @@ def update_background_music(force=False):
                     once_key="music_stop_clear",
                 )
             current_music_mode = None
+            current_music_path = None
         return
 
     if not force and target_mode == current_music_mode:
@@ -1294,16 +1391,22 @@ def update_background_music(force=False):
         target_path = resolve_runtime_asset_path(CREDITS_MUSIC_PATH)
     elif target_mode == "victory":
         target_path = resolve_runtime_asset_path(VICTORY_MUSIC_PATH)
-    else:
+    elif target_mode == "game":
         target_path = resolve_runtime_asset_path(GAME_MUSIC_PATH)
+
+    if target_path == current_music_path and mixer.music.get_busy():
+        current_music_mode = target_mode
+        return
+
     try:
         # Pygbag/web audio can leave the previous music track audible unless we
         # stop it explicitly before loading the next background track.
         mixer.music.stop()
         mixer.music.load(target_path)
         mixer.music.set_volume(MUSIC_VOLUME)
-        mixer.music.play(-1)
+        mixer.music.play(0 if target_mode == "victory" else -1)
         current_music_mode = target_mode
+        current_music_path = target_path
     except Exception as exc:
         log_soft_exception(
             f"Failed to start background music '{target_path}' for mode '{target_mode}'",
@@ -1312,6 +1415,7 @@ def update_background_music(force=False):
         )
         # Keep the game running even when a track cannot be loaded.
         current_music_mode = None
+        current_music_path = None
 
 
 def unlock_web_audio_if_needed():
@@ -1326,7 +1430,7 @@ def unlock_web_audio_if_needed():
 
 
 def stop_background_music():
-    global current_music_mode
+    global current_music_mode, current_music_path
     if not mixer.get_init():
         return
     if current_music_mode is None:
@@ -1340,6 +1444,7 @@ def stop_background_music():
             once_key="music_stop_scripted_transition",
         )
     current_music_mode = None
+    current_music_path = None
 
 
 def get_credits_font(size, mono=False, bold=False):
@@ -1929,6 +2034,9 @@ def choose_obstacle_type():
     if pending_airplane_spawn and current_level in (5, 6):
         return "airplane_pickup"
 
+    if pending_car_spawn and current_level == 9 and not car_mode:
+        return "car_pickup"
+
     if queued_spawn_sequence:
         return queued_spawn_sequence.pop(0)
 
@@ -2184,19 +2292,23 @@ def get_extra_obstacle_hitbox(obstacle):
 
 
 def spawn_obstacle(force_type=None):
-    global obstacle_x, obstacle_type, bird_duck_scored
+    global obstacle_x, obstacle_spawn_x, obstacle_type, bird_duck_scored
     global high_jump_warning_until_ms
     global weapon_powerup_warning_until_ms, water_warning_until_ms
-    global airplane_warning_until_ms, pending_airplane_spawn
+    global airplane_warning_until_ms, pending_airplane_spawn, pending_car_spawn
     global coin_spawn_y
     global ground_pipe_gap_top
     global snake_hiss_played_for_current
     obstacle_type = force_type or choose_obstacle_type()
     obstacle_x = width + random(100, 300)
+    obstacle_spawn_x = obstacle_x
     bird_duck_scored = False
     snake_hiss_played_for_current = False
     if obstacle_type == "airplane_pickup":
         pending_airplane_spawn = False
+        airplane_warning_until_ms = millis() + AIRPLANE_WARNING_DURATION_MS
+    if obstacle_type == "car_pickup":
+        pending_car_spawn = False
         airplane_warning_until_ms = millis() + AIRPLANE_WARNING_DURATION_MS
     if obstacle_type == "pipe_pair":
         # Ground pipe pair: gap tuned for normal jump/duck traversal.
@@ -2305,6 +2417,7 @@ def spawn_flight_pipe():
             hazard["gap_v"] = FLIGHT_CAVE_GAP_SWAY_SPEED if hazard["gap_v"] >= 0 else -FLIGHT_CAVE_GAP_SWAY_SPEED
         hazard["drop_enabled"] = int(random(0, 100)) < FLIGHT_CAVE_DROP_CHANCE_PCT
         hazard["drop_trigger_x"] = float(random(220, width - 120))
+        hazard["drop_origin"] = "bottom" if int(random(0, 100)) < 42 else "top"
     flight_pipes.append(hazard)
     last_flight_gap_top = gap_top
 
@@ -2335,6 +2448,7 @@ def spawn_level5_flight_bird(gap_top, spawn_x, lane="top"):
 
 
 def update_flight_cave_hazard(hazard, now):
+    global cave_warning_until_ms
     if hazard.get("style") != "cave":
         return
 
@@ -2354,17 +2468,30 @@ def update_flight_cave_hazard(hazard, now):
     tremor_until_ms = int(hazard.get("tremor_until_ms", 0) or 0)
     if tremor_until_ms == 0 and hazard["x"] <= hazard.get("drop_trigger_x", -9999):
         hazard["tremor_until_ms"] = now + FLIGHT_CAVE_TREMOR_MS
+        cave_warning_until_ms = now + FLIGHT_CAVE_WARNING_MS
         return
 
     if tremor_until_ms > 0 and now >= tremor_until_ms and hazard.get("fall_chunk") is None:
         hazard["tremor_until_ms"] = -1
-        hazard["fall_chunk"] = {
-            "x": float(hazard["x"] + 20),
-            "y": float(max(20, hazard["gap_top"] - FLIGHT_CAVE_FALL_CHUNK_H)),
-            "w": FLIGHT_CAVE_FALL_CHUNK_W,
-            "h": FLIGHT_CAVE_FALL_CHUNK_H,
-            "vy": 1.2,
-        }
+        drop_origin = hazard.get("drop_origin", "top")
+        if drop_origin == "bottom":
+            hazard["fall_chunk"] = {
+                "x": float(hazard["x"] + 20),
+                "y": float(max(0.0, GROUND_Y - FLIGHT_CAVE_FALL_CHUNK_H - 6)),
+                "w": FLIGHT_CAVE_FALL_CHUNK_W,
+                "h": FLIGHT_CAVE_FALL_CHUNK_H,
+                "vy": FLIGHT_CAVE_BOTTOM_LAUNCH_SPEED,
+                "kind": "magma",
+            }
+        else:
+            hazard["fall_chunk"] = {
+                "x": float(hazard["x"] + 20),
+                "y": float(max(20, hazard["gap_top"] - FLIGHT_CAVE_FALL_CHUNK_H)),
+                "w": FLIGHT_CAVE_FALL_CHUNK_W,
+                "h": FLIGHT_CAVE_FALL_CHUNK_H,
+                "vy": 1.2,
+                "kind": "rock",
+            }
 
     chunk = hazard.get("fall_chunk")
     if chunk is None:
@@ -2373,7 +2500,7 @@ def update_flight_cave_hazard(hazard, now):
     chunk["x"] = float(hazard["x"] + 20)
     chunk["y"] += float(chunk["vy"])
     chunk["vy"] += FLIGHT_CAVE_FALL_CHUNK_GRAVITY
-    if chunk["y"] > GROUND_Y + 60:
+    if chunk["y"] > GROUND_Y + 60 or chunk["y"] + chunk["h"] < -60:
         hazard["fall_chunk"] = None
 
 
@@ -2420,10 +2547,56 @@ def draw_cave_spire(x, y, w, h, upside_down=True, shake_x=0.0):
 
 
 def draw_flight_fall_chunk(chunk, shake_x=0.0):
-    fill(126, 194, 248)
-    rect(int(chunk["x"] + shake_x), int(chunk["y"]), int(chunk["w"]), int(chunk["h"]))
-    fill(56, 102, 182)
-    rect(int(chunk["x"] + shake_x + 3), int(chunk["y"] + 3), int(max(6, chunk["w"] - 6)), int(max(6, chunk["h"] - 6)))
+    draw_x = int(chunk["x"] + shake_x)
+    draw_y = int(chunk["y"])
+    draw_w = int(chunk["w"])
+    draw_h = int(chunk["h"])
+    kind = chunk.get("kind", "rock")
+
+    stroke(18, 18, 18)
+    stroke_weight(2)
+    if kind == "magma":
+        fill(176, 48, 36)
+        rect(draw_x, draw_y, draw_w, draw_h)
+        fill(236, 104, 62)
+        rect(draw_x + 3, draw_y + 3, int(max(6, draw_w - 6)), int(max(6, draw_h - 6)))
+        fill(255, 184, 72)
+        rect(draw_x + 8, draw_y + 7, int(max(4, draw_w - 16)), int(max(4, draw_h - 16)))
+    else:
+        fill(68, 108, 154)
+        rect(draw_x, draw_y, draw_w, draw_h)
+        fill(138, 190, 242)
+        rect(draw_x + 3, draw_y + 3, int(max(6, draw_w - 6)), int(max(6, draw_h - 6)))
+        fill(92, 142, 198)
+        rect(draw_x + 7, draw_y + 7, int(max(4, draw_w - 14)), int(max(4, draw_h - 14)))
+    no_stroke()
+
+
+def draw_flight_cave_chunk_warning(pipe, shake_x=0.0):
+    tremor_until_ms = int(pipe.get("tremor_until_ms", 0) or 0)
+    if tremor_until_ms <= millis() or pipe.get("fall_chunk") is not None:
+        return
+
+    warn_x = int(pipe["x"] + 20 + shake_x)
+    if pipe.get("drop_origin", "top") == "bottom":
+        warn_y = int(GROUND_Y - 10)
+        stroke(18, 18, 18)
+        stroke_weight(2)
+        fill(210, 76, 54)
+        triangle(warn_x, warn_y, warn_x + 16, warn_y, warn_x + 8, warn_y - 14)
+        fill(255, 176, 72)
+        triangle(warn_x + 3, warn_y - 1, warn_x + 13, warn_y - 1, warn_x + 8, warn_y - 10)
+        no_stroke()
+        return
+
+    warn_y = int(max(8, pipe["gap_top"] - 6))
+    stroke(18, 18, 18)
+    stroke_weight(2)
+    fill(126, 186, 240)
+    triangle(warn_x, warn_y, warn_x + 16, warn_y, warn_x + 8, warn_y + 14)
+    fill(86, 142, 198)
+    triangle(warn_x + 3, warn_y + 1, warn_x + 13, warn_y + 1, warn_x + 8, warn_y + 10)
+    no_stroke()
 
 
 def start_flight_mode():
@@ -2828,6 +3001,33 @@ def draw_ground_pipe_pair(draw_x=None):
     draw_pipe_column(bx, by, bw, bh)
 
 
+def draw_car_ramp_obstacle(draw_x, draw_y, draw_w, draw_h):
+    no_stroke()
+    fill(108, 108, 112)
+    triangle(draw_x, draw_y + draw_h, draw_x + draw_w, draw_y + draw_h, draw_x + draw_w, draw_y)
+    fill(164, 164, 170)
+    triangle(draw_x + 8, draw_y + draw_h - 4, draw_x + draw_w - 8, draw_y + draw_h - 4, draw_x + draw_w - 8, draw_y + 8)
+    stroke(52, 52, 56)
+    stroke_weight(2)
+    line(draw_x + 10, draw_y + draw_h - 8, draw_x + draw_w - 10, draw_y + 10)
+    no_stroke()
+
+
+def draw_cliff_gap_obstacle(draw_x, draw_y, draw_w, draw_h, theme):
+    no_stroke()
+    fill(*theme["bg"])
+    rect(draw_x, GROUND_Y - 2, draw_w, draw_h + 4)
+    fill(54, 34, 24)
+    rect(draw_x + 4, GROUND_Y + 6, max(10, draw_w - 8), 24)
+    fill(28, 18, 14)
+    rect(draw_x + 12, GROUND_Y + 14, max(8, draw_w - 24), 14)
+    stroke(*theme["ground_line"])
+    stroke_weight(2)
+    line(draw_x - 2, GROUND_Y, draw_x + 12, GROUND_Y)
+    line(draw_x + draw_w - 12, GROUND_Y, draw_x + draw_w + 2, GROUND_Y)
+    no_stroke()
+
+
 def platform_supports_player(platform_rect):
     platform_x, platform_y, platform_w, _ = platform_rect
     current_hitbox = get_dino_hitbox()
@@ -2888,6 +3088,37 @@ def is_snake_extended():
     return obstacle_x < get_player_x() + 220
 
 
+def get_obstacle_passage_progress(draw_x, draw_w):
+    total_distance = max(1.0, float(obstacle_spawn_x + draw_w))
+    return max(0.0, min(1.0, (float(obstacle_spawn_x) - float(draw_x)) / total_distance))
+
+
+def get_dynamic_bird_draw_y(base_y, draw_x, draw_w, draw_h):
+    progress = get_obstacle_passage_progress(draw_x, draw_w)
+    if obstacle_type == "bird_rise":
+        dynamic_y = base_y + (BIRD_VERTICAL_TRAVEL_PX * (1.0 - progress))
+    elif obstacle_type == "bird_dive":
+        dynamic_y = base_y + (BIRD_VERTICAL_TRAVEL_PX * progress)
+    elif obstacle_type == "bird_sine":
+        dynamic_y = base_y + (math.sin(progress * math.tau) * BIRD_SINE_AMPLITUDE_PX)
+    elif obstacle_type == "bird_swarm" and current_level >= 9:
+        dynamic_y = base_y + (math.sin(progress * math.tau) * (BIRD_SINE_AMPLITUDE_PX * 0.55))
+    else:
+        dynamic_y = base_y
+
+    min_y = 18.0
+    max_y = float(GROUND_Y - draw_h - 6)
+    return max(min_y, min(max_y, dynamic_y))
+
+
+def get_dynamic_obstacle_speed_bonus():
+    if obstacle_type in ("bird_rise", "bird_dive") and current_level >= 8:
+        return 0.9
+    if obstacle_type in ("bird_sine", "bird_swarm") and current_level >= 9:
+        return 1.8
+    return 0.0
+
+
 def get_obstacle_draw_rect():
     cfg = OBSTACLE_CONFIG[obstacle_type]
     draw_x = obstacle_x
@@ -2906,6 +3137,9 @@ def get_obstacle_draw_rect():
         draw_y = 0
         draw_w = FLIGHT_PIPE_WIDTH
         draw_h = GROUND_Y
+
+    if obstacle_type in ("bird_rise", "bird_dive", "bird_sine", "bird_swarm"):
+        draw_y = get_dynamic_bird_draw_y(draw_y, draw_x, draw_w, draw_h)
 
     return draw_x, draw_y, draw_w, draw_h
 
@@ -3045,12 +3279,13 @@ def restore_character_checkpoint(character_key):
 
 
 def start_game_from_selection():
-    global active_character_key, pending_airplane_spawn
+    global active_character_key, pending_airplane_spawn, pending_car_spawn
     active_character_key = get_selected_character_key()
     reset_game(show_splash=False)
     restore_character_checkpoint(active_character_key)
     activate_shop_powerups_for_run()
     pending_airplane_spawn = (current_level in (5, 6))
+    pending_car_spawn = (current_level == 9)
 
 
 def get_theme():
@@ -3778,7 +4013,7 @@ def apply_player_hit(hit_sound=None, play_sound=True):
 
 
 def update_level_from_progress():
-    global current_level, scroll_speed, next_level_obstacle_goal, level_blink_until_ms, pending_airplane_spawn
+    global current_level, scroll_speed, next_level_obstacle_goal, level_blink_until_ms, pending_airplane_spawn, pending_car_spawn
     global scripted_obstacle_level, scripted_obstacle_index
     global player_x, dino_y, velocity_y, on_ground, is_ducking, is_fast_falling
     global boss_left_pressed, boss_right_pressed
@@ -3817,6 +4052,7 @@ def update_level_from_progress():
             pending_airplane_spawn = True
         elif current_level > 6:
             pending_airplane_spawn = False
+        pending_car_spawn = (current_level == 9 and not car_mode)
 
 
 def register_cleared_obstacle(amount=1):
@@ -3829,11 +4065,12 @@ def register_cleared_obstacle(amount=1):
 
 
 def debug_step_level(level_delta):
-    global current_level, score, scroll_speed, obstacles_cleared, next_level_obstacle_goal, level_blink_until_ms, pending_airplane_spawn
+    global current_level, score, scroll_speed, obstacles_cleared, next_level_obstacle_goal, level_blink_until_ms, pending_airplane_spawn, pending_car_spawn
     global bird_boss_exit_obstacles_remaining
     global scripted_obstacle_level, scripted_obstacle_index
     global boss_state, boss_intro_until_ms, pre_boss_scene_level, pending_boss_shop_level
     global pipe_entry_active, pipe_entry_level, pipe_entry_started_ms
+    global car_mode
     old_level = current_level
     target_level = max(1, min(MAX_LEVEL, current_level + level_delta))
     if target_level == old_level:
@@ -3861,6 +4098,7 @@ def debug_step_level(level_delta):
     pipe_entry_active = False
     pipe_entry_level = 0
     pipe_entry_started_ms = 0
+    car_mode = False
 
     # Level 6 starts in the cave-flight phase after the Zeppelin boundary fight.
     if current_level == 6:
@@ -3870,7 +4108,40 @@ def debug_step_level(level_delta):
     elif current_level == 5 and not flight_mode:
         pending_airplane_spawn = True
     else:
+        if flight_mode:
+            end_flight_mode()
         pending_airplane_spawn = False
+    pending_car_spawn = (current_level == 9)
+
+
+def start_car_mode():
+    global car_mode
+    car_mode = True
+
+
+def get_car_speed_label():
+    speed_ratio = scroll_speed / max(0.1, BASE_SCROLL_SPEED)
+    if speed_ratio >= 2.1:
+        return "mega high jump"
+    if speed_ratio >= 1.65:
+        return "high"
+    if speed_ratio >= 1.25:
+        return "medium"
+    return "low"
+
+
+def draw_car_pickup_obstacle(draw_x, draw_y, draw_w, draw_h):
+    no_stroke()
+    fill(34, 34, 38)
+    ellipse(draw_x + 22, draw_y + draw_h, 18, 18)
+    ellipse(draw_x + draw_w - 22, draw_y + draw_h, 18, 18)
+    fill(128, 132, 138)
+    rect(draw_x + 8, draw_y + 14, draw_w - 16, 18)
+    fill(152, 158, 164)
+    rect(draw_x + 24, draw_y + 4, draw_w - 48, 16)
+    fill(206, 216, 224)
+    rect(draw_x + 36, draw_y + 7, 18, 10)
+    rect(draw_x + 58, draw_y + 7, 18, 10)
 
 
 def get_player_weapon_profile():
@@ -5953,6 +6224,8 @@ def draw_hud(theme, force_visible=False):
         text(f"Level: {current_level}", width - 150, 40)
         text_size(16)
         text(f"Obstacles: {level_progress}/{level_goal}", width - 190, 66)
+        if car_mode:
+            text(f"Car speed: {get_car_speed_label()}", width - 190, 88)
 
     # During blink, briefly show level-up cue in accent color.
     if is_level_blink_active() and should_show_blink_phase():
@@ -6052,7 +6325,7 @@ def update_and_draw_flight_mode(theme, update_world=True):
         for bird in flight_birds:
             bird["x"] -= (scroll_speed + bird.get("vx", 0.0))
 
-        if boss is None and current_level >= flight_mode_exit_level and obstacles_cleared >= get_level_total_obstacle_count(5):
+        if boss is None and current_level in (5, 6) and current_level >= flight_mode_exit_level and obstacles_cleared >= get_level_total_obstacle_count(5):
             if not boss_completed.get(5, False):
                 boss_state = spawn_boss_for_level(5)
                 boss_intro_until_ms = 0
@@ -7131,6 +7404,12 @@ def draw():
         draw_high_jump_powerup(obstacle_draw_x, obstacle_draw_y, obstacle_draw_w, obstacle_draw_h, theme)
     elif obstacle_type == "weapon_powerup":
         draw_weapon_powerup(obstacle_draw_x, obstacle_draw_y, obstacle_draw_w, obstacle_draw_h)
+    elif obstacle_type == "car_pickup":
+        draw_car_pickup_obstacle(obstacle_draw_x, obstacle_draw_y, obstacle_draw_w, obstacle_draw_h)
+    elif obstacle_type == "car_ramp":
+        draw_car_ramp_obstacle(obstacle_draw_x, obstacle_draw_y, obstacle_draw_w, obstacle_draw_h)
+    elif obstacle_type == "cliff_gap":
+        draw_cliff_gap_obstacle(obstacle_draw_x, obstacle_draw_y, obstacle_draw_w, obstacle_draw_h, theme)
     elif obstacle_type == "jump_block":
         draw_jump_block_obstacle(obstacle_draw_x, obstacle_draw_y, obstacle_draw_w, obstacle_draw_h)
     elif obstacle_type == "coin":
@@ -7191,9 +7470,16 @@ def draw():
                 is_fast_falling = False
                 play_pending_high_jump_landing_roar()
 
-        obstacle_x -= scroll_speed
+        obstacle_x -= (scroll_speed + get_dynamic_obstacle_speed_bonus())
         if obstacle_type == "pipe_pair":
             apply_ground_pipe_platform_collision(prev_dino_y, prev_ducking)
+
+        if obstacle_type == "cliff_gap" and car_mode and on_ground:
+            dino_hitbox = get_dino_hitbox()
+            player_center_x = dino_hitbox[0] + (dino_hitbox[2] / 2)
+            gap_hitbox = get_obstacle_hitbox()
+            if gap_hitbox[0] + 10 <= player_center_x <= gap_hitbox[0] + gap_hitbox[2] - 10:
+                on_ground = False
 
         if obstacle_type == "snake" and is_snake_extended() and not snake_hiss_played_for_current:
             snake_hiss_played_for_current = True
@@ -7236,6 +7522,48 @@ def draw():
                 velocity_y = 0
                 on_ground = False
                 start_flight_mode()
+                draw_main_character()
+                draw_hud(theme)
+                draw_touch_controls_overlay()
+                return
+
+        if obstacle_type == "car_pickup":
+            dino_hitbox = get_dino_hitbox()
+            car_hitbox = get_obstacle_hitbox()
+            dino_bottom = dino_hitbox[1] + dino_hitbox[3]
+            car_top = car_hitbox[1]
+            overlap_x = (
+                dino_hitbox[0] < car_hitbox[0] + car_hitbox[2] and
+                dino_hitbox[0] + dino_hitbox[2] > car_hitbox[0]
+            )
+            landing_on_top = overlap_x and velocity_y >= 0 and car_top - 10 <= dino_bottom <= car_top + 18
+            if landing_on_top:
+                is_ducking = False
+                is_fast_falling = False
+                velocity_y = 0
+                on_ground = True
+                start_car_mode()
+                register_cleared_obstacle()
+                spawn_obstacle()
+                draw_main_character()
+                draw_hud(theme)
+                draw_touch_controls_overlay()
+                return
+
+        if obstacle_type == "car_ramp" and car_mode:
+            dino_hitbox = get_dino_hitbox()
+            ramp_hitbox = get_obstacle_hitbox()
+            overlap_x = (
+                dino_hitbox[0] < ramp_hitbox[0] + ramp_hitbox[2] and
+                dino_hitbox[0] + dino_hitbox[2] > ramp_hitbox[0]
+            )
+            if on_ground and overlap_x:
+                is_ducking = False
+                is_fast_falling = False
+                velocity_y = CAR_RAMP_LAUNCH_VELOCITY
+                on_ground = False
+                register_cleared_obstacle()
+                spawn_obstacle()
                 draw_main_character()
                 draw_hud(theme)
                 draw_touch_controls_overlay()
@@ -7306,6 +7634,8 @@ def draw():
                 is_ducking = False
                 apply_player_hit(SPLASH_SOUND)
         elif obstacle_type == "jump_block":
+            pass
+        elif obstacle_type == "cliff_gap":
             pass
         elif rects_overlap(dino_hitbox, obstacle_hitbox):
             is_ducking = False
@@ -7946,6 +8276,7 @@ def draw_high_jump_powerup_effect(pose):
 
 def is_level9_han_car_active():
     return (
+        car_mode and
         game_started and
         not game_over and
         not flight_mode and
@@ -7971,7 +8302,7 @@ def draw_level9_han_car_overlay(pose):
     ellipse(body_x + 18, wheel_y, wheel_d, wheel_d)
     ellipse(body_x + body_w - 18, wheel_y, wheel_d, wheel_d)
 
-    fill(205, 46, 46)
+    fill(128, 132, 138)
     rect(body_x, body_y, body_w, body_h)
 
 
