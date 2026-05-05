@@ -85,7 +85,12 @@ Voor elk boss level stopt de endless-runner-flow kort in een statische hubscene.
 - De speler kan daar links/rechts bewegen zoals in een boss arena.
 - Links staat de badger shop.
 - Rechts staat de entrance naar het gevecht.
-- Interactie gebeurt met `Pijl omlaag`.
+- `Pijl omlaag` is context-afhankelijk in deze hubscene.
+- Als de speler voor de badger shop staat en `Pijl omlaag` indrukt, opent de shop-overlay; daar kan de speler items bekijken en kopen.
+- De pipe-achtige entrances gebruiken niet langer Mario-groen, maar een steenrode gradient zodat ze visueel meer als deze eigen gamewereld lezen.
+- Als de speler bij de arena-ingang staat en `Pijl omlaag` indrukt, start het gevecht alleen als de vereiste loadout aanwezig is.
+- Voor gewone boss-hubs betekent dat: eerst een ranged wapen kopen in de shop; zonder wapen weigert de ingang de crouch-interactie en verschijnt de melding `Buy a gun first!`.
+- Voor de coyote-route is de uitzondering character-afhankelijk: roadrunner gebruikt daar `TNT`, terwijl andere speelbare karakters hun gewone ranged weapon nodig hebben.
 
 ### 2.2.1 Mini bosses
 
@@ -107,6 +112,7 @@ Voor elk boss level stopt de endless-runner-flow kort in een statische hubscene.
 - Een botsing met een pipe blijft direct fataal; pipe-collisions gebruiken dus geen hitpoint-systeem.
 - De post-boss overgang mag de luchtarena pas loslaten nadat de defeat/explosion sequence visueel klaar is.
 - Pas daarna schakelt de game terug van city-bossarena naar de cave-flight presentatie van level 6.
+- Vlak voor level 7 slaat de vlucht om naar een noodlanding: de brandstof is op, het vliegtuig zakt vanzelf langzaam, omhoog sturen werkt niet meer en de speler moet landen op een runway.
 
 Waarom:
 
@@ -119,7 +125,9 @@ Waarom:
 ### 2.2.3 Eindbaas level 10
 
 - Voor de coyote-boss staat rechts een pijp.
-- `Pijl omlaag` op de pijp start de ondergrondse boss arena.
+- Die pijp gebruikt dezelfde look als andere pipe-entrances.
+- De speler kan op die pijp springen en daarna met crouch, dus `Pijl omlaag`, de pijp in duiken.
+- Dat duiken via de pijp start de ondergrondse boss arena alleen met de juiste boss-weapon: voor roadrunner is dat `TNT`, voor andere karakters hun gewone ranged weapon.
 - De arena gebruikt een donkerdere, grijze grot-achtige achtergrond.
 - Grote vallende bommen tonen een gele landingsgloed zolang ze nog in de lucht zijn.
 - Zodra een grote bom ontploft, licht de cave kort op.
@@ -219,12 +227,20 @@ Waarom:
 - Flight mode loopt direct door vanuit de zeppelin-fight aan het einde van level 5.
 - De groene pijpen maken plaats voor blauwe cave hazards die als stalactieten en stalagmieten uit plafond en vloer groeien.
 - Deze hazards bewegen langzaam op en neer door het gat tussen boven- en onderzijde te verschuiven.
-- Een deel van de hazards begint kort te trillen voordat een stuk steen losbreekt en naar beneden valt.
+- Ongeveer de helft van deze cave hazards heeft geen extra projectile-actie; die hazards moet de speler alleen ontwijken door strak te sturen.
+- Van de resterende cave hazards laat ongeveer de helft een steen uit de bovenste stalactiet vallen en laat ongeveer de helft een rode magma-bal uit de onderste stalagmiet omhoog springen.
+- Zowel de vallende steen als de magma-bal kondigen zich ruim van tevoren aan met een zichtbare marker op de spire; pas bij de echte launch of val klinkt `hiss.wav`.
+- De waarschuwing zelf is niet dodelijk. Voor de speler blijft vóór de launch of val alleen de vaste stalactiet of stalagmiet gevaarlijk. Zodra de steen valt of de magma-bal springt, wordt dat bewegende object wel dodelijk.
+- Dit maakt level 6 nadrukkelijk meer een stuurlevel: de speler moet vaker heen en weer werken door nauwere doorgangen en actieve projectiles, minder als een rustige endless flyer en meer in de richting van Gradius/Galaga-achtig lane management.
 - Dit level gebruikt geen aparte miniboss-intro meer; het is juist de doorlopende cave-flight nasleep van de zeppelin-boundary fight.
+- Aan het einde van deze cave-flight verschijnt eerst een brandstofwaarschuwing; daarna start de noodlanding richting level 7.
 
 ### 2.4.7 Level 7: `Cactus Fortress`
 
 - Tweede minibossfase.
+- De speler komt hier niet direct lopend aan: eerst moet het vliegtuig op een bredere landingsbaan landen omdat de brandstof op is.
+- Tijdens die noodlanding mag het vliegtuig nog wel links/rechts en sneller omlaag sturen, maar niet meer omhoog.
+- Te laag landen naast de baan of rechts voorbij de runway vliegen is fataal.
 - Grondgevecht tegen de reuzencactus.
 - Shop-hub vóór de arena-ingang.
 
@@ -235,14 +251,21 @@ Waarom:
 - Hier verschijnen voor het eerst vogels die tijdens hun passage ook verticaal bewegen.
 - De eerste verticale patronen blijven eenvoudig en lineair: een vogel gaat of omhoog of omlaag terwijl hij van rechts naar links over het scherm beweegt.
 
-### 2.4.9 Level 9: `Bird Storm`
+### 2.4.9 Level 9: `Running up the hill, and driving down`
 
 - Voorbereiding op de eindbaas.
 - Hogere reactiedruk en minder hersteltijd.
 - Vogelzwermen doorbreken hier de oude enkelvoudige obstakelcadans.
 - Vogels bewegen hier sneller dan in level 8.
 - Naast lineaire verticale passages mag level 9 ook sinus-passages gebruiken.
+- De opening van level 9 is geen vlakke runnerstrook meer: voordat de speler de auto bereikt, hoort de grond tijdens ongeveer `10` tot `15` seconden scrollen geleidelijk omhoog te lopen.
+- Die run-up hoort niet als een volledig zichtbare driehoek of complete heuvel in beeld te staan. De camera blijft een runner-camera; de speler ziet dus alleen het lokale stuk grond rondom het karakter langzaam stijgen terwijl de wereld naar links scrollt.
+- Tijdens deze run-up blijft de speler exact op dezelfde getekende grondlijn staan; de collision- en renderhoogte van de speler mogen dus niet onder de zichtbare heuvel zakken.
+- Tegen het einde van deze run-up staat de auto hoog op de helling, ongeveer rond de middenhoogte van het scherm, zodat de overgang naar car mode als een klim naar boven voelt.
 - Een sinus-passage hoort over de volledige schermpassage precies één hele golf te maken, zodat begin, midden en eind van de beweging voorspelbaar blijven.
+- In dit level staat ook de auto-instap: als de speler op de auto landt, stopt de sidescroll heel kort voor een instapsequence.
+- Tijdens die korte stilval speelt eerst `KoyRoilers-car-engine-fail-356001.mp3` als stotterende start/instapcue.
+- Zodra de instappauze voorbij is en `car_mode` actief blijft, loopt de motor door met `pixabay-flutie8211-6-cylinder-car-starting-in-garage-399661.mp3`.
 
 ### 2.4.10 Level 10: `Giant Town`
 
@@ -424,6 +447,9 @@ Waarom:
 
 - Normale sprong: gebruik `jump.wav` voor alle karakters.
 - Versterkte/high jump (duck-jump, high-jump powerup of actieve jump shoes): gebruik `weeh.wav` voor alle karakters.
+- De noodlanding richting level 7 gebruikt `pixabay-arunangshubanerjee-cockpit-sound-of-landing-gear-deployment-aviation-audio-328162.mp3` als lange landing-alert; de donkere motorwolken tijdens die sequence gebruiken daarna bewust de kortere `hiss.wav`.
+- De auto-instap in level 9 gebruikt twee aparte autosignalen: `KoyRoilers-car-engine-fail-356001.mp3` voor de korte instappauze en `pixabay-flutie8211-6-cylinder-car-starting-in-garage-399661.mp3` als doorlopende motorklank zolang de speler rijdt.
+- Menu- en levelmuziek hebben nu een duidelijker rolverdeling: `big-coyote-in-the-tree-2.mp3` is de menu-track; `loading-atmosphere.wav` is de relatieve stilte voor de pre-boss levels `3`, `6` en `9`.
 
 ## 6. Software Architecture
 
@@ -622,6 +648,14 @@ Voor audio-assets in web builds (pygbag) geldt:
 - .ogg werkt niet in Safari/iOS en is dus niet universeel web-compatibel.
 - Zie ook: [MDN Web Docs: Audio codecs](https://developer.mozilla.org/en-US/docs/Web/HTML/Supported_media_formats#browser_compatibility)
 
+### 11.1.2 Bestandsnamen en brontraceerbaarheid
+
+- Audiofilenames met attributie houden de bron zichtbaar in de bestandsnaam zelf.
+- Pixabay-audio gebruikt daarom een `pixabay-...` prefix wanneer die bron expliciet traceerbaar moet blijven, zoals bij `pixabay-mini-boss-tadaa.mp3` en `pixabay-arunangshubanerjee-cockpit-sound-of-landing-gear-deployment-aviation-audio-328162.mp3`.
+- Hetzelfde geldt voor `pixabay-flutie8211-6-cylinder-car-starting-in-garage-399661.mp3`; de bestandsnaam houdt daarmee expliciet de Pixabay-bron en de maker `flutie8211` zichtbaar.
+- Creator-specifieke audio buiten Pixabay houdt de maker ook in de bestandsnaam, zoals `KoyRoilers-car-engine-fail-356001.mp3`.
+- Deze traceerbaarheid hoeft niet opnieuw in de credits-roll te staan zolang de guidebook en assetnaam de bron ondubbelzinnig maken.
+
 ### 11.1.1 Waarom
 
 - Fallbacks op .ogg/.mp3/.wav maken foutmeldingen onduidelijk en maskeren assetproblemen.
@@ -630,6 +664,7 @@ Voor audio-assets in web builds (pygbag) geldt:
 
 ## 12. Development Environment
 
+- Deze game is ontwikkeld in Python 3 met als editor VS Code met gebruikmaking van CoPilot extensie voor agentic development. Zie verder de AGENTS.md voor hints voor AI/LLM agents en meer details.
 - De game kan lokaal native of als webpreview worden gedraaid.
 - Relevante scripts zijn onder meer `scripts/web/build_web.sh`, `scripts/web/run_web.sh` en `python3 -m py_compile dino_game.py`.
 - Smalle regressietests horen dicht op de gewijzigde slice te zitten.
@@ -647,7 +682,7 @@ De volgende ADR's zijn op dit moment direct relevant voor deze guidebook:
 - [docs/adr/004-dev-prod-runtime-parity-for-loading.md](../docs/adr/004-dev-prod-runtime-parity-for-loading.md)
 - [docs/adr/005-semver-application-versioning.md](../docs/adr/005-semver-application-versioning.md)
 
-ADR003 borgt de keuze voor een single-file modular monolith voor applicatiecode. ADR004 en ADR005 onderbouwen runtime-parity en application versioning; beide keuzes komen ook terug in deze guidebook. Voor de structuur van dit document volgen we Brown en stemmen we de uitwerking praktisch af op deze repo en de genoemde ADR's.
+ADR003 borgt de keuze voor een single-file modular monolith voor applicatiecode. ADR004 en ADR005 onderbouwen runtime-parity en application versioning; beide keuzes komen ook terug in dit guidebook. Voor de structuur van dit document volgen we Simon Brown (Software Architecture for developers, 2012) en stemmen we de uitwerking praktisch af op deze repo en de genoemde ADR's.
 
 ## Bronnen
 
