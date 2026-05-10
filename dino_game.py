@@ -369,7 +369,7 @@ LEVEL9_HILL_RUNUP_OBSTACLE_LAYOUT = (
     (0.91, "cactus_low"),
 )
 BIRD_VERTICAL_TRAVEL_PX = 78
-BIRD_DIVE_ENTRY_Y = 92
+BIRD_DIVE_ENTRY_Y = sc(92)
 BIRD_DIVE_VERTICAL_TRAVEL_PX = 248
 BIRD_SINE_AMPLITUDE_PX = 54
 LEVEL9_BIRD_TOP_BAND_MAX_Y = 128
@@ -739,117 +739,117 @@ LEVEL_SCRIPTED_OBSTACLE_PATTERNS = {
 }
 
 # Collision hitbox tuning (smaller than visual sprite for fair gameplay)
-DINO_HITBOX_INSET_LEFT = 12
-DINO_HITBOX_INSET_RIGHT = 12
-DINO_HITBOX_INSET_TOP = 8
-DINO_HITBOX_INSET_BOTTOM = 8
-DINO_HITBOX_Y_OFFSET = 3
+DINO_HITBOX_INSET_LEFT = sc(12)
+DINO_HITBOX_INSET_RIGHT = sc(12)
+DINO_HITBOX_INSET_TOP = sc(8)
+DINO_HITBOX_INSET_BOTTOM = sc(8)
+DINO_HITBOX_Y_OFFSET = sc(3)
 
-DINO_DUCK_HITBOX_INSET_LEFT = 8
-DINO_DUCK_HITBOX_INSET_RIGHT = 8
-DINO_DUCK_HITBOX_INSET_TOP = 6
-DINO_DUCK_HITBOX_INSET_BOTTOM = 4
-DINO_DUCK_HITBOX_Y_OFFSET = 2
+DINO_DUCK_HITBOX_INSET_LEFT = sc(8)
+DINO_DUCK_HITBOX_INSET_RIGHT = sc(8)
+DINO_DUCK_HITBOX_INSET_TOP = sc(6)
+DINO_DUCK_HITBOX_INSET_BOTTOM = sc(4)
+DINO_DUCK_HITBOX_Y_OFFSET = sc(2)
 
 OBSTACLE_CONFIG = {
     "cactus_low": {
         "img": CACTUS_IMGS[0],
-        "w": 50,
-        "h": 60,
-        "y": 400,
-        "hitbox_insets": (7, 7, 6, 4),  # left, right, top, bottom
+        "w": sc(50),
+        "h": sc(60),
+        "y": sc(400),
+        "hitbox_insets": (sc(7), sc(7), sc(6), sc(4)),  # left, right, top, bottom
         "points": 1,
     },
     "cactus_high": {
         "img": CACTUS_IMGS[0],
-        "w": 56,
-        "h": 88,
-        "y": 372,
-        "hitbox_insets": (8, 8, 8, 4),
+        "w": sc(56),
+        "h": sc(88),
+        "y": sc(372),
+        "hitbox_insets": (sc(8), sc(8), sc(8), sc(4)),
         "points": 2,
     },
     "cactus_tower": {
         # 2x zo hoog als de lage cactus; doorgaans high jump nodig.
         "img": CACTUS_IMGS[0],
-        "w": 72,
-        "h": 120,
-        "y": 340,
-        "hitbox_insets": (10, 10, 8, 4),
+        "w": sc(72),
+        "h": sc(120),
+        "y": sc(340),
+        "hitbox_insets": (sc(10), sc(10), sc(8), sc(4)),
         "points": 4,
     },
     "high_jump_powerup": {
         "img": None,
-        "w": 28,
-        "h": 28,
-        "y": 408,
-        "hitbox_insets": (3, 3, 3, 3),
+        "w": sc(28),
+        "h": sc(28),
+        "y": sc(408),
+        "hitbox_insets": (sc(3), sc(3), sc(3), sc(3)),
         "points": 0,
     },
     "weapon_powerup": {
         "img": None,
-        "w": 34,
-        "h": 26,
-        "y": 404,
-        "hitbox_insets": (3, 3, 3, 3),
+        "w": sc(34),
+        "h": sc(26),
+        "y": sc(404),
+        "hitbox_insets": (sc(3), sc(3), sc(3), sc(3)),
         "points": 0,
     },
     "jump_block": {
         "img": None,
-        "w": 42,
-        "h": 42,
-        "y": 282,
-        "hitbox_insets": (2, 2, 2, 2),
+        "w": sc(42),
+        "h": sc(42),
+        "y": sc(282),
+        "hitbox_insets": (sc(2), sc(2), sc(2), sc(2)),
         "points": 0,
     },
     "coin": {
         "img": None,
-        "w": 20,
-        "h": 20,
-        "y": 360,
-        "hitbox_insets": (2, 2, 2, 2),
+        "w": sc(20),
+        "h": sc(20),
+        "y": sc(360),
+        "hitbox_insets": (sc(2), sc(2), sc(2), sc(2)),
         "points": 0,
     },
     "water_lily": {
         "img": None,
-        "w": 184,
-        "h": 34,
-        "y": 426,
+        "w": sc(184),
+        "h": sc(34),
+        "y": sc(426),
         "hitbox_insets": (0, 0, 0, 0),
         "points": 3,
     },
     "wind_swirl": {
         "img": None,
-        "w": 76,
-        "h": 96,
-        "y": 324,
-        "hitbox_insets": (10, 10, 8, 8),
+        "w": sc(76),
+        "h": sc(96),
+        "y": sc(324),
+        "hitbox_insets": (sc(10), sc(10), sc(8), sc(8)),
         "points": 3,
     },
     "snake": {
         "img": SNAKE_IMG,
-        "w": 54,
-        "h": 30,
-        "y": 430,
-        "hitbox_insets": (6, 6, 6, 3),
-        "extended_w": 108,
-        "extended_hitbox_insets": (10, 10, 6, 3),
+        "w": sc(54),
+        "h": sc(30),
+        "y": sc(430),
+        "hitbox_insets": (sc(6), sc(6), sc(6), sc(3)),
+        "extended_w": sc(108),
+        "extended_hitbox_insets": (sc(10), sc(10), sc(6), sc(3)),
         "points": 5,
     },
     "bird_low": {
         "img": BIRD_RIGHT_IMG,
-        "w": 56,
-        "h": 34,
-        "y": 390,
-        "hitbox_insets": (8, 8, 6, 6),
+        "w": sc(56),
+        "h": sc(34),
+        "y": sc(390),
+        "hitbox_insets": (sc(8), sc(8), sc(6), sc(6)),
         "points": 3,
         "requires_duck_score": True,
     },
     "bird_rise": {
         "img": BIRD_RIGHT_IMG,
-        "w": 56,
-        "h": 34,
-        "y": 402,
-        "hitbox_insets": (8, 8, 6, 6),
+        "w": sc(56),
+        "h": sc(34),
+        "y": sc(402),
+        "hitbox_insets": (sc(8), sc(8), sc(6), sc(6)),
         "points": 3,
         "requires_duck_score": True,
     },
@@ -858,25 +858,25 @@ OBSTACLE_CONFIG = {
         "w": 56,
         "h": 34,
         "y": BIRD_DIVE_ENTRY_Y,
-        "hitbox_insets": (8, 8, 6, 6),
+        "hitbox_insets": (sc(8), sc(8), sc(6), sc(6)),
         "points": 3,
         "requires_duck_score": True,
     },
     "bird_sine": {
         "img": BIRD_RIGHT_IMG,
-        "w": 58,
-        "h": 36,
-        "y": 376,
-        "hitbox_insets": (8, 8, 6, 6),
+        "w": sc(58),
+        "h": sc(36),
+        "y": sc(376),
+        "hitbox_insets": (sc(8), sc(8), sc(6), sc(6)),
         "points": 4,
         "requires_duck_score": True,
     },
     "bird_swarm": {
         "img": None,
-        "w": 156,
-        "h": 72,
-        "y": 348,
-        "hitbox_insets": (12, 12, 8, 8),
+        "w": sc(156),
+        "h": sc(72),
+        "y": sc(348),
+        "hitbox_insets": (sc(12), sc(12), sc(8), sc(8)),
         "points": 6,
         "requires_duck_score": True,
     },
@@ -884,16 +884,16 @@ OBSTACLE_CONFIG = {
         "img": AIRPLANE_IMG,
         "w": AIRPLANE_PICKUP_W,
         "h": AIRPLANE_PICKUP_H,
-        "y": 378,
-        "hitbox_insets": (8, 8, 6, 4),
+        "y": sc(378),
+        "hitbox_insets": (sc(8), sc(8), sc(6), sc(4)),
         "points": 0,
     },
     "car_pickup": {
         "img": None,
         "w": CAR_PICKUP_W,
         "h": CAR_PICKUP_H,
-        "y": 396,
-        "hitbox_insets": (8, 8, 6, 4),
+        "y": sc(396),
+        "hitbox_insets": (sc(8), sc(8), sc(6), sc(4)),
         "points": 0,
     },
     "car_ramp": {
@@ -2489,7 +2489,7 @@ def choose_obstacle_type():
 
 
 def get_random_coin_spawn_y():
-    coin_ys = [320, 350, 382]
+    coin_ys = [sc(320), sc(350), sc(382)]
     return coin_ys[int(random(0, len(coin_ys)))]
 
 
@@ -2506,9 +2506,9 @@ def get_coin_arc_spawn_ys(obstacle_kind):
     obstacle_cfg = OBSTACLE_CONFIG.get(obstacle_kind, OBSTACLE_CONFIG["cactus_low"])
     obstacle_top = int(obstacle_cfg["y"])
     lift = get_active_coin_arc_lift()
-    side_y = max(134, obstacle_top - 18 - lift)
-    inner_y = max(112, obstacle_top - 52 - lift)
-    apex_y = max(92, obstacle_top - 86 - lift)
+    side_y = max(sc(134), obstacle_top - sc(18) - lift)
+    inner_y = max(sc(112), obstacle_top - sc(52) - lift)
+    apex_y = max(sc(92), obstacle_top - sc(86) - lift)
     return [side_y, inner_y, apex_y, inner_y, side_y]
 
 
@@ -2573,11 +2573,11 @@ def maybe_spawn_bonus_coin_pattern(base_type, base_x):
 
     if int(random(0, 100)) < BONUS_COIN_ARC_CHANCE_PCT:
         arc_points = [
-            (-56, -48 - lift),
-            (-24, -84 - lift),
-            (8, -118 - lift),
-            (40, -84 - lift),
-            (72, -48 - lift),
+            (-sc(56), -sc(48) - lift),
+            (-sc(24), -sc(84) - lift),
+            (sc(8), -sc(118) - lift),
+            (sc(40), -sc(84) - lift),
+            (sc(72), -sc(48) - lift),
         ]
         for dx, dy in arc_points:
             bonus_coins.append({
@@ -2589,11 +2589,11 @@ def maybe_spawn_bonus_coin_pattern(base_type, base_x):
         return
 
     if int(random(0, 100)) < BONUS_COIN_LINE_CHANCE_PCT:
-        line_y = float(max(122, obstacle_y - obstacle_h - 16 - int(lift * 0.85)))
-        start_x = obstacle_center_x - 54
+        line_y = float(max(sc(122), obstacle_y - obstacle_h - sc(16) - int(lift * 0.85)))
+        start_x = obstacle_center_x - sc(54)
         for idx in range(4):
             bonus_coins.append({
-                "x": float(start_x + idx * 34),
+                "x": float(start_x + idx * sc(34)),
                 "y": line_y,
                 "w": coin_size,
                 "h": coin_size,
@@ -2617,7 +2617,7 @@ def maybe_spawn_extra_obstacle_pack(base_type, base_x):
 
     current_x = base_x
     for idx, obstacle_kind in enumerate(pack_types):
-        gap = random(44, 68) if idx == 0 else random(52, 82)
+        gap = random(sc(44), sc(68)) if idx == 0 else random(sc(52), sc(82))
         prev_cfg = OBSTACLE_CONFIG[base_type if idx == 0 else pack_types[idx - 1]]
         current_x += prev_cfg["w"] + gap
         extra_obstacles.append({
@@ -8668,8 +8668,8 @@ def draw():
             draw_dj_jukebox_panel(theme)
             if millis() < screenshot_notice_until_ms:
                 fill(30, 110, 30)
-                text_size(14)
-                text(screenshot_notice_text, 30, height - 24)
+                text_size(sc(7))
+                text(screenshot_notice_text, sc(30), height - sc(24))
             return
 
         background(245)
@@ -8678,15 +8678,15 @@ def draw():
         # Status cluster on the right, above quick-action buttons.
         fill(20)
         speed_mult = scroll_speed / BASE_SCROLL_SPEED
-        text_size(22)
-        text(f"Current level: {current_level}", width - 316, 84)
-        text(f"Speed: {speed_mult:.2f}x", width - 316, 114)
+        text_size(sc(11))
+        text(f"Current level: {current_level}", width - sc(316), sc(84))
+        text(f"Speed: {speed_mult:.2f}x", width - sc(316), sc(114))
 
         draw_info_screen_actions(theme)
         if millis() < screenshot_notice_until_ms:
             fill(30, 110, 30)
-            text_size(14)
-            text(screenshot_notice_text, 30, height - 24)
+            text_size(sc(7))
+            text(screenshot_notice_text, sc(30), height - sc(24))
         return
 
     if not game_started:
@@ -8695,36 +8695,36 @@ def draw():
             draw_shop_screen(theme)
             draw_debug_overlay()
             return
-        menu_meta_y = 112
-        menu_title_y = 196
-        menu_prompt_y = 236
+        menu_meta_y = sc(112)
+        menu_title_y = sc(196)
+        menu_prompt_y = sc(236)
         fill(*theme.get("menu_meta", theme["text"]))
-        text_size(22)
-        text(f"Coin pouch: {coin_count}/{MAX_COIN_POUCH}", width // 2 - 122, menu_meta_y)
-        text(f"Highscore: {high_score}", width // 2 - 92, menu_meta_y + 30)
-        text_size(16)
-        text(f"Version: v{APP_VERSION}", width // 2 - 68, menu_meta_y + 56)
+        text_size(sc(11))
+        text(f"Coin pouch: {coin_count}/{MAX_COIN_POUCH}", width // 2 - sc(122), menu_meta_y)
+        text(f"Highscore: {high_score}", width // 2 - sc(92), menu_meta_y + sc(30))
+        text_size(sc(8))
+        text(f"Version: v{APP_VERSION}", width // 2 - sc(68), menu_meta_y + sc(56))
         fill(*theme.get("menu_title", theme["accent"]))
-        text_size(44)
-        text("Dino Game", width // 2 - 105, menu_title_y)
+        text_size(sc(22))
+        text("Dino Game", width // 2 - sc(105), menu_title_y)
         fill(*theme.get("menu_prompt", theme["text"]))
-        text_size(21)
-        text("Start: SPACE/A or click Start", width // 2 - 165, menu_prompt_y)
-        text("Jump: up arrow", width // 2 - 88, menu_prompt_y + 28)
-        text("Duck: down arrow (air = fast fall)", width // 2 - 190, menu_prompt_y + 56)
-        text("High jump: duck then jump within 0.5s", width // 2 - 220, menu_prompt_y + 84)
+        text_size(sc(10))
+        text("Start: SPACE/A or click Start", width // 2 - sc(165), menu_prompt_y)
+        text("Jump: up arrow", width // 2 - sc(88), menu_prompt_y + sc(28))
+        text("Duck: down arrow (air = fast fall)", width // 2 - sc(190), menu_prompt_y + sc(56))
+        text("High jump: duck then jump within 0.5s", width // 2 - sc(220), menu_prompt_y + sc(84))
         draw_character_select(theme)
         if quit_confirm_active:
             fill(250, 250, 250)
-            rect(width // 2 - 190, height // 2 + 132, 380, 84)
+            rect(width // 2 - sc(190), height // 2 + sc(132), sc(380), sc(84))
             stroke(*theme["accent"])
-            stroke_weight(3)
+            stroke_weight(sc(2))
             no_fill()
-            rect(width // 2 - 190, height // 2 + 132, 380, 84)
+            rect(width // 2 - sc(190), height // 2 + sc(132), sc(380), sc(84))
             no_stroke()
             fill(*theme["text"])
-            text_size(28)
-            text("Wanna quit, really? y/n", width // 2 - 168, height // 2 + 186)
+            text_size(sc(14))
+            text("Wanna quit, really? y/n", width // 2 - sc(168), height // 2 + sc(186))
         draw_touch_controls_overlay()
         draw_debug_overlay()
         return
