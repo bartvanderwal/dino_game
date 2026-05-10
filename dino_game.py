@@ -162,6 +162,9 @@ BADGER_SHOP_IMG = load_optional_image((
     "assets/npc/badger_shop.png",
 ))
 BADGER_DJ_IMG = load_optional_image((
+    "assets/dino_game-music-screen-badger-disco-3.png",
+    "assets/dino_game-music-screen-badger-disco-1.png",
+    "assets/dino_game-music-screen-badger-disco-2.png",
     "assets/npc/badger-dj.png",
     "assets/npc/badger_dj.png",
     "assets/obstacles/badger-dj.png",
@@ -343,14 +346,19 @@ CAR_SPEED_TIER_JUMP_VELOCITIES = (-24, -30, -36, -42)
 CAR_JUMP_TARGET_SEQUENCE = (1, 2, 3)
 CLIFF_GAP_W_BY_TARGET_TIER = (188, 228, 268, 320)
 LEVEL9_HILL_RUNUP_SECONDS = 12.0
+LEVEL9_HILL_DESCENT_SECONDS = 9.0
 LEVEL9_HILL_VISIBLE_SLOPE_PX = 64.0
 LEVEL9_HILL_VARIATION_PX = 5.0
+LEVEL9_RAMP_TO_CLIFF_GAP_PX = 480.0
+LEVEL9_CLIFF_GAP_MIN_SPACING_PX = 480.0
 LEVEL9_HILL_RUNUP_OBSTACLE_LAYOUT = (
-    (0.16, "cactus_low"),
-    (0.31, "cactus_low"),
-    (0.47, "cactus_high"),
-    (0.63, "cactus_low"),
-    (0.79, "cactus_low"),
+    (0.14, "cactus_low"),
+    (0.26, "snake"),
+    (0.39, "bird_sine"),
+    (0.52, "cactus_high"),
+    (0.66, "bird_low"),
+    (0.79, "snake"),
+    (0.91, "cactus_low"),
 )
 BIRD_VERTICAL_TRAVEL_PX = 78
 BIRD_DIVE_ENTRY_Y = 92
@@ -492,11 +500,16 @@ SHOP_ITEMS = (
     },
 )
 MENU_MUSIC_PATH = "assets/audio/big-coyote-in-the-tree-2.mp3"
-PRE_BOSS_MUSIC_PATH = "assets/audio/loading-atmosphere.wav"
-GAME_MUSIC_PATH = "assets/audio/pixel-leap.wav"
+PRE_BOSS_MUSIC_PATH = "assets/audio/loading-atmosphere.mp3"
+GAME_MUSIC_PATH = "assets/audio/pixel-leap.mp3"
 BIRD_BOSS_MUSIC_PATH = "assets/audio/Bigbird-in-the-tree-high-energy.mp3"
 AIR_BOSS_MUSIC_PATH = "assets/audio/Bigbird-in-the-tree-2.mp3"
 COYOTE_BOSS_MUSIC_PATH = "assets/audio/big-coyote-in-the-tree-1.mp3"
+CACTUS_BOSS_MUSIC_PATH = "assets/audio/Prickly-so-sickly-cactus-throwing-spikes-yikes.mp3"
+PLANE_L5_MUSIC_PATH = "assets/audio/plane-funk-music-cactus-arms-short.mp3"
+PLANE_L6_MUSIC_PATH = "assets/audio/plane2-funk-music-cactus-arms-short.mp3"
+CAR_L9_MUSIC_PATH = "assets/audio/car-funk-music-cactus-arms-are-destroyed.mp3"
+PRICKLY_DASH_MUSIC_PATH = "assets/audio/Prickly-so-sickly-cactus-throwing-spikes-yikes.mp3"
 MUSIC_PLAYBACK_RULES = {
     "boss:coyote": {
         "start_seconds": 0.0,
@@ -510,14 +523,17 @@ FINAL_VICTORY_MUSIC_PATH = "assets/audio/finish-game-music-victory.mp3"
 VICTORY_MUSIC_PATH = "assets/audio/pixabay-mini-boss-tadaa.mp3"
 CREDITS_MUSIC_PATH = FINAL_VICTORY_MUSIC_PATH
 DJ_JUKEBOX_TRACKS = (
-    {"title": "Main Menu Theme", "level": "Menu / Splash", "path": MENU_MUSIC_PATH},
-    {"title": "Runner Theme", "level": "Main levels", "path": GAME_MUSIC_PATH},
-    {"title": "Pre-Boss Atmosphere", "level": "Before bosses", "path": PRE_BOSS_MUSIC_PATH},
-    {"title": "Bird Boss Theme", "level": "Boss L4", "path": BIRD_BOSS_MUSIC_PATH},
-    {"title": "Zeppelin Boss Theme", "level": "Boss L7", "path": AIR_BOSS_MUSIC_PATH},
-    {"title": "Coyote Boss Theme", "level": "Final boss L10", "path": COYOTE_BOSS_MUSIC_PATH},
-    {"title": "Victory Theme", "level": "Game complete", "path": VICTORY_MUSIC_PATH},
-    {"title": "Credits Theme", "level": "Credits", "path": CREDITS_MUSIC_PATH},
+    {"title": "Main Menu", "level": "Menu / Splash", "path": MENU_MUSIC_PATH},
+    {"title": "Runner", "level": "Main levels", "path": GAME_MUSIC_PATH},
+    {"title": "Bird Boss", "level": "Boss L4", "path": BIRD_BOSS_MUSIC_PATH},
+    {"title": "Zeppelin Boss", "level": "Boss L5", "path": AIR_BOSS_MUSIC_PATH},
+    {"title": "Cactus Boss", "level": "Boss L7", "path": CACTUS_BOSS_MUSIC_PATH},
+    {"title": "Coyote Boss", "level": "Final boss L10", "path": COYOTE_BOSS_MUSIC_PATH},
+    {"title": "Plane Level 5", "level": "Flight L5", "path": PLANE_L5_MUSIC_PATH},
+    {"title": "Plane Level 6", "level": "Flight L6", "path": PLANE_L6_MUSIC_PATH},
+    {"title": "Car Level 9", "level": "Car L9", "path": CAR_L9_MUSIC_PATH},
+    {"title": "Prickly (Alt)", "level": "Cactus alt", "path": PRICKLY_DASH_MUSIC_PATH},
+    {"title": "Credits", "level": "Credits", "path": CREDITS_MUSIC_PATH},
 )
 # Mini-boss stinger attribution lives in code and credits so the source stays
 # traceable even if asset filenames change later.
@@ -1133,6 +1149,10 @@ car_crash_rotation_deg = 0.0
 car_crash_rect = (0.0, 0.0, 0.0, 0.0)
 car_cliff_fall_active = False
 car_cliff_fall_velocity_y = 0.0
+level9_force_cliff_after_ramp = False
+level9_forced_cliff_spawn_x = 0.0
+level9_car_descent_started_ms = 0
+level9_car_descent_start_ground_y = float(GROUND_Y)
 boss_left_pressed = False
 boss_right_pressed = False
 snake_hiss_played_for_current = False
@@ -1153,6 +1173,8 @@ current_music_start_offset_seconds = 0.0
 info_screen_mode = "main"
 dj_selected_track_index = 0
 dj_preview_track_index = None
+cloud_animation_ms = 0.0
+cloud_animation_last_tick_ms = 0
 player_max_hp = 1
 player_hp = 1
 player_damage_cooldown_until_ms = 0
@@ -1226,6 +1248,8 @@ def reset_game(show_splash=False):
     global car_speed_tier_index, car_jump_target_tier_index, car_jump_target_cycle_index
     global car_crash_wreck_visible, car_crash_rotation_deg, car_crash_rect
     global car_cliff_fall_active, car_cliff_fall_velocity_y
+    global level9_force_cliff_after_ramp, level9_forced_cliff_spawn_x
+    global level9_car_descent_started_ms, level9_car_descent_start_ground_y
     global boss_left_pressed, boss_right_pressed
     global snake_hiss_played_for_current
     global player_projectiles, player_shot_cooldown_until_ms
@@ -1246,6 +1270,7 @@ def reset_game(show_splash=False):
     global touch_active_button, touch_ignore_next_click
     global pending_high_jump_landing_roar
     global run_playtime_seconds, playtime_last_tick_ms, death_recorded_this_run
+    global cloud_animation_ms, cloud_animation_last_tick_ms
     stop_intro_speech()
     now = millis()
     dino_y = DINO_Y
@@ -1259,6 +1284,8 @@ def reset_game(show_splash=False):
     info_screen_mode = "main"
     dj_selected_track_index = 0
     dj_preview_track_index = None
+    cloud_animation_ms = 0.0
+    cloud_animation_last_tick_ms = now
     run_playtime_seconds = 0
     playtime_last_tick_ms = now
     death_recorded_this_run = False
@@ -1316,6 +1343,10 @@ def reset_game(show_splash=False):
     car_crash_rect = (0.0, 0.0, 0.0, 0.0)
     car_cliff_fall_active = False
     car_cliff_fall_velocity_y = 0.0
+    level9_force_cliff_after_ramp = False
+    level9_forced_cliff_spawn_x = 0.0
+    level9_car_descent_started_ms = 0
+    level9_car_descent_start_ground_y = float(GROUND_Y)
     wet_ground_until_ms = 0
     wet_ground_started_ms = 0
     pending_airplane_spawn = False
@@ -1449,6 +1480,8 @@ def get_boss_music_selection():
         return "boss:bird", resolve_runtime_asset_path(BIRD_BOSS_MUSIC_PATH)
     if boss_type == "zeppelin_miniboss" or boss_level == 5:
         return "boss:air", resolve_runtime_asset_path(AIR_BOSS_MUSIC_PATH)
+    if boss_type == "cactus_miniboss" or boss_level == 7:
+        return "boss:cactus", resolve_runtime_asset_path(CACTUS_BOSS_MUSIC_PATH)
     if boss_type == "final_boss" and boss_state.get("form") == "ReuzenCoyote":
         return "boss:coyote", resolve_runtime_asset_path(COYOTE_BOSS_MUSIC_PATH)
     return None, None
@@ -1469,10 +1502,14 @@ def get_background_music_selection():
         target_mode, target_path = get_boss_music_selection()
         if target_mode is not None:
             return target_mode, target_path
+    if flight_mode and current_level == 5 and game_started:
+        return "plane:l5", resolve_runtime_asset_path(PLANE_L5_MUSIC_PATH)
+    if flight_mode and current_level == 6 and game_started:
+        return "plane:l6", resolve_runtime_asset_path(PLANE_L6_MUSIC_PATH)
+    if car_mode and current_level == 9 and game_started:
+        return "car:l9", resolve_runtime_asset_path(CAR_L9_MUSIC_PATH)
     if not game_started or shared.show_info:
         return "menu", resolve_runtime_asset_path(MENU_MUSIC_PATH)
-    if current_level in PRE_BOSS_LEVELS:
-        return "preboss", resolve_runtime_asset_path(PRE_BOSS_MUSIC_PATH)
     return "game", resolve_runtime_asset_path(GAME_MUSIC_PATH)
 
 
@@ -2202,21 +2239,21 @@ def setup():
         )
         return
 
-    JUMP_SOUND = load_sound_or_none("assets/audio/jump.wav")
+    JUMP_SOUND = load_sound_or_none("assets/audio/jump.mp3")
     HIGH_JUMP_SOUND = make_high_jump_sound()
-    WEEH_SOUND = load_sound_or_none("assets/audio/weeh.wav")
+    WEEH_SOUND = load_sound_or_none("assets/audio/weeh.mp3")
     COWBOY_HIGH_JUMP_SOUND = load_sound_or_none("assets/audio/floraphonic-cute-character-wee-1-188162.mp3")
     if COWBOY_HIGH_JUMP_SOUND is not None:
         COWBOY_HIGH_JUMP_SOUND.set_volume(0.4)
-    DINO_ROAR_SOUND = load_sound_or_none("assets/audio/roaarr.wav")
+    DINO_ROAR_SOUND = load_sound_or_none("assets/audio/roaarr.mp3")
 
     PIPE_ENTRY_SOUND = make_pipe_entry_sound()
 
-    CRASH_SOUND = load_sound_or_none("assets/audio/crash.wav")
+    CRASH_SOUND = load_sound_or_none("assets/audio/crash.mp3")
     FLIGHT_CRASH_SOUND = load_sound_or_none("assets/audio/49053354-cartoon-fall-318229.mp3")
     if FLIGHT_CRASH_SOUND is not None:
         FLIGHT_CRASH_SOUND.set_volume(0.7)
-    HISS_SOUND = load_sound_or_none("assets/audio/hiss.wav")
+    HISS_SOUND = load_sound_or_none("assets/audio/hiss.mp3")
     PLAYER_DEATH_SOUND = load_sound_or_none("assets/audio/universfield-character-falling-on-ground-250069.mp3")
     FALL_IMPACT_SOUND = load_sound_or_none("assets/audio/universfield-giant-fall-impact-352446.mp3")
     bird_boss_fall_path = pick_existing_runtime_asset_path(
@@ -2227,10 +2264,10 @@ def setup():
         fallback_path="assets/soundreality-fall-217900.mp3",
     )
     BIRD_BOSS_FALL_SOUND = load_sound_or_none(bird_boss_fall_path)
-    FIRE_PLAYER_SOUND = load_sound_or_none("assets/audio/fire-player.wav")
-    FIRE_ENEMY_SOUND = load_sound_or_none("assets/audio/fire-enemy.wav")
-    BOSS_EXPLOSION_SOUND = load_sound_or_none("assets/audio/boss-explosion.wav")
-    COIN_SOUND = load_sound_or_none("assets/audio/ping.wav")
+    FIRE_PLAYER_SOUND = load_sound_or_none("assets/audio/fire-player.mp3")
+    FIRE_ENEMY_SOUND = load_sound_or_none("assets/audio/fire-enemy.mp3")
+    BOSS_EXPLOSION_SOUND = load_sound_or_none("assets/audio/boss-explosion.mp3")
+    COIN_SOUND = load_sound_or_none("assets/audio/ping.mp3")
     MINI_BOSS_VICTORY_SOUND = load_sound_or_none(MINI_BOSS_VICTORY_SOUND_PATH)
     LANDING_WARNING_SOUND = load_sound_or_none(LANDING_WARNING_SOUND_PATH)
     CAR_ENTRY_SOUND = load_sound_or_none(CAR_ENTRY_SOUND_PATH)
@@ -2292,6 +2329,7 @@ def get_dino_hitbox():
 
 def choose_obstacle_type():
     global queued_obstacle_after_powerup, queued_spawn_sequence
+    global level9_force_cliff_after_ramp
     if pending_weapon_powerup_level > 0 and not weapon_powerup_ready:
         return "weapon_powerup"
 
@@ -2300,6 +2338,10 @@ def choose_obstacle_type():
 
     if pending_car_spawn and current_level == 9 and not car_mode:
         return "car_pickup"
+
+    if level9_force_cliff_after_ramp and current_level == 9 and car_mode:
+        level9_force_cliff_after_ramp = False
+        return "cliff_gap"
 
     if queued_spawn_sequence:
         return queued_spawn_sequence.pop(0)
@@ -2582,8 +2624,14 @@ def spawn_obstacle(force_type=None):
     global ground_pipe_gap_top
     global snake_hiss_played_for_current
     global car_jump_target_tier_index, car_jump_target_cycle_index
+    global level9_forced_cliff_spawn_x
     obstacle_type = force_type or choose_obstacle_type()
     obstacle_x = width + random(100, 300)
+    if obstacle_type == "cliff_gap" and car_mode:
+        obstacle_x = width + max(random(100, 300), LEVEL9_CLIFF_GAP_MIN_SPACING_PX)
+    if obstacle_type == "cliff_gap" and current_level == 9 and level9_forced_cliff_spawn_x > 0:
+        obstacle_x = max(float(get_player_x() + DINO_W + 24), float(level9_forced_cliff_spawn_x))
+        level9_forced_cliff_spawn_x = 0.0
     if obstacle_type == "car_pickup" and current_level == 9:
         obstacle_x = width + get_runner_ground_profile_distance(LEVEL9_HILL_RUNUP_SECONDS)
     obstacle_spawn_x = obstacle_x
@@ -3406,16 +3454,17 @@ def draw_car_ramp_obstacle(draw_x, draw_y, draw_w, draw_h):
 def draw_cliff_gap_obstacle(draw_x, draw_y, draw_w, draw_h, theme):
     left_shoulder_w = 34
     slope_w = 52
-    void_top_y = GROUND_Y + 18
+    ground_y = int(draw_y)
+    void_top_y = ground_y + 18
     no_stroke()
     fill(*theme["bg"])
-    rect(draw_x, GROUND_Y - 2, draw_w, draw_h + 22)
+    rect(draw_x, ground_y - 2, draw_w, draw_h + 22)
     fill(*theme["ground_fill"])
-    rect(draw_x, GROUND_Y, left_shoulder_w, 8)
+    rect(draw_x, ground_y, left_shoulder_w, 8)
     fill(96, 72, 52)
     triangle(
         draw_x + left_shoulder_w,
-        GROUND_Y,
+        ground_y,
         draw_x + left_shoulder_w + slope_w,
         void_top_y,
         draw_x + left_shoulder_w,
@@ -3427,9 +3476,9 @@ def draw_cliff_gap_obstacle(draw_x, draw_y, draw_w, draw_h, theme):
     rect(draw_x + left_shoulder_w + slope_w + 8, void_top_y + 10, max(8, draw_w - (left_shoulder_w + slope_w) - 16), 18)
     stroke(*theme["ground_line"])
     stroke_weight(2)
-    line(draw_x - 2, GROUND_Y, draw_x + left_shoulder_w, GROUND_Y)
-    line(draw_x + left_shoulder_w, GROUND_Y, draw_x + left_shoulder_w + slope_w, void_top_y)
-    line(draw_x + draw_w - 12, GROUND_Y, draw_x + draw_w + 2, GROUND_Y)
+    line(draw_x - 2, ground_y, draw_x + left_shoulder_w, ground_y)
+    line(draw_x + left_shoulder_w, ground_y, draw_x + left_shoulder_w + slope_w, void_top_y)
+    line(draw_x + draw_w - 12, ground_y, draw_x + draw_w + 2, ground_y)
     no_stroke()
 
 
@@ -3553,7 +3602,7 @@ def get_obstacle_draw_rect():
 
     if obstacle_type == "cliff_gap" and current_level == 9:
         draw_w = get_current_cliff_gap_width()
-    elif current_level == 9 and is_runner_ground_profile_active() and is_runner_ground_aligned_obstacle_type(obstacle_type):
+    if current_level == 9 and is_runner_ground_profile_active() and is_runner_ground_aligned_obstacle_type(obstacle_type):
         draw_y = get_runner_ground_y_at_x(draw_x + (draw_w * 0.5)) - draw_h
 
     if obstacle_type == "snake" and is_snake_extended():
@@ -3568,6 +3617,14 @@ def get_obstacle_draw_rect():
     if obstacle_type in ("bird_rise", "bird_dive", "bird_sine", "bird_swarm"):
         draw_y = get_dynamic_bird_draw_y(draw_y, draw_x, draw_w, draw_h)
 
+    # In L9 the ground is elevated; clamp bird y so it never drops below ground.
+    if current_level == 9 and is_runner_ground_profile_active() and obstacle_type in (
+        "bird_low", "bird_rise", "bird_dive", "bird_sine", "bird_swarm"
+    ):
+        ground_y_here = get_runner_ground_y_at_x(draw_x + (draw_w * 0.5))
+        min_bird_y = ground_y_here - draw_h - 24   # at least 24px clearance above ground
+        draw_y = min(draw_y, min_bird_y)
+
     return draw_x, draw_y, draw_w, draw_h
 
 
@@ -3575,7 +3632,7 @@ def get_runner_ground_profile_distance(duration_seconds):
     return max(width * 2.0, scroll_speed * 60.0 * duration_seconds)
 
 
-def build_runner_ground_profile(progress, player_ground_y, visible_slope_px, *, top_ground_y, bumps=None):
+def build_runner_ground_profile(progress, player_ground_y, visible_slope_px, *, top_ground_y, bumps=None, slope_direction=1.0):
     return {
         "progress": max(0.0, min(1.0, float(progress))),
         "player_ground_y": float(player_ground_y),
@@ -3583,6 +3640,7 @@ def build_runner_ground_profile(progress, player_ground_y, visible_slope_px, *, 
         "visible_slope_px": float(visible_slope_px),
         "top_ground_y": float(top_ground_y),
         "bumps": list(bumps or []),
+        "slope_direction": float(slope_direction),
     }
 
 
@@ -3590,12 +3648,24 @@ def get_level9_uphill_ground_profile():
     if not (
         game_started and
         current_level == 9 and
-        obstacle_type == "car_pickup" and
         not car_mode and
         not flight_mode and
         not game_over
     ):
         return None
+
+    # Before the car_pickup is in view: flat but bumpy ground (no slope yet).
+    if obstacle_type != "car_pickup":
+        return build_runner_ground_profile(
+            0.0,
+            float(GROUND_Y),
+            0.0,
+            top_ground_y=float(height * 0.52),
+            bumps=[
+                (3.0, LEVEL9_HILL_VARIATION_PX * 0.7, 0.0),
+                (6.8, LEVEL9_HILL_VARIATION_PX * 0.3, 0.9),
+            ],
+        )
 
     player_mid_x = float(get_player_x() + (DINO_W * 0.5))
     total_distance = max(1.0, float(obstacle_spawn_x) - player_mid_x)
@@ -3618,8 +3688,46 @@ def get_level9_uphill_ground_profile():
     )
 
 
+def get_level9_downhill_ground_profile():
+    if not (
+        game_started and
+        current_level == 9 and
+        car_mode and
+        not flight_mode and
+        not game_over
+    ):
+        return None
+
+    if level9_car_descent_started_ms <= 0:
+        return None
+
+    duration_ms = max(1.0, LEVEL9_HILL_DESCENT_SECONDS * 1000.0)
+    elapsed_ms = max(0.0, float(millis() - level9_car_descent_started_ms))
+    progress = max(0.0, min(1.0, elapsed_ms / duration_ms))
+    eased = progress * progress * (3.0 - (2.0 * progress))
+
+    start_ground_y = max(float(height * 0.52), min(float(GROUND_Y), float(level9_car_descent_start_ground_y)))
+    player_ground_y = start_ground_y + ((float(GROUND_Y) - start_ground_y) * eased)
+    slope_ratio = 0.16 + (0.84 * (1.0 - eased))
+    visible_slope_px = LEVEL9_HILL_VISIBLE_SLOPE_PX * slope_ratio
+    return build_runner_ground_profile(
+        progress,
+        player_ground_y,
+        visible_slope_px,
+        top_ground_y=float(height * 0.52),
+        bumps=[
+            (2.6, LEVEL9_HILL_VARIATION_PX * 0.45, 0.4),
+            (5.3, LEVEL9_HILL_VARIATION_PX * 0.22, 1.2),
+        ],
+        slope_direction=-1.0,
+    )
+
+
 def get_active_runner_ground_profile():
     profile = get_level9_uphill_ground_profile()
+    if profile is not None:
+        return profile
+    profile = get_level9_downhill_ground_profile()
     if profile is not None:
         return profile
     return None
@@ -3631,7 +3739,7 @@ def is_runner_ground_profile_active():
 
 def sample_runner_ground_profile(profile, screen_x):
     horizontal_offset = (float(screen_x) - profile["player_mid_x"]) / max(1.0, float(width))
-    slope_adjust = -horizontal_offset * profile["visible_slope_px"]
+    slope_adjust = -horizontal_offset * profile["visible_slope_px"] * profile.get("slope_direction", 1.0)
     wobble = 0.0
     for frequency, amplitude, phase in profile.get("bumps", []):
         wobble += math.sin((profile["progress"] * math.pi * frequency) + (float(screen_x) * 0.018 * frequency) + phase) * amplitude
@@ -3647,7 +3755,7 @@ def get_runner_ground_y_at_x(screen_x):
 
 
 def is_runner_ground_aligned_obstacle_type(current_obstacle_type):
-    return current_obstacle_type in ("cactus_low", "cactus_high", "cactus_tower", "car_pickup")
+    return current_obstacle_type in ("cactus_low", "cactus_high", "cactus_tower", "car_pickup", "car_ramp", "cliff_gap", "snake")
 
 
 def get_current_player_ground_y():
@@ -4028,21 +4136,7 @@ def get_shop_overlay_layout():
 
 
 def draw_shop_item_highlight(x, y, w, h, theme, selected=False):
-    base_color = theme["ground_line"]
-    glow_color = (255, 220, 104) if selected else theme["accent"]
-    draw_rounded_rect_outline(x, y, w, h, 14, base_color, 2)
-    if selected:
-        pulse = (math.sin(millis() / 190.0) + 1.0) * 0.5
-        pad = 3 + int(pulse * 5)
-        draw_rounded_rect_outline(
-            x - pad,
-            y - pad,
-            w + pad * 2,
-            h + pad * 2,
-            16,
-            glow_color,
-            2 + int(pulse * 2),
-        )
+    draw_clean_3d_button(x, y, w, h, theme, selected=selected)
 
 
 def draw_shop_item_icon(item_key, x, y, size, theme):
@@ -4106,21 +4200,7 @@ def draw_shop_item_icon(item_key, x, y, size, theme):
 
 
 def draw_shop_icon_button(item, x, y, w, h, theme, selected=False):
-    pulse = (math.sin(millis() / 190.0) + 1.0) * 0.5 if selected else 0.0
-    glow_color = (255, 220, 104) if selected else theme["ground_line"]
-    outer_pad = 2 + int(pulse * 4) if selected else 2
-    fill(255, 250, 238)
-    rect(x, y, w, h)
-    draw_rounded_rect_outline(x, y, w, h, 12, theme["ground_line"], 2)
-    draw_rounded_rect_outline(
-        x - outer_pad,
-        y - outer_pad,
-        w + outer_pad * 2,
-        h + outer_pad * 2,
-        14,
-        glow_color,
-        2 + int(pulse * 2) if selected else 1,
-    )
+    draw_clean_3d_button(x, y, w, h, theme, selected=selected)
     draw_shop_item_icon(item["key"], x + 8, y + 6, w - 16, theme)
     fill(*theme["text"])
     text_size(15)
@@ -4699,6 +4779,8 @@ def debug_step_level(level_delta):
     global car_mode, car_entry_pause_until_ms, car_cactus_stack_count, car_visibility_warning_until_ms
     global car_speed_tier_index, car_jump_target_tier_index, car_jump_target_cycle_index
     global car_crash_wreck_visible, car_crash_rotation_deg, car_crash_rect
+    global level9_force_cliff_after_ramp, level9_forced_cliff_spawn_x
+    global level9_car_descent_started_ms, level9_car_descent_start_ground_y
     old_level = current_level
     target_level = max(1, min(MAX_LEVEL, current_level + level_delta))
     if target_level == old_level:
@@ -4736,6 +4818,10 @@ def debug_step_level(level_delta):
     car_crash_rotation_deg = 0.0
     car_crash_rect = (0.0, 0.0, 0.0, 0.0)
     car_entry_pause_until_ms = 0
+    level9_force_cliff_after_ramp = False
+    level9_forced_cliff_spawn_x = 0.0
+    level9_car_descent_started_ms = 0
+    level9_car_descent_start_ground_y = float(GROUND_Y)
 
     # Level 6 starts in the cave-flight phase after the Zeppelin boundary fight.
     if current_level == 6:
@@ -4774,8 +4860,11 @@ def start_car_mode():
     global car_jump_target_tier_index, car_jump_target_cycle_index
     global car_crash_wreck_visible, car_crash_rotation_deg, car_crash_rect
     global dino_y, velocity_y, on_ground, is_fast_falling
+    global level9_car_descent_started_ms, level9_car_descent_start_ground_y
+    # Capture ground height BEFORE setting car_mode so the uphill profile is still active.
+    entry_ground_y = float(get_current_player_ground_y()) if current_level == 9 else float(GROUND_Y)
     car_mode = True
-    dino_y = get_current_player_stand_y()
+    dino_y = entry_ground_y - DINO_H
     velocity_y = 0
     on_ground = True
     is_fast_falling = False
@@ -4789,7 +4878,15 @@ def start_car_mode():
     set_car_speed_tier(2, announce=False)
     stop_car_engine_audio()
     entry_length_ms = int((CAR_ENTRY_SOUND.get_length() if CAR_ENTRY_SOUND is not None else 0.9) * 1000)
-    car_entry_pause_until_ms = millis() + max(700, entry_length_ms)
+    entry_pause_ms = max(700, entry_length_ms)
+    car_entry_pause_until_ms = millis() + entry_pause_ms
+    if current_level == 9:
+        # Delay descent start until entry pause ends so the ground doesn't sink during the engine-start screen.
+        level9_car_descent_started_ms = millis() + entry_pause_ms
+        level9_car_descent_start_ground_y = entry_ground_y
+    else:
+        level9_car_descent_started_ms = 0
+        level9_car_descent_start_ground_y = float(GROUND_Y)
     play_sfx(CAR_ENTRY_SOUND if CAR_ENTRY_SOUND is not None else HISS_SOUND)
 
 
@@ -4977,7 +5074,8 @@ def start_car_cliff_fall():
     on_ground = False
     is_fast_falling = False
     stop_car_engine_audio()
-    play_sfx(FLIGHT_CRASH_SOUND if FLIGHT_CRASH_SOUND is not None else (PLAYER_DEATH_SOUND if PLAYER_DEATH_SOUND is not None else CRASH_SOUND))
+    # Ravijn sound (prefer BIRD_BOSS_FALL_SOUND which is soundreality-fall-217900.mp3)
+    play_sfx(BIRD_BOSS_FALL_SOUND if BIRD_BOSS_FALL_SOUND is not None else (PLAYER_DEATH_SOUND if PLAYER_DEATH_SOUND is not None else CRASH_SOUND))
 
 
 def get_next_car_jump_target_index():
@@ -4986,16 +5084,46 @@ def get_next_car_jump_target_index():
 
 
 def draw_car_speed_meter(x, y):
-    for idx, label in enumerate(CAR_SPEED_TIER_LABELS):
-        bar_w = 18
-        bar_h = 8 + (idx * 5)
-        bar_x = x + (idx * 24)
-        bar_y = y + (26 - bar_h)
-        if idx <= car_speed_tier_index:
-            fill(28, 98, 182)
+    # Background panel
+    no_stroke()
+    fill(18, 24, 36, 200)
+    rect(x - 6, y - 4, 138, 80, 6)
+
+    # ← / → arrow labels — highlight which direction the player should press
+    need_faster = car_speed_tier_index < car_jump_target_tier_index
+    need_slower = car_speed_tier_index > car_jump_target_tier_index
+    text_size(13)
+    fill(80, 200, 80) if need_faster else fill(148, 160, 170)
+    text("→", x + 114, y + 14)
+    fill(220, 70, 70) if need_slower else fill(148, 160, 170)
+    text("←", x - 2, y + 14)
+
+    # Speed tier bars
+    for idx in range(len(CAR_SPEED_TIER_LABELS)):
+        bar_w = 16
+        bar_h = 9 + (idx * 5)
+        bar_x = x + 16 + (idx * 22)
+        bar_y = y + (28 - bar_h)
+        if idx < car_jump_target_tier_index and idx <= car_speed_tier_index:
+            fill(28, 148, 72)   # at/above required: green
+        elif idx == car_jump_target_tier_index and idx <= car_speed_tier_index:
+            fill(28, 148, 72)
+        elif idx < car_jump_target_tier_index:
+            fill(220, 140, 30)  # below required: amber
+        elif idx <= car_speed_tier_index:
+            fill(28, 98, 182)   # above required: blue
         else:
-            fill(168, 184, 198)
+            fill(56, 68, 84)    # inactive
         rect(bar_x, bar_y, bar_w, bar_h)
+
+    # "Need: HIGH" label
+    fill(220, 220, 220)
+    text_size(11)
+    text(f"Need: {get_car_jump_target_label().upper()}", x - 2, y + 50)
+
+    # Current speed label
+    fill(180, 210, 255)
+    text(f"Now: {get_car_speed_label().upper()}", x - 2, y + 64)
 
 
 def draw_car_ramp_target_hint(draw_x, draw_y, draw_w, draw_h):
@@ -5830,6 +5958,14 @@ def draw_cactus_boss_arena(theme):
     rect(0, 88, width, 46)
     fill(70, 70, 78)
     rect(0, GROUND_Y, width, 40)
+    # Maan: vaalgele cirkel zichtbaar via grot-opening
+    fill(220, 210, 148)
+    ellipse(int(width * 0.72), 68, 88, 88)
+    fill(198, 186, 118)
+    ellipse(int(width * 0.72) + 18, 60, 28, 28)
+    fill(82, 82, 90)
+    rect(0, 0, width, 36)
+    rect(0, 88, width, 46)
     fill(94, 94, 102)
     rect(34, 112, 38, 250)
     rect(width - 84, 100, 44, 272)
@@ -5898,7 +6034,7 @@ def draw_cactus_boss_arena(theme):
 
 
 def draw_parallax_clouds(theme):
-    now = millis()
+    now = cloud_animation_ms
     layer_specs = (
         {
             "speed": 0.018,
@@ -5928,6 +6064,19 @@ def draw_parallax_clouds(theme):
             ellipse(cloud_x, base_y, cloud_w, 30)
             ellipse(cloud_x + 24, base_y - 10, cloud_w - 18, 26)
             ellipse(cloud_x - 22, base_y - 2, cloud_w - 26, 24)
+
+
+def update_cloud_animation_clock():
+    global cloud_animation_ms, cloud_animation_last_tick_ms
+    now = millis()
+    if cloud_animation_last_tick_ms <= 0:
+        cloud_animation_last_tick_ms = now
+        return
+    delta_ms = max(0, now - cloud_animation_last_tick_ms)
+    cloud_animation_last_tick_ms = now
+    if game_paused:
+        return
+    cloud_animation_ms += delta_ms
 
 
 def draw_zeppelin_city_backdrop(theme, arena_mode=False, reveal_ratio=1.0):
@@ -7125,10 +7274,9 @@ def draw_hud(theme, force_visible=False):
         text_size(16)
         text(f"Obstacles: {level_progress}/{level_goal}", width - 190, 66)
         if car_mode:
-            text(f"Car speed: {get_car_speed_label().title()}", width - 190, 88)
-            text(f"Next jump: {get_car_jump_target_label().title()}", width - 190, 108)
-            text(f"Roof cacti: {car_cactus_stack_count}/{CAR_CACTUS_MAX_STACK}", width - 190, 128)
-            draw_car_speed_meter(width - 188, 136)
+            text(f"Roof cacti: {car_cactus_stack_count}/{CAR_CACTUS_MAX_STACK}", width - 190, 88)
+            # Speed meter with ← / → arrows and required-speed indicator
+            draw_car_speed_meter(width - 188, 100)
 
     # During blink, briefly show level-up cue in accent color.
     if is_level_blink_active() and should_show_blink_phase():
@@ -7416,6 +7564,36 @@ def draw_rounded_rect_outline(x, y, w, h, radius, col, weight=2):
     no_stroke()
 
 
+def draw_clean_3d_button(x, y, w, h, theme, selected=False):
+    x = int(x)
+    y = int(y)
+    w = int(w)
+    h = int(h)
+    shadow_color = (158, 166, 176)
+    base_color = (250, 252, 255) if not selected else (236, 244, 255)
+    border_color = theme["accent"] if selected else theme.get("ground_line", theme["accent"])
+
+    fill(*shadow_color)
+    no_stroke()
+    rect(x + 4, y + 4, w, h)
+
+    fill(*base_color)
+    rect(x, y, w, h)
+
+    fill(255, 255, 255)
+    rect(x + 3, y + 3, max(1, w - 6), max(3, int(h * 0.34)))
+
+    if selected:
+        fill(246, 214, 124)
+        rect(x + 3, y + h - 6, max(1, w - 6), 3)
+
+    stroke(*border_color)
+    stroke_weight(2)
+    no_fill()
+    rect(x, y, w, h)
+    no_stroke()
+
+
 def draw_high_jump_powerup(x, y, w, h, theme):
     px = int(x)
     py = int(y)
@@ -7680,53 +7858,91 @@ def toggle_dj_track_playback():
     update_background_music(force=True)
 
 
+def draw_dj_label(text_value, x, y, size=24, color=(22, 28, 36), bold=False):
+    surface = pg_display.get_surface()
+    if surface is None:
+        fill(*color)
+        text_size(size)
+        text(text_value, int(x), int(y + size))
+        return
+    font = pg_font.SysFont("Verdana", int(size), bold=bool(bold))
+    rendered = font.render(str(text_value), True, color)
+    surface.blit(rendered, (int(x), int(y)))
+
+
 def get_dj_track_list_layout():
-    list_x = width - 430
-    list_y = 250
-    item_w = 392
-    item_h = 26
-    item_gap = 4
+    # Keep both columns as wide as possible by aligning right panel tightly to the poster.
+    left_x = 34
+    left_w = int(width * 0.5) - 52
+    list_x = left_x + left_w + 28
+    list_y = 156
+    list_w = width - list_x - 20
+    col_w = int((list_w - 12) / 2)
+    item_gap_h = 8
+    item_gap_w = 12
+    cols = 2
+    track_count = max(1, len(DJ_JUKEBOX_TRACKS))
+    rows = (track_count + cols - 1) // cols
+    available_h = max(220, height - list_y - 130)
+    item_h = int((available_h - ((rows - 1) * item_gap_h)) / rows)
+    item_h = max(40, min(52, item_h))
     items = []
     for idx in range(len(DJ_JUKEBOX_TRACKS)):
-        row_y = list_y + idx * (item_h + item_gap)
-        items.append((idx, list_x, row_y, item_w, item_h))
+        col = idx % cols
+        row = idx // cols
+        row_x = list_x + col * (col_w + item_gap_w)
+        row_y = list_y + row * (item_h + item_gap_h)
+        items.append((idx, row_x, row_y, col_w, item_h))
     return items
 
 
 def get_dj_back_button_rect():
-    btn_w = 176
-    btn_h = 34
-    btn_x = width - 430
-    btn_y = 508
+    btn_w = 240
+    btn_h = 52
+    btn_x = int(width * 0.56)
+    min_btn_y = 0
+    track_layout = get_dj_track_list_layout()
+    if track_layout:
+        _idx, _x, row_y, _w, row_h = track_layout[-1]
+        min_btn_y = row_y + row_h + 14
+    btn_y = max(min_btn_y, height - btn_h - 24)
+    btn_y = min(btn_y, height - btn_h - 8)
     return btn_x, btn_y, btn_w, btn_h
 
 
 def draw_dj_jukebox_panel(theme):
-    panel_x = width - 430
-    panel_w = 392
+    background(238, 244, 250)
+    fill(221, 232, 243)
+    no_stroke()
+    rect(0, 0, width, 118)
+    draw_rounded_rect_outline(0, 0, width, 118, 0, theme["accent"], 2)
+
+    left_x = 34
+    left_y = 136
+    left_w = int(width * 0.5) - 52
+    left_h = height - 188
 
     fill(255, 255, 255)
     no_stroke()
-    rect(panel_x, 86, panel_w, 156)
-    draw_rounded_rect_outline(panel_x, 86, panel_w, 156, 12, theme["accent"], 2)
+    rect(left_x, left_y, left_w, left_h)
+    draw_rounded_rect_outline(left_x, left_y, left_w, left_h, 14, theme["accent"], 3)
 
     poster_img = BADGER_DJ_IMG if BADGER_DJ_IMG is not None else BADGER_SHOP_IMG
     if poster_img is not None:
-        image(poster_img, panel_x + 8, 94, panel_w - 16, 140)
+        image(poster_img, left_x + 12, left_y + 12, left_w - 24, left_h - 24)
     else:
         fill(*theme["accent"])
-        rect(panel_x + 12, 96, panel_w - 24, 136)
-        fill(255, 255, 255)
-        text_size(20)
-        text("DJ poster not found", panel_x + 98, 170)
+        rect(left_x + 12, left_y + 12, left_w - 24, left_h - 24)
+        draw_dj_label("DJ poster not found", left_x + 42, left_y + 42, size=34, color=(255, 255, 255), bold=True)
 
-    fill(*theme["accent"])
-    text_size(22)
-    text("DJ Jukebox", panel_x, 30)
-    fill(*theme["text"])
-    text_size(15)
-    text("Press 1-8 or click a song. P = play/stop.", panel_x, 52)
-    text("B = back to instructions", panel_x, 72)
+    draw_dj_label("DJ Jukebox", 36, 22, size=44, color=theme["accent"], bold=True)
+    draw_dj_label(
+        f"Press 1-{len(DJ_JUKEBOX_TRACKS)}, use UP/DOWN, or click a song  •  P = play/stop  •  B = back",
+        38,
+        78,
+        size=22,
+        color=theme["text"],
+    )
 
     for idx, row_x, row_y, row_w, row_h in get_dj_track_list_layout():
         track = DJ_JUKEBOX_TRACKS[idx]
@@ -7734,30 +7950,19 @@ def draw_dj_jukebox_panel(theme):
         is_playing = (idx == dj_preview_track_index)
 
         if is_playing:
-            fill(206, 255, 220)
-        elif is_selected:
-            fill(236, 247, 255)
+            draw_clean_3d_button(row_x, row_y, row_w, row_h, theme, selected=True)
+            fill(216, 246, 224)
+            rect(row_x + 3, row_y + 3, row_w - 6, row_h - 6)
         else:
-            fill(255, 255, 255)
-        no_stroke()
-        rect(row_x, row_y, row_w, row_h)
-        draw_rounded_rect_outline(row_x, row_y, row_w, row_h, 8, theme["accent"], 2)
+            draw_clean_3d_button(row_x, row_y, row_w, row_h, theme, selected=is_selected)
 
-        fill(*theme["text"])
-        text_size(13)
-        text(f"{idx + 1}. {track['title']}", row_x + 10, row_y + 16)
-        fill(*theme.get("menu_meta", theme["text"]))
-        text_size(12)
-        text(track["level"], row_x + 238, row_y + 16)
+        title_size = 16
+        title_y = row_y + 9
+        draw_dj_label(f"{idx + 1}. {track['title']}", row_x + 10, title_y, size=title_size, color=theme["text"], bold=True)
 
     back_x, back_y, back_w, back_h = get_dj_back_button_rect()
-    fill(255, 255, 255)
-    no_stroke()
-    rect(back_x, back_y, back_w, back_h)
-    draw_rounded_rect_outline(back_x, back_y, back_w, back_h, 10, theme["accent"], 2)
-    fill(*theme["accent"])
-    text_size(20)
-    text("Back (B)", back_x + 46, back_y + 24)
+    draw_clean_3d_button(back_x, back_y, back_w, back_h, theme, selected=True)
+    draw_dj_label("Back (B)", back_x + 64, back_y + 12, size=26, color=theme["accent"], bold=True)
 
 
 def handle_dj_screen_click(x, y):
@@ -7786,10 +7991,7 @@ def draw_info_screen_actions(theme):
         h = int(action["h"])
         state = get_info_screen_action_state(action["key"])
 
-        fill(255, 255, 255)
-        no_stroke()
-        rect(x, y, w, h)
-        draw_rounded_rect_outline(x, y, w, h, 10, theme["accent"], 2)
+        draw_clean_3d_button(x, y, w, h, theme, selected=bool(state))
 
         fill(*theme["text"])
         text_size(18)
@@ -7859,10 +8061,7 @@ def handle_info_screen_click(x, y):
 
 def draw_start_button(theme):
     btn_x, btn_y, btn_w, btn_h = get_start_button_rect()
-    fill(255, 255, 255)
-    no_stroke()
-    rect(btn_x, btn_y, btn_w, btn_h)
-    draw_rounded_rect_outline(btn_x, btn_y, btn_w, btn_h, 12, theme["accent"], 3)
+    draw_clean_3d_button(btn_x, btn_y, btn_w, btn_h, theme, selected=True)
     fill(*theme["accent"])
     text_size(24)
     text("Start", btn_x + 40, btn_y + 30)
@@ -7870,10 +8069,7 @@ def draw_start_button(theme):
 
 def draw_explain_button(theme):
     btn_x, btn_y, btn_w, btn_h = get_explain_button_rect()
-    fill(255, 255, 255)
-    no_stroke()
-    rect(btn_x, btn_y, btn_w, btn_h)
-    draw_rounded_rect_outline(btn_x, btn_y, btn_w, btn_h, 12, theme["accent"], 3)
+    draw_clean_3d_button(btn_x, btn_y, btn_w, btn_h, theme, selected=True)
 
     fill(*theme["accent"])
     rect(btn_x + 10, btn_y + 10, 24, 24)
@@ -7888,10 +8084,7 @@ def draw_explain_button(theme):
 
 def draw_shop_button(theme):
     btn_x, btn_y, btn_w, btn_h = get_shop_button_rect()
-    fill(255, 255, 255)
-    no_stroke()
-    rect(btn_x, btn_y, btn_w, btn_h)
-    draw_rounded_rect_outline(btn_x, btn_y, btn_w, btn_h, 12, theme["accent"], 3)
+    draw_clean_3d_button(btn_x, btn_y, btn_w, btn_h, theme, selected=True)
     fill(*theme["accent"])
     text_size(22)
     text("Shop", btn_x + 48, btn_y + 29)
@@ -8060,21 +8253,7 @@ def draw_shop_screen(theme):
         text("Return to the level path", detail_panel_x + 18, detail_panel_y + 74)
 
     back_x, back_y, back_w, back_h = get_shop_back_button_rect()
-    fill(255, 255, 255)
-    rect(back_x, back_y, back_w, back_h)
-    draw_rounded_rect_outline(back_x, back_y, back_w, back_h, 10, theme["accent"], 3)
-    if shop_selected_index == back_selection_idx:
-        back_pulse = (math.sin(millis() / 190.0) + 1.0) * 0.5
-        pad = 3 + int(back_pulse * 4)
-        draw_rounded_rect_outline(
-            back_x - pad,
-            back_y - pad,
-            back_w + pad * 2,
-            back_h + pad * 2,
-            12,
-            (255, 220, 104),
-            2 + int(back_pulse * 2),
-        )
+    draw_clean_3d_button(back_x, back_y, back_w, back_h, theme, selected=(shop_selected_index == back_selection_idx))
     fill(*theme["accent"])
     text_size(20)
     text("Back", back_x + 36, back_y + 26)
@@ -8234,7 +8413,9 @@ def draw():
     global weapon_powerup_ready, weapon_powerup_level, pending_weapon_powerup_level
     global final_boss_snapshot, final_boss_next_blast_ms
     global player_x
+    global level9_force_cliff_after_ramp, level9_forced_cliff_spawn_x
     theme = get_theme()
+    update_cloud_animation_clock()
     update_background_music()
     maintain_trimmed_music_loop()
     sync_car_engine_audio()
@@ -8266,7 +8447,6 @@ def draw():
     update_mini_boss_defeat_sequences()
 
     if shared.show_info:
-        shared.draw_info_screen(INFO_TEXT)
         if info_screen_mode == "dj":
             draw_dj_jukebox_panel(theme)
             if millis() < screenshot_notice_until_ms:
@@ -8274,6 +8454,7 @@ def draw():
                 text_size(14)
                 text(screenshot_notice_text, 30, height - 24)
             return
+        shared.draw_info_screen(INFO_TEXT)
         fill(20)
         text_size(20)
         speed_mult = scroll_speed / BASE_SCROLL_SPEED
@@ -8657,6 +8838,12 @@ def draw():
                 is_fast_falling = False
                 velocity_y = get_car_speed_jump_velocity()
                 on_ground = False
+                if current_level == 9:
+                    level9_force_cliff_after_ramp = True
+                    # Spawn cliff_gap from the right edge, not from the ramp's current screen position.
+                    # Using obstacle_draw_x here would place the gap in the middle of the screen
+                    # immediately — instead spawn it as a normal incoming obstacle.
+                    level9_forced_cliff_spawn_x = float(width + LEVEL9_RAMP_TO_CLIFF_GAP_PX)
                 register_cleared_obstacle()
                 spawn_obstacle()
                 draw_main_character()
@@ -9122,6 +9309,16 @@ def key_pressed():
         if info_screen_mode == "dj":
             if pressed_key == "b" or effective_key_code == K_ESCAPE:
                 exit_dj_jukebox()
+                return
+            if effective_key_code == K_UP:
+                if DJ_JUKEBOX_TRACKS:
+                    next_idx = (dj_selected_track_index - 1) % len(DJ_JUKEBOX_TRACKS)
+                    play_dj_track_by_index(next_idx)
+                return
+            if effective_key_code == K_DOWN:
+                if DJ_JUKEBOX_TRACKS:
+                    next_idx = (dj_selected_track_index + 1) % len(DJ_JUKEBOX_TRACKS)
+                    play_dj_track_by_index(next_idx)
                 return
             if pressed_key == "p":
                 toggle_dj_track_playback()

@@ -50,7 +50,7 @@ python3 -m py_compile dino_game.py
 python3 dino_game.py
 ```
 
-## Tip: geen `__pycache__` in je projectmap
+## Tip: geen `__pycache__` in projectmap
 
 Wil je geen lokale cache-mappen in je repo, gebruik dan:
 
@@ -66,20 +66,81 @@ Deze codebase gebruikt een eigen Python Processing-implementatie. Controleer alt
 - `processing/`
 - `sgb.md` voor gameplaysystems, levels, powerups en ontwerpprincipes
 
-Ga niet uit van Java Processing-functies die niet in deze repo bestaan.
-
 ## Audio conversie met ffmpeg
 
-Voor het converteren van audio (zoals m4a naar mp3) kun je [ffmpeg](https://ffmpeg.org/) gebruiken. Installeer ffmpeg via Homebrew:
+### Installatie
+
+#### macOS
 
 ```bash
 brew install ffmpeg
 ```
 
-Voorbeeld: converteer een m4a-bestand naar mp3:
+Dit installeert zowel `ffmpeg` als `ffprobe` (analyse-tool).
+
+#### Linux (Debian/Ubuntu)
+
+```bash
+sudo apt-get install ffmpeg
+```
+
+#### Windows
+
+Download van [ffmpeg.org](https://ffmpeg.org/download.html) of via Chocolatey:
+
+```powershell
+choco install ffmpeg
+```
+
+### Basisgebruik: Converteren m4a → mp3
 
 ```bash
 ffmpeg -i input.m4a output.mp3
 ```
 
-Zie de [officiële ffmpeg website](https://ffmpeg.org/) voor meer informatie en documentatie.
+Dit converteert met standaard encoding (VBR, ~128 kbps).
+
+### Geavanceerd: Stilte-trimming
+
+#### Stap 1: Detect leading/trailing silence
+
+```bash
+ffmpeg -i input.m4a -af "silencedetect=n=-50dB:d=0.1" -f null - 2>&1 | grep silence
+```
+
+Output bevat: `silence_start=0.123456 silence_end=3.456789` (voorbeeldwaardes).
+
+#### Stap 2: Berekenen trim-point
+
+- `silence_end` minus 0.1 seconde = `trim_start` (retain ~100ms intro)
+- Als `trim_start` < 0, dan `trim_start = 0`
+
+#### Stap 3: Trim + convert naar mp3
+
+```bash
+ffmpeg -ss {trim_start} -i input.m4a -c:a libmp3lame -b:a 128k output.mp3
+```
+
+**Concreet voorbeeld:**
+
+```bash
+ffmpeg -ss 3.35 -i "input-file.m4a" -c:a libmp3lame -b:a 128k "output-file.mp3"
+```
+
+### Audio-formaten in dit project
+
+Zie [ADR 006: Audio-format strategie](docs/adr/006-audio-format-strategy.md).
+
+- **Runtime:** `.mp3` (enige format dat door de game geladen wordt)
+- **Source:** `.m4a` (origineel formaat, behouden voor remixing; NIET geladen door game)
+- **Fallback:** `.wav` alleen voor bestanden die niet kunnen worden geconverteerd
+
+### Verificatie na conversie
+
+```bash
+ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 output.mp3
+```
+
+Toont de duur van het bestand (nuttig om te controleren of trimming correct werkte).
+
+Zie de [officiële ffmpeg website](https://ffmpeg.org/) voor uitgebreidere documentatie.

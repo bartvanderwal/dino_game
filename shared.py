@@ -59,9 +59,10 @@ def draw_info_screen(info_text):
     background(245)
     fill(18)
     text_size(28)
-    text("Controls Guide", 90, 90)
+    text("Controls Guide", 90, 56)
     text_size(18)
-    y = 140
+    y = 96
+    line_gap = 24
     for line in info_text:
         if "->" in line:
             key_txt, action_txt = [part.strip() for part in line.split("->", 1)]
@@ -74,12 +75,12 @@ def draw_info_screen(info_text):
         else:
             fill(20, 20, 20)
             text(line, 110, y)
-        y += 32
+        y += line_gap
     text_size(18)
     fill(30, 30, 30)
-    text(f"Music: {'on' if music_enabled else 'off'}", 110, y + 24)
-    text(f"SFX: {'on' if sound_enabled else 'off'}", 280, y + 24)
-    text("Press i to return.", 110, y + 56)
+    text(f"Music: {'on' if music_enabled else 'off'}", 110, y + 16)
+    text(f"SFX: {'on' if sound_enabled else 'off'}", 280, y + 16)
+    text("Press i to return.", 110, y + 40)
 
 
 # --- Speaker icoon tekenen ---

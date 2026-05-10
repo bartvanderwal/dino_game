@@ -269,6 +269,17 @@ Waarom:
 - Tijdens die korte stilval speelt eerst `KoyRoilers-car-engine-fail-356001.mp3` als stotterende start/instapcue.
 - Zodra de instappauze voorbij is en `car_mode` actief blijft, loopt de motor door met `pixabay-flutie8211-6-cylinder-car-starting-in-garage-399661.mp3`.
 
+#### Car mode: snelheidsbesturing en HUD
+
+- De speler besturt de autosnelheid met de pijltjestoetsen: pijl-rechts (`→`) versnelt, pijl-links (`←`) vertraagt.
+- Er zijn vier snelheidstiers: `low`, `medium`, `high`, `super high`. Elke tier bepaalt de jumpvelocity voor de volgende sprong (zie `CAR_SPEED_TIER_JUMP_VELOCITIES`).
+- Hoe hoger de snelheid, hoe hoger de auto springt bij een ramp. De breedte van het volgende ravijn (`cliff_gap`) bepaalt welke snelheidstier de speler minimaal nodig heeft om het te halen.
+- De HUD toont linksboven de huidige snelheidstier als balkengrafiek én als tekst.
+- De HUD toont ook de benodigde snelheid voor de **volgende** ramp/ravijn-combinatie, zodat de speler tijdig kan remmen of accelereren.
+- Pijltjes (`←` / `→`) verschijnen in de HUD als visuele hint: `←` knippert rood als te snel voor de bocht, `→` knippert groen als de speler moet versnellen vóór de ramp.
+- Het ravijn begint nooit direct na de ramp. De volgorde is altijd: ravijn → ramp (de ramp staat aan de **overkant** van het ravijn, zodat de speler over het gat springt en landt op de ramp).
+- De afstand tussen opeenvolgende cliff_gap-obstakels is minimaal `480px` zodat de speler voldoende reactietijd heeft.
+
 ### 2.4.10 Level 10: `Giant Town`
 
 - Eindbaasfase.
