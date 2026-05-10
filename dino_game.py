@@ -171,6 +171,7 @@ BADGER_DJ_IMG = load_optional_image((
     "assets/badger-dj.png",
     "assets/badger_dj.png",
 ))
+DJ_TRACK_VISUAL_CACHE = {}
 SHOP_ITEM_ICONS = {
     "extra_life": load_optional_image((
         "assets/shop-heart.png",
@@ -364,6 +365,7 @@ BIRD_VERTICAL_TRAVEL_PX = 78
 BIRD_DIVE_ENTRY_Y = 92
 BIRD_DIVE_VERTICAL_TRAVEL_PX = 248
 BIRD_SINE_AMPLITUDE_PX = 54
+LEVEL9_BIRD_TOP_BAND_MAX_Y = 128
 PLAYER_SHOOT_COOLDOWN_MS = 180
 CACTUS_SHOT_VERTICAL_BOOST = 1.45
 CACTUS_SHOT_UPWARD_OFFSET_PX = 12
@@ -500,7 +502,7 @@ SHOP_ITEMS = (
     },
 )
 MENU_MUSIC_PATH = "assets/audio/big-coyote-in-the-tree-2.mp3"
-PRE_BOSS_MUSIC_PATH = "assets/audio/loading-atmosphere.mp3"
+WATER_ATMOSPHERE_MUSIC_PATH = "assets/audio/water-atmosphere.mp3"
 GAME_MUSIC_PATH = "assets/audio/pixel-leap.mp3"
 BIRD_BOSS_MUSIC_PATH = "assets/audio/Bigbird-in-the-tree-high-energy.mp3"
 AIR_BOSS_MUSIC_PATH = "assets/audio/Bigbird-in-the-tree-2.mp3"
@@ -1173,6 +1175,7 @@ current_music_start_offset_seconds = 0.0
 info_screen_mode = "main"
 dj_selected_track_index = 0
 dj_preview_track_index = None
+dj_track_was_busy = False
 cloud_animation_ms = 0.0
 cloud_animation_last_tick_ms = 0
 player_max_hp = 1
@@ -1219,7 +1222,7 @@ def reset_game(show_splash=False):
     global is_ducking, game_paused, bird_duck_scored, duck_jump_expires_ms, is_fast_falling
     global debug_coin_pressed, debug_coin_repeat_until_ms
     global current_level, scroll_speed, obstacles_cleared, next_level_obstacle_goal, level_blink_until_ms
-    global info_screen_mode, dj_selected_track_index, dj_preview_track_index
+    global info_screen_mode, dj_selected_track_index, dj_preview_track_index, dj_track_was_busy
     global obstacle_x, obstacle_spawn_x, obstacle_type
     global high_jump_warning_until_ms, high_jump_powerup_warning_until_ms
     global weapon_powerup_warning_until_ms, water_warning_until_ms
@@ -1284,6 +1287,7 @@ def reset_game(show_splash=False):
     info_screen_mode = "main"
     dj_selected_track_index = 0
     dj_preview_track_index = None
+    dj_track_was_busy = False
     cloud_animation_ms = 0.0
     cloud_animation_last_tick_ms = now
     run_playtime_seconds = 0
@@ -1502,6 +1506,8 @@ def get_background_music_selection():
         target_mode, target_path = get_boss_music_selection()
         if target_mode is not None:
             return target_mode, target_path
+    if current_level == 3 and game_started and is_ground_wet_active():
+        return "water:atmosphere", resolve_runtime_asset_path(WATER_ATMOSPHERE_MUSIC_PATH)
     if flight_mode and current_level == 5 and game_started:
         return "plane:l5", resolve_runtime_asset_path(PLANE_L5_MUSIC_PATH)
     if flight_mode and current_level == 6 and game_started:
@@ -1615,10 +1621,8 @@ def update_background_music(force=False):
         mixer.music.stop()
         mixer.music.load(target_path)
         mixer.music.set_volume(MUSIC_VOLUME)
-        if target_mode == "victory":
-            current_music_start_offset_seconds = play_music_compatible(0, start_seconds)
-        else:
-            current_music_start_offset_seconds = play_music_compatible(-1, start_seconds)
+        should_loop = (target_mode != "victory") and (not str(target_mode).startswith("dj:"))
+        current_music_start_offset_seconds = play_music_compatible(-1 if should_loop else 0, start_seconds)
         current_music_mode = target_mode
         current_music_path = target_path
     except Exception as exc:
@@ -1693,6 +1697,33 @@ def maintain_trimmed_music_loop():
             exc,
             once_key=f"music_trim_loop:{current_music_mode}",
         )
+
+
+def maintain_dj_jukebox_autoplay():
+    global dj_track_was_busy
+    if not mixer.get_init():
+        dj_track_was_busy = False
+        return
+    if not shared.music_enabled or not shared.show_info or info_screen_mode != "dj":
+        dj_track_was_busy = False
+        return
+    if dj_preview_track_index is None or not (0 <= dj_preview_track_index < len(DJ_JUKEBOX_TRACKS)):
+        dj_track_was_busy = False
+        return
+    if not str(current_music_mode).startswith("dj:"):
+        dj_track_was_busy = False
+        return
+
+    if music_is_busy_compatible():
+        dj_track_was_busy = True
+        return
+    if not dj_track_was_busy:
+        return
+
+    # Track ended naturally: continue to the next DJ track in the playlist.
+    dj_track_was_busy = False
+    next_index = (int(dj_preview_track_index) + 1) % len(DJ_JUKEBOX_TRACKS)
+    play_dj_track_by_index(next_index)
 
 
 def get_credits_font(size, mono=False, bold=False):
@@ -3184,6 +3215,9 @@ def start_post_boss_transition(boss_snapshot):
 
 def resolve_post_boss_transition_if_ready():
     global post_boss_transition, flight_pipe_spawn_due_ms, flight_mode_exit_level
+    global pre_boss_scene_level
+    global player_x, dino_y, velocity_y, on_ground, is_ducking, is_fast_falling
+    global boss_left_pressed, boss_right_pressed
     if post_boss_transition is None:
         return False
     if mini_boss_defeat_sequences or explosion_effects:
@@ -3198,6 +3232,19 @@ def resolve_post_boss_transition_if_ready():
         flight_pipe_spawn_due_ms = millis() + 250
     elif transition_type == "zeppelin_miniboss":
         end_flight_mode()
+    elif transition_type == "bird_miniboss" and bird_boss_exit_obstacles_remaining > 0:
+        # After the bird boss, return to the nest hub and let the player leave manually.
+        pre_boss_scene_level = 4
+        first_branch_x, first_branch_y, first_branch_w, _ = BIRD_TREE_BRANCH_RECTS[0]
+        player_x = float(first_branch_x + ((first_branch_w - DINO_W) / 2.0))
+        dino_y = float(first_branch_y - DINO_H)
+        velocity_y = 0
+        on_ground = True
+        is_ducking = False
+        is_fast_falling = False
+        boss_left_pressed = False
+        boss_right_pressed = False
+        set_shop_notice("Go to the nest and press DOWN to continue.", duration_ms=PRE_BOSS_SCENE_NOTICE_MS)
     else:
         begin_post_boss_fall_in(transition_player_x, transition_player_y)
     return True
@@ -3579,6 +3626,9 @@ def get_dynamic_bird_draw_y(base_y, draw_x, draw_w, draw_h):
 
     min_y = 18.0
     max_y = float(GROUND_Y - draw_h - 6)
+    if current_level == 9 and obstacle_type in ("bird_low", "bird_rise", "bird_dive", "bird_sine", "bird_swarm"):
+        # Force L9 birds to stay high in the sky lane.
+        max_y = min(max_y, float(LEVEL9_BIRD_TOP_BAND_MAX_Y))
     return max(min_y, min(max_y, dynamic_y))
 
 
@@ -3866,36 +3916,6 @@ def format_duration_hms(total_seconds):
     return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
 
 
-def get_menu_stats_character_key():
-    return get_selected_character_key()
-
-
-def update_playtime_tracking():
-    global run_playtime_seconds, playtime_last_tick_ms
-
-    now = millis()
-    should_track = (
-        game_started and
-        not game_over and
-        not game_paused and
-        not shop_active and
-        not shared.show_info and
-        not credits_active
-    )
-    if not should_track:
-        playtime_last_tick_ms = now
-        return
-
-    elapsed_ms = now - playtime_last_tick_ms
-    if elapsed_ms < 1000:
-        return
-
-    elapsed_seconds = int(elapsed_ms // 1000)
-    run_playtime_seconds += elapsed_seconds
-    character_total_playtime_seconds[active_character_key] += elapsed_seconds
-    playtime_last_tick_ms += elapsed_seconds * 1000
-
-
 def register_character_death():
     global death_recorded_this_run
     if death_recorded_this_run:
@@ -4136,7 +4156,26 @@ def get_shop_overlay_layout():
 
 
 def draw_shop_item_highlight(x, y, w, h, theme, selected=False):
-    draw_clean_3d_button(x, y, w, h, theme, selected=selected)
+    x = int(x)
+    y = int(y)
+    w = int(w)
+    h = int(h)
+
+    # Keep the underlying PNG stall fully visible; only draw a lightweight selection overlay.
+    no_fill()
+    stroke(*theme["ground_line"])
+    stroke_weight(2)
+    rect(x, y, w, h)
+
+    if selected:
+        pulse = (math.sin(millis() / 180.0) + 1.0) * 0.5
+        pad = int(4 + pulse * 4)
+        weight = int(2 + pulse * 2)
+        stroke(*theme["accent"])
+        stroke_weight(weight)
+        rect(x - pad, y - pad, w + pad * 2, h + pad * 2)
+
+    no_stroke()
 
 
 def draw_shop_item_icon(item_key, x, y, size, theme):
@@ -4323,12 +4362,12 @@ def player_on_platform_top(platform_rect, tolerance=10):
     return overlap_x and abs(feet_y - platform_y) <= tolerance
 
 
-def player_centered_on_pipe(pipe_rect):
+def player_centered_on_pipe(pipe_rect, tolerance_px=PIPE_ENTRY_CENTER_TOLERANCE_PX):
     hitbox = get_dino_hitbox()
     hitbox_center_x = hitbox[0] + (hitbox[2] / 2.0)
     pipe_x, _, pipe_w, _ = pipe_rect
     pipe_center_x = pipe_x + (pipe_w / 2.0)
-    return abs(hitbox_center_x - pipe_center_x) <= PIPE_ENTRY_CENTER_TOLERANCE_PX
+    return abs(hitbox_center_x - pipe_center_x) <= max(4, int(tolerance_px))
 
 
 def resolve_pipe_side_overlap(pipe_rect, prev_hitbox, current_hitbox):
@@ -4529,7 +4568,7 @@ def start_pending_boss_encounter(level):
 
 
 def maybe_start_bird_nest_encounter():
-    if pre_boss_scene_level != 4 or pipe_entry_active or game_over:
+    if pre_boss_scene_level != 4 or pipe_entry_active or game_over or boss_completed.get(4, False):
         return False
     nest_rect = get_pre_boss_entrance_rect(4)
     if rects_overlap(get_dino_hitbox(), nest_rect) or player_on_platform_top(nest_rect, tolerance=14):
@@ -4540,6 +4579,7 @@ def maybe_start_bird_nest_encounter():
 
 def try_interact_pre_boss_scene():
     global shop_active, shop_selected_index, pending_boss_shop_level
+    global pre_boss_scene_level, bird_boss_exit_obstacles_remaining
     if not is_pre_boss_scene_active() or game_over or pipe_entry_active:
         return False
 
@@ -4553,11 +4593,14 @@ def try_interact_pre_boss_scene():
 
     entrance_rect = get_pre_boss_entrance_rect(pre_boss_scene_level)
     if pre_boss_scene_uses_pipe_entry():
+        center_tolerance = PIPE_ENTRY_CENTER_TOLERANCE_PX
+        if pre_boss_scene_level in (7, 10):
+            center_tolerance += 14
         ducking_on_pipe = (
             is_ducking
             and on_ground
-            and player_on_platform_top(entrance_rect)
-            and player_centered_on_pipe(entrance_rect)
+            and player_on_platform_top(entrance_rect, tolerance=14)
+            and player_centered_on_pipe(entrance_rect, tolerance_px=center_tolerance)
         )
         if not ducking_on_pipe:
             return False
@@ -4578,6 +4621,13 @@ def try_interact_pre_boss_scene():
         return True
 
     if rects_overlap(player_hitbox, entrance_rect):
+        if pre_boss_scene_level == 4 and boss_completed.get(4, False):
+            # Bird boss already defeated: DOWN on nest exits the hub and unlocks next level progression.
+            pre_boss_scene_level = 0
+            bird_boss_exit_obstacles_remaining = 0
+            update_level_from_progress()
+            set_shop_notice("Nest cleared. Moving on.", duration_ms=1400)
+            return True
         start_pending_boss_encounter(pre_boss_scene_level)
         return True
 
@@ -4597,10 +4647,6 @@ def get_shop_item_count(item_key):
         target_level = get_boss_shop_target_level()
         return 1 if target_level > 0 and weapon_powerup_ready and weapon_powerup_level == target_level else 0
     return 0
-
-
-def get_shop_selection_count():
-    return len(get_active_shop_items()) + 1
 
 
 def move_shop_selection(key_code):
@@ -4762,11 +4808,9 @@ def update_level_from_progress():
 
 
 def register_cleared_obstacle(amount=1):
-    global obstacles_cleared, bird_boss_exit_obstacles_remaining
+    global obstacles_cleared
     increment = max(0, int(amount))
     obstacles_cleared += increment
-    if current_level == 4 and boss_completed.get(4, False) and bird_boss_exit_obstacles_remaining > 0:
-        bird_boss_exit_obstacles_remaining = max(0, bird_boss_exit_obstacles_remaining - increment)
     update_level_from_progress()
 
 
@@ -5086,8 +5130,8 @@ def get_next_car_jump_target_index():
 def draw_car_speed_meter(x, y):
     # Background panel
     no_stroke()
-    fill(18, 24, 36, 200)
-    rect(x - 6, y - 4, 138, 80, 6)
+    fill(18, 24, 36)
+    rect(x - 6, y - 4, 138, 80)
 
     # ← / → arrow labels — highlight which direction the player should press
     need_faster = car_speed_tier_index < car_jump_target_tier_index
@@ -6500,7 +6544,8 @@ def finish_boss_if_defeated(boss):
     play_sfx(BOSS_EXPLOSION_SOUND)
     score += BOSS_REWARD_POINTS.get(boss["level"], 0)
     if boss["level"] == 4:
-        bird_boss_exit_obstacles_remaining = BIRD_BOSS_EXIT_OBSTACLES
+        # Hold progression at L4 until the player exits via the nest in the hub.
+        bird_boss_exit_obstacles_remaining = 1
     elif boss["level"] == 5:
         update_level_from_progress()
     if boss["level"] < 10:
@@ -7212,6 +7257,17 @@ def draw_big_announcement_overlay(theme):
         message = "FUEL LOW!\nRUNWAY AHEAD"
         color = (255, 196, 72)
         y = 22
+    elif current_level == 9 and obstacle_type == "car_pickup" and not car_mode and not flight_mode:
+        player_mid_x = float(get_player_x() + (DINO_W * 0.5))
+        total_distance = max(1.0, float(obstacle_spawn_x) - player_mid_x)
+        remaining_distance = max(0.0, float(obstacle_x) - player_mid_x)
+        approach_ratio = 1.0 - min(1.0, remaining_distance / total_distance)
+        color = (255, 212, 78)
+        if approach_ratio >= 0.82:
+            message = "GET INTO\nTHE CAR!"
+        else:
+            message = "CLIMB THE HILL"
+            y = 22
     elif millis() < airplane_warning_until_ms:
         if current_level == 9 or obstacle_type == "car_pickup" or pending_car_spawn or car_mode:
             message = "GET INTO\nTHE CAR!"
@@ -7792,18 +7848,18 @@ def get_shop_button_rect():
 
 
 def get_info_screen_action_layout():
-    panel_x = width - 280
-    panel_y = 210
-    button_w = 232
-    button_h = 40
+    panel_x = width - 322
+    panel_y = 192
+    button_w = 300
+    button_h = 46
     gap = 12
     return [
-        {"key": "debug", "label": "Debug mode", "x": panel_x, "y": panel_y, "w": button_w, "h": button_h},
-        {"key": "music", "label": "Music", "x": panel_x, "y": panel_y + (button_h + gap), "w": button_w, "h": button_h},
-        {"key": "sfx", "label": "SFX", "x": panel_x, "y": panel_y + ((button_h + gap) * 2), "w": button_w, "h": button_h},
-        {"key": "speech", "label": "Welcome speech", "x": panel_x, "y": panel_y + ((button_h + gap) * 3), "w": button_w, "h": button_h},
-        {"key": "dj", "label": "DJ jukebox", "x": panel_x, "y": panel_y + ((button_h + gap) * 4), "w": button_w, "h": button_h},
-        {"key": "back", "label": "Back", "x": panel_x, "y": panel_y + ((button_h + gap) * 5), "w": button_w, "h": button_h},
+        {"key": "debug", "label": "Debug mode (D)", "x": panel_x, "y": panel_y, "w": button_w, "h": button_h},
+        {"key": "music", "label": "Music (M)", "x": panel_x, "y": panel_y + (button_h + gap), "w": button_w, "h": button_h},
+        {"key": "sfx", "label": "SFX (S)", "x": panel_x, "y": panel_y + ((button_h + gap) * 2), "w": button_w, "h": button_h},
+        {"key": "speech", "label": "Welcome speech (W)", "x": panel_x, "y": panel_y + ((button_h + gap) * 3), "w": button_w, "h": button_h},
+        {"key": "dj", "label": "DJ jukebox (J)", "x": panel_x, "y": panel_y + ((button_h + gap) * 4), "w": button_w, "h": button_h},
+        {"key": "back", "label": "Back (I)", "x": panel_x, "y": panel_y + ((button_h + gap) * 5), "w": button_w, "h": button_h},
     ]
 
 
@@ -7822,39 +7878,43 @@ def get_info_screen_action_state(action_key):
 
 
 def enter_dj_jukebox():
-    global info_screen_mode, dj_selected_track_index, dj_preview_track_index
+    global info_screen_mode, dj_selected_track_index, dj_preview_track_index, dj_track_was_busy
     info_screen_mode = "dj"
     if dj_selected_track_index < 0 or dj_selected_track_index >= len(DJ_JUKEBOX_TRACKS):
         dj_selected_track_index = 0
     dj_preview_track_index = None
+    dj_track_was_busy = False
     stop_intro_speech()
     update_background_music(force=True)
 
 
 def exit_dj_jukebox():
-    global info_screen_mode, dj_preview_track_index
+    global info_screen_mode, dj_preview_track_index, dj_track_was_busy
     info_screen_mode = "main"
     dj_preview_track_index = None
+    dj_track_was_busy = False
     update_background_music(force=True)
 
 
 def play_dj_track_by_index(track_index):
-    global dj_selected_track_index, dj_preview_track_index
+    global dj_selected_track_index, dj_preview_track_index, dj_track_was_busy
     if track_index < 0 or track_index >= len(DJ_JUKEBOX_TRACKS):
         return
     dj_selected_track_index = track_index
     dj_preview_track_index = track_index
+    dj_track_was_busy = False
     update_background_music(force=True)
 
 
 def toggle_dj_track_playback():
-    global dj_preview_track_index
+    global dj_preview_track_index, dj_track_was_busy
     if dj_selected_track_index < 0 or dj_selected_track_index >= len(DJ_JUKEBOX_TRACKS):
         return
     if dj_preview_track_index == dj_selected_track_index:
         dj_preview_track_index = None
     else:
         dj_preview_track_index = dj_selected_track_index
+    dj_track_was_busy = False
     update_background_music(force=True)
 
 
@@ -7868,6 +7928,28 @@ def draw_dj_label(text_value, x, y, size=24, color=(22, 28, 36), bold=False):
     font = pg_font.SysFont("Verdana", int(size), bold=bool(bold))
     rendered = font.render(str(text_value), True, color)
     surface.blit(rendered, (int(x), int(y)))
+
+
+def get_dj_track_visual_candidates(track_index):
+    level_number = int(track_index) + 1
+    base_path = f"assets/dj-level-visuals/dj-image-level-{level_number}"
+    return (
+        f"{base_path}.png",
+        f"{base_path}.jpg",
+        f"{base_path}.jpeg",
+        f"{base_path}-fout.png",
+    )
+
+
+def get_selected_dj_visual_image():
+    if dj_selected_track_index in DJ_TRACK_VISUAL_CACHE:
+        return DJ_TRACK_VISUAL_CACHE[dj_selected_track_index]
+    if 0 <= dj_selected_track_index < len(DJ_JUKEBOX_TRACKS):
+        track_visual = load_optional_image(get_dj_track_visual_candidates(dj_selected_track_index))
+        if track_visual is not None:
+            DJ_TRACK_VISUAL_CACHE[dj_selected_track_index] = track_visual
+            return track_visual
+    return BADGER_DJ_IMG if BADGER_DJ_IMG is not None else BADGER_SHOP_IMG
 
 
 def get_dj_track_list_layout():
@@ -7927,7 +8009,7 @@ def draw_dj_jukebox_panel(theme):
     rect(left_x, left_y, left_w, left_h)
     draw_rounded_rect_outline(left_x, left_y, left_w, left_h, 14, theme["accent"], 3)
 
-    poster_img = BADGER_DJ_IMG if BADGER_DJ_IMG is not None else BADGER_SHOP_IMG
+    poster_img = get_selected_dj_visual_image()
     if poster_img is not None:
         image(poster_img, left_x + 12, left_y + 12, left_w - 24, left_h - 24)
     else:
@@ -7979,10 +8061,44 @@ def handle_dj_screen_click(x, y):
     return False
 
 
+def draw_compact_controls_guide(theme):
+    fill(18)
+    text_size(30)
+    text("Controls Guide", 88, 44)
+
+    # Keep the left side compact; toggles are handled by right-side buttons.
+    guide_lines = [
+        ("I", "open/close instructions"),
+        ("Q / ESC", "menu (in game) or quit prompt (in menu)"),
+        ("F", "fullscreen on/off"),
+        ("P", "pause"),
+        ("SPACE / A", "start or shoot (boss)"),
+        ("K", "save screenshot"),
+        ("Arrow keys", "move / jump / duck"),
+        ("L / Shift+L", "debug level +1 / -1"),
+        ("V", "start credits (debug mode)"),
+    ]
+
+    y = 92
+    for key_txt, action_txt in guide_lines:
+        fill(30, 30, 30)
+        text_size(18)
+        text(key_txt, 84, y)
+        fill(78, 78, 78)
+        text("->", 214, y)
+        fill(22, 22, 22)
+        text(action_txt, 252, y)
+        y += 38
+
+    fill(34, 34, 34)
+    text_size(17)
+    text("Tip: use the right-side buttons for Music/SFX/Speech/DJ.", 84, y + 14)
+
+
 def draw_info_screen_actions(theme):
     fill(*theme["accent"])
     text_size(18)
-    text("Touch options", width - 278, 186)
+    text("Quick actions", width - 318, 166)
 
     for action in get_info_screen_action_layout():
         x = int(action["x"])
@@ -7994,14 +8110,14 @@ def draw_info_screen_actions(theme):
         draw_clean_3d_button(x, y, w, h, theme, selected=bool(state))
 
         fill(*theme["text"])
-        text_size(18)
-        text(action["label"], x + 14, y + 25)
+        text_size(19)
+        text(action["label"], x + 16, y + 30)
 
         if state is None:
             continue
 
-        pill_w = 64
-        pill_h = 24
+        pill_w = 86
+        pill_h = 26
         pill_x = x + w - pill_w - 12
         pill_y = y + ((h - pill_h) // 2)
         if state:
@@ -8010,8 +8126,8 @@ def draw_info_screen_actions(theme):
             fill(186, 194, 206)
         rect(pill_x, pill_y, pill_w, pill_h)
         fill(255 if state else 42, 255 if state else 50, 255 if state else 64)
-        text_size(14)
-        text("ON" if state else "OFF", pill_x + 17, pill_y + 16)
+        text_size(15)
+        text("ON" if state else "OFF", pill_x + 28, pill_y + 17)
 
 
 def handle_info_screen_click(x, y):
@@ -8090,23 +8206,6 @@ def draw_shop_button(theme):
     text("Shop", btn_x + 48, btn_y + 29)
 
 
-def get_shop_item_layout():
-    card_w = 280
-    card_h = 108
-    gap_x = 24
-    gap_y = 18
-    start_x = 92
-    start_y = 138
-    layout = []
-    for idx, item in enumerate(SHOP_ITEMS):
-        row = idx // 2
-        col = idx % 2
-        card_x = start_x + col * (card_w + gap_x)
-        card_y = start_y + row * (card_h + gap_y)
-        layout.append((item, card_x, card_y, card_w, card_h))
-    return layout
-
-
 def get_shop_buy_button_rect(card_x, card_y, card_w, card_h):
     btn_w = 86
     btn_h = 30
@@ -8147,16 +8246,23 @@ def draw_shop_screen(theme):
     if shop_selected_index < 0 or shop_selected_index > back_selection_idx:
         shop_selected_index = 0
     fill(*theme["text"])
-    text_size(40)
     title_text = "Powerup Shop"
     subtitle_text = "Use arrows to choose, SPACE to buy."
     if game_started and pending_boss_shop_level > 0:
         title_text = f"Badger Shop L{pending_boss_shop_level}"
         subtitle_text = "Boss prep: arrows + SPACE, then Back."
-    text(title_text, 214, 64)
-    text_size(20)
-    text(subtitle_text, 214, 92)
-    text(f"Coin pouch: {coin_count}/{MAX_COIN_POUCH}", 214, 118)
+
+    if BADGER_SHOP_IMG is not None:
+        text_size(34)
+        text(title_text, 214, 68)
+        text_size(18)
+        text(f"Coin pouch: {coin_count}/{MAX_COIN_POUCH}", 214, 96)
+    else:
+        text_size(40)
+        text(title_text, 214, 64)
+        text_size(20)
+        text(subtitle_text, 214, 92)
+        text(f"Coin pouch: {coin_count}/{MAX_COIN_POUCH}", 214, 118)
 
     fill(250, 248, 240)
     rect(stall_x - 18, stall_y - 18, stall_w + 36, stall_h + 36)
@@ -8207,28 +8313,28 @@ def draw_shop_screen(theme):
         )
 
         fill(*theme["text"])
-        text_size(34)
+        text_size(28)
         text(
             selected_item["label"],
             detail_panel_x + 18,
-            detail_panel_y + 36,
+            detail_panel_y + 32,
         )
         fill(*theme["accent"])
-        text_size(52)
+        text_size(34)
         text(
             f"{selected_item['cost']} coins",
             detail_panel_x + 18,
-            detail_panel_y + 82,
+            detail_panel_y + 70,
         )
         fill(*theme["text"])
         text_size(18)
         text(
             f"Owned: {owned_count}   SPACE = buy",
-            detail_panel_x + 280,
-            detail_panel_y + 80,
+            detail_panel_x + 330,
+            detail_panel_y + 70,
         )
-        text_size(20)
-        text(selected_item["desc"], detail_panel_x + 18, detail_panel_y + 106)
+        text_size(18)
+        text(selected_item["desc"], detail_panel_x + 18, detail_panel_y + 100)
     elif shop_selected_index == back_selection_idx:
         detail_panel_x = stall_x + 12
         detail_panel_y = stall_y + stall_h + 10
@@ -8418,6 +8524,7 @@ def draw():
     update_cloud_animation_clock()
     update_background_music()
     maintain_trimmed_music_loop()
+    maintain_dj_jukebox_autoplay()
     sync_car_engine_audio()
     if score > high_score:
         high_score = int(score)
@@ -8427,7 +8534,7 @@ def draw():
 
     if (
         (debug_coin_pressed or coin_key_held)
-        and isDebugMode
+        and (isDebugMode or shop_active)
         and not credits_active
         and not game_over
         and millis() >= debug_coin_repeat_until_ms
@@ -8454,14 +8561,17 @@ def draw():
                 text_size(14)
                 text(screenshot_notice_text, 30, height - 24)
             return
-        shared.draw_info_screen(INFO_TEXT)
+
+        background(245)
+        draw_compact_controls_guide(theme)
+
+        # Status cluster on the right, above quick-action buttons.
         fill(20)
-        text_size(20)
         speed_mult = scroll_speed / BASE_SCROLL_SPEED
-        text(f"Current level: {current_level}", 500, 120)
-        text(f"Speed: {speed_mult:.2f}x", 500, 148)
-        text_size(16)
-        text("L: level +1, Shift+L: level -1", 500, 176)
+        text_size(22)
+        text(f"Current level: {current_level}", width - 316, 84)
+        text(f"Speed: {speed_mult:.2f}x", width - 316, 114)
+
         draw_info_screen_actions(theme)
         if millis() < screenshot_notice_until_ms:
             fill(30, 110, 30)
@@ -9087,14 +9197,14 @@ def draw_touch_controls_overlay():
     for name, (bx, by, bw, bh) in buttons.items():
         is_pressed = (touch_active_button == name)
         if is_pressed:
-            fill(248, 214, 94, 220)
+            fill(248, 214, 94)
         else:
-            fill(230, 236, 244, 152)
+            fill(230, 236, 244)
         no_stroke()
         rect(int(bx), int(by), int(bw), int(bh))
         outline_color = (94, 112, 138) if not is_pressed else (184, 122, 28)
         draw_rounded_rect_outline(int(bx), int(by), int(bw), int(bh), 16, outline_color, 2)
-        fill(22, 28, 42, 238)
+        fill(22, 28, 42)
         label_size = 34 if narrow_screen and name != "action" else (28 if name != "action" else (34 if narrow_screen else 30))
         text_size(label_size)
         tx = int(bx + (bw * 0.28))

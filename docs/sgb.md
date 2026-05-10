@@ -78,6 +78,14 @@ De badger shop verschijnt in het menu en vlak voor boss fights.
 - Dezelfde iconen mogen later ook in de HUD gebruikt worden zodra losse uitgesneden assets beschikbaar zijn.
 - De huidige HUD mag daarom iconen naast tekst tonen in plaats van alleen tekstregels.
 
+### 2.1.4 Startmenu playerstatistieken
+
+- Na characterselectie toont het startmenu onder de geselecteerde speler altijd drie voortgangsregels.
+  - De eerste regel toont het huidige checkpoint-level van die speler.
+  - De tweede regel toont het totale aantal verbruikte levens van die speler.
+  - De derde regel toont de totale speeltijd van die speler over alle levels samen.
+- Deze drie regels zijn character-specifiek: wisselen van geselecteerde speler wisselt direct de getoonde waarden.
+
 ### 2.2 Boss Entrances
 
 Voor elk boss level stopt de endless-runner-flow kort in een statische hubscene.
@@ -188,30 +196,40 @@ Waarom:
 
 ### 2.4.1 Level 1: `Enter Cactus Land...`
 
+- Gebruikte muziek: runner-thema.
 - Introductie van de woestijn.
 - Basisobstakels: lage cactus, hoge cactus en lage vogel.
 - Nog geen slang.
 
 ### 2.4.2 Level 2: `Snake Sands`
 
+- Gebruikte muziek: runner-thema.
 - Meer druk in de woestijn.
 - Slangen komen erbij.
 - Timing tussen vogel, cactus en slang varieert meer.
 
 ### 2.4.3 Level 3: `High Jump Ridge`
 
+- Gebruikte muziek: runner-thema; na een geraakt water blok tijdelijk water-atmosphere-thema.
 - Verticale sprongen worden belangrijker.
 - Torencactus en high-jumpflow krijgen nadruk.
 - Jump blocks kunnen regen, natte grond en bloemen triggeren.
+- Dit level krijgt een moeilijk platform-jump moment: de endless runner-flow vertraagt hier kort en de speler moet op waterplanten landen om de snake pit door te komen.
 
 ### 2.4.4 Level 4: `Bird Boss Canyon`
 
+- Gebruikte muziek: runner-thema in de aanloop; bird-boss-thema in de arena.
 - Eerste minibossfase.
 - Reuzenvogel-boss.
 - Shop-hub vóór de arena-ingang.
+- De bird boss start pas nadat de speler de obstacle-doelstand van level 4 heeft gehaald.
+- De speler start de bird boss via het nest in de tree-hub (interactie op de entrance-zone), niet automatisch midden in de runnerflow.
+- Na het verslaan van de bird boss keert de speler terug naar de tree-hub.
+- De overgang naar level 5 gebeurt pas nadat de speler opnieuw bij het nest staat en daar bewust `DOWN` gebruikt om door te gaan.
 
 ### 2.4.5 Level 5: `Fly away`
 
+- Gebruikte muziek: plane-level-5-thema tijdens de vlucht; zeppelin-boss-thema aan het einde.
 - Eerste vliegtuighoofdstuk.
 - Pijpen verschijnen als obstakels.
 - Vliegtuig kan als pickup flight mode starten.
@@ -223,6 +241,7 @@ Waarom:
 
 ### 2.4.6 Level 6: `Blue Caverns`
 
+- Gebruikte muziek: plane-level-6-thema.
 - Tweede vliegtuighoofdstuk.
 - Flight mode loopt direct door vanuit de zeppelin-fight aan het einde van level 5.
 - De groene pijpen maken plaats voor blauwe cave hazards die als stalactieten en stalagmieten uit plafond en vloer groeien.
@@ -233,19 +252,22 @@ Waarom:
 - De waarschuwing zelf is niet dodelijk. Voor de speler blijft vóór de launch of val alleen de vaste stalactiet of stalagmiet gevaarlijk. Zodra de steen valt of de magma-bal springt, wordt dat bewegende object wel dodelijk.
 - Dit maakt level 6 nadrukkelijk meer een stuurlevel: de speler moet vaker heen en weer werken door nauwere doorgangen en actieve projectiles, minder als een rustige endless flyer en meer in de richting van Gradius/Galaga-achtig lane management.
 - Dit level gebruikt geen aparte miniboss-intro meer; het is juist de doorlopende cave-flight nasleep van de zeppelin-boundary fight.
-- Aan het einde van deze cave-flight verschijnt eerst een brandstofwaarschuwing; daarna start de noodlanding richting level 7.
+- Aan het einde van deze cave-flight verschijnt eerst een brandstofwaarschuwing; daarna start en eindigt de noodlanding nog binnen level 6.
+- Tijdens die noodlanding mag het vliegtuig nog wel links/rechts en sneller omlaag sturen, maar niet meer omhoog.
+- Te laag landen naast de baan of rechts voorbij de runway vliegen is fataal.
+- Level 7 start pas na een succesvolle landing en is daarna weer een grondfase zonder vliegtuig.
 
 ### 2.4.7 Level 7: `Cactus Fortress`
 
+- Gebruikte muziek: runner-thema in de aanloop; cactus-boss-thema in de arena.
 - Tweede minibossfase.
-- De speler komt hier niet direct lopend aan: eerst moet het vliegtuig op een bredere landingsbaan landen omdat de brandstof op is.
-- Tijdens die noodlanding mag het vliegtuig nog wel links/rechts en sneller omlaag sturen, maar niet meer omhoog.
-- Te laag landen naast de baan of rechts voorbij de runway vliegen is fataal.
+- Level 7 is volledig een grondhoofdstuk; de noodlanding hoort bij het einde van level 6.
 - Grondgevecht tegen de reuzencactus.
 - Shop-hub vóór de arena-ingang.
 
 ### 2.4.8 Level 8: `Wild Flats`
 
+- Gebruikte muziek: runner-thema.
 - Meer tempo en krappe obstacle-combinaties.
 - Multi-cactus packs vragen snelle landingen.
 - Hier verschijnen voor het eerst vogels die tijdens hun passage ook verticaal bewegen.
@@ -253,11 +275,13 @@ Waarom:
 
 ### 2.4.9 Level 9: `Running up the hill, and driving down`
 
+- Gebruikte muziek: runner-thema tijdens de run-up; car-level-9-thema zodra de auto actief is.
 - Voorbereiding op de eindbaas.
 - Hogere reactiedruk en minder hersteltijd.
 - Vogelzwermen doorbreken hier de oude enkelvoudige obstakelcadans.
 - Vogels bewegen hier sneller dan in level 8.
 - Naast lineaire verticale passages mag level 9 ook sinus-passages gebruiken.
+- Level 9 houdt vogels in een hoge luchtzone: vogelpassages spelen bovenin het scherm en niet op of vlak boven de grondlijn.
 - De opening van level 9 is geen vlakke runnerstrook meer: voordat de speler de auto bereikt, hoort de grond tijdens ongeveer `10` tot `15` seconden scrollen geleidelijk omhoog te lopen.
 - Die run-up hoort niet als een volledig zichtbare driehoek of complete heuvel in beeld te staan. De camera blijft een runner-camera; de speler ziet dus alleen het lokale stuk grond rondom het karakter langzaam stijgen terwijl de wereld naar links scrollt.
 - Tijdens deze run-up blijft de speler exact op dezelfde getekende grondlijn staan; de collision- en renderhoogte van de speler mogen dus niet onder de zichtbare heuvel zakken.
@@ -268,6 +292,7 @@ Waarom:
 - In dit level staat ook de auto-instap: als de speler op de auto landt, stopt de sidescroll heel kort voor een instapsequence.
 - Tijdens die korte stilval speelt eerst `KoyRoilers-car-engine-fail-356001.mp3` als stotterende start/instapcue.
 - Zodra de instappauze voorbij is en `car_mode` actief blijft, loopt de motor door met `pixabay-flutie8211-6-cylinder-car-starting-in-garage-399661.mp3`.
+- Tijdens de run-up gebruikt de game contextuele guidance: eerst `CLIMB THE HILL`; pas dicht bij de heuveltop en auto verschijnt `GET INTO THE CAR!`.
 
 #### Car mode: snelheidsbesturing en HUD
 
@@ -282,6 +307,7 @@ Waarom:
 
 ### 2.4.10 Level 10: `Giant Town`
 
+- Gebruikte muziek: runner-thema in de aanloop; coyote-boss-thema in de eindbaas-arena.
 - Eindbaasfase.
 - Reuzenvariant per karakter:
   - dino: `ReuzenDino`;
@@ -462,7 +488,7 @@ Waarom:
 - Versterkte/high jump (duck-jump, high-jump powerup of actieve jump shoes): gebruik `weeh.wav` voor alle karakters.
 - De noodlanding richting level 7 gebruikt `pixabay-arunangshubanerjee-cockpit-sound-of-landing-gear-deployment-aviation-audio-328162.mp3` als lange landing-alert; de donkere motorwolken tijdens die sequence gebruiken daarna bewust de kortere `hiss.wav`.
 - De auto-instap in level 9 gebruikt twee aparte autosignalen: `KoyRoilers-car-engine-fail-356001.mp3` voor de korte instappauze en `pixabay-flutie8211-6-cylinder-car-starting-in-garage-399661.mp3` als doorlopende motorklank zolang de speler rijdt.
-- Menu- en levelmuziek hebben nu een duidelijker rolverdeling: `big-coyote-in-the-tree-2.mp3` is de menu-track; `loading-atmosphere.wav` is de relatieve stilte voor de pre-boss levels `3`, `6` en `9`.
+- Menu- en levelmuziek hebben nu een duidelijker rolverdeling: `big-coyote-in-the-tree-2.mp3` is de menu-track; `pixel-leap.mp3` is de standaard runner-track voor gewone grondlevels; flight-, car- en boss-secties gebruiken hun eigen expliciete tracks.
 
 ## 6. Software Architecture
 

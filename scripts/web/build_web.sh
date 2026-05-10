@@ -126,6 +126,7 @@ import tarfile
 import tempfile
 from pathlib import Path
 
+root = Path(r"$ROOT_DIR")
 stage = Path(r"$STAGE_DIR")
 output = Path(r"$OUTPUT_DIR")
 build_id = r"$BUILD_ID"
@@ -165,6 +166,23 @@ if stage_archive.exists():
             archive.extractall(path=temp_root, filter="tar")
 
         shutil.copytree(stage, temp_root / "assets", dirs_exist_ok=True)
+
+        # The stage preparation removes MP3 to keep pygbag build stable.
+        # Restore MP3 files into the final runtime bundle so in-game music paths
+        # resolve correctly on GitHub Pages and other web deployments.
+        source_audio = root / "assets" / "audio"
+        bundle_audio = temp_root / "assets" / "audio"
+        if source_audio.exists():
+          bundle_audio.mkdir(parents=True, exist_ok=True)
+          restored = 0
+          for mp3_file in source_audio.rglob("*.mp3"):
+            rel = mp3_file.relative_to(source_audio)
+            target = bundle_audio / rel
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(mp3_file, target)
+            restored += 1
+          if restored:
+            print(f"[web-build] Restored {restored} mp3 files into bundle")
 
         with tarfile.open(renamed_archive, mode="w:gz") as archive:
             for child in sorted(temp_root.iterdir()):
