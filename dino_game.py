@@ -172,6 +172,10 @@ BADGER_DJ_IMG = load_optional_image((
     "assets/badger_dj.png",
 ))
 DJ_TRACK_VISUAL_CACHE = {}
+DJ_TRACK_LENGTHS_MS = {}  # Cache track lengths in ms
+dj_playback_start_time_ms = None  # When current track started playing (relative to millis())
+dj_playback_track_index = None  # Which track is currently playing (-1 if none)
+
 SHOP_ITEM_ICONS = {
     "extra_life": load_optional_image((
         "assets/shop-heart.png",
@@ -1570,6 +1574,7 @@ def music_get_pos_ms_compatible():
 
 def update_background_music(force=False):
     global current_music_mode, current_music_path, current_music_start_offset_seconds
+    global dj_playback_start_time_ms, dj_playback_track_index
     if IS_WEB and not web_audio_unlocked:
         return
     if not mixer.get_init():
@@ -1625,6 +1630,12 @@ def update_background_music(force=False):
         current_music_start_offset_seconds = play_music_compatible(-1 if should_loop else 0, start_seconds)
         current_music_mode = target_mode
         current_music_path = target_path
+        
+        # Track DJ playback timing for progress bar
+        if str(target_mode).startswith("dj:") and dj_preview_track_index is not None:
+            global dj_playback_start_time_ms, dj_playback_track_index
+            dj_playback_start_time_ms = millis()
+            dj_playback_track_index = dj_preview_track_index
     except Exception as exc:
         log_soft_exception(
             f"Failed to start background music '{target_path}' for mode '{target_mode}'",
@@ -7907,15 +7918,66 @@ def play_dj_track_by_index(track_index):
 
 
 def toggle_dj_track_playback():
-    global dj_preview_track_index, dj_track_was_busy
+    global dj_preview_track_index, dj_track_was_busy, dj_playback_start_time_ms, dj_playback_track_index
     if dj_selected_track_index < 0 or dj_selected_track_index >= len(DJ_JUKEBOX_TRACKS):
         return
     if dj_preview_track_index == dj_selected_track_index:
         dj_preview_track_index = None
+        dj_playback_track_index = None
+        dj_playback_start_time_ms = None
     else:
         dj_preview_track_index = dj_selected_track_index
+        dj_playback_track_index = dj_selected_track_index
+        dj_playback_start_time_ms = millis()
     dj_track_was_busy = False
     update_background_music(force=True)
+
+
+def get_dj_track_length_ms(track_index):
+    """Get cached track length in ms, or load it from audio file."""
+    if track_index in DJ_TRACK_LENGTHS_MS:
+        return DJ_TRACK_LENGTHS_MS[track_index]
+    
+    if track_index < 0 or track_index >= len(DJ_JUKEBOX_TRACKS):
+        return 0
+    
+    track = DJ_JUKEBOX_TRACKS[track_index]
+    track_path = resolve_runtime_asset_path(track["path"])
+    
+    try:
+        sound = mixer.Sound(track_path)
+        length_ms = int(sound.get_length() * 1000)
+        DJ_TRACK_LENGTHS_MS[track_index] = length_ms
+        return length_ms
+    except Exception as exc:
+        log_soft_exception(
+            f"Failed to get track length for index {track_index}",
+            exc,
+            once_key=f"dj_track_length:{track_index}",
+        )
+        return 0
+
+
+def get_dj_track_progress_percent():
+    """Return playback progress (0.0-1.0) for currently playing track, or 0 if not playing."""
+    global dj_playback_track_index, dj_playback_start_time_ms
+    
+    if dj_playback_track_index is None or dj_playback_start_time_ms is None:
+        return 0.0
+    
+    track_length_ms = get_dj_track_length_ms(dj_playback_track_index)
+    if track_length_ms <= 0:
+        return 0.0
+    
+    elapsed_ms = millis() - dj_playback_start_time_ms
+    progress = min(1.0, max(0.0, elapsed_ms / track_length_ms))
+    
+    # If track has finished, stop tracking
+    if progress >= 1.0:
+        dj_playback_track_index = None
+        dj_playback_start_time_ms = None
+    
+    return progress
 
 
 def draw_dj_label(text_value, x, y, size=24, color=(22, 28, 36), bold=False):
@@ -7964,14 +8026,16 @@ def get_dj_track_list_layout():
     item_gap_w = 12
     cols = 2
     track_count = max(1, len(DJ_JUKEBOX_TRACKS))
-    rows = (track_count + cols - 1) // cols
+    # Vertical split: first column gets ceiling half, second column gets rest
+    items_per_col = (track_count + cols - 1) // cols
     available_h = max(220, height - list_y - 130)
-    item_h = int((available_h - ((rows - 1) * item_gap_h)) / rows)
+    item_h = int((available_h - ((items_per_col - 1) * item_gap_h)) / items_per_col)
     item_h = max(40, min(52, item_h))
     items = []
     for idx in range(len(DJ_JUKEBOX_TRACKS)):
-        col = idx % cols
-        row = idx // cols
+        # Vertical grouping: first 'items_per_col' go to col 0, rest to col 1
+        col = 0 if idx < items_per_col else 1
+        row = idx if idx < items_per_col else (idx - items_per_col)
         row_x = list_x + col * (col_w + item_gap_w)
         row_y = list_y + row * (item_h + item_gap_h)
         items.append((idx, row_x, row_y, col_w, item_h))
@@ -7992,7 +8056,30 @@ def get_dj_back_button_rect():
     return btn_x, btn_y, btn_w, btn_h
 
 
+def advance_dj_track_to_next():
+    """Advance to next track when current one finishes."""
+    global dj_preview_track_index, dj_selected_track_index
+    if dj_preview_track_index is None:
+        return
+    if dj_preview_track_index >= len(DJ_JUKEBOX_TRACKS) - 1:
+        # Last track, stop playback
+        dj_preview_track_index = None
+        update_background_music(force=True)
+        return
+    # Move to next track
+    next_idx = dj_preview_track_index + 1
+    dj_selected_track_index = next_idx
+    dj_preview_track_index = next_idx
+    update_background_music(force=True)
+
+
 def draw_dj_jukebox_panel(theme):
+    # Check if current track finished and auto-advance to next
+    if dj_preview_track_index is not None:
+        progress = get_dj_track_progress_percent()
+        if progress >= 1.0:
+            advance_dj_track_to_next()
+    
     background(238, 244, 250)
     fill(221, 232, 243)
     no_stroke()
@@ -8041,6 +8128,21 @@ def draw_dj_jukebox_panel(theme):
         title_size = 16
         title_y = row_y + 9
         draw_dj_label(f"{idx + 1}. {track['title']}", row_x + 10, title_y, size=title_size, color=theme["text"], bold=True)
+        
+        # Draw progress bar for playing track
+        if is_playing:
+            progress = get_dj_track_progress_percent()
+            if progress > 0:
+                prog_bar_h = 4
+                prog_bar_y = row_y + row_h - prog_bar_h - 1
+                # Background (gray)
+                fill(200, 200, 200)
+                no_stroke()
+                rect(row_x + 3, prog_bar_y, row_w - 6, prog_bar_h)
+                # Progress fill (orange)
+                fill(255, 165, 0)  # Orange
+                prog_width = (row_w - 6) * progress
+                rect(row_x + 3, prog_bar_y, prog_width, prog_bar_h)
 
     back_x, back_y, back_w, back_h = get_dj_back_button_rect()
     draw_clean_3d_button(back_x, back_y, back_w, back_h, theme, selected=True)

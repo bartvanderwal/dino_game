@@ -490,6 +490,51 @@ Waarom:
 - De auto-instap in level 9 gebruikt twee aparte autosignalen: `KoyRoilers-car-engine-fail-356001.mp3` voor de korte instappauze en `pixabay-flutie8211-6-cylinder-car-starting-in-garage-399661.mp3` als doorlopende motorklank zolang de speler rijdt.
 - Menu- en levelmuziek hebben nu een duidelijker rolverdeling: `big-coyote-in-the-tree-2.mp3` is de menu-track; `pixel-leap.mp3` is de standaard runner-track voor gewone grondlevels; flight-, car- en boss-secties gebruiken hun eigen expliciete tracks.
 
+### 5.5 DJ Jukebox
+
+De DJ Jukebox is een optioneel afspeelmenu waar spelers alle 11 game-tracks kunnen beluisteren.
+
+Waarom:
+
+- Spelers willen muziek soms op de achtergrond afspelen zonder actief te spelen (huiskamer-luisteren).
+- DJ mode biedt een gestructureerde track-browse zonder interruptie van gameplay.
+- Per-track visuele elementen (posters) versterken brand cohesie en track-herkenning.
+
+#### 5.5.1 Beschikbare tracks
+
+1. Main Menu (`big-coyote-in-the-tree-2.mp3`)
+2. Runner (`pixel-leap.mp3`)
+3. Bird Boss (`Bigbird-in-the-tree-high-energy.mp3`)
+4. Zeppelin Boss (`Bigbird-in-the-tree-2.mp3`)
+5. Cactus Boss (`Prickly-so-sickly-cactus-throwing-spikes-yikes.mp3`)
+6. Coyote Boss (`big-coyote-in-the-tree-1.mp3`)
+7. Plane Level 5 (`plane-funk-music-cactus-arms-short.mp3`)
+8. Plane Level 6 (`plane2-funk-music-cactus-arms-short.mp3`)
+9. Car Level 9 (`car-funk-music-cactus-arms-are-destroyed.mp3`)
+10. Prickly (Alt) (`Prickly-so-sickly-cactus-throwing-spikes-yikes.mp3`)
+11. Credits (`finish-game-music-victory.mp3`)
+
+#### 5.5.2 UI Gedrag
+
+- DJ menu bereikbaar via toets J in startmenu.
+- Speler kan track selecteren via numpadtoetsen 1-11, pijltoetsen omhoog/omlaag, of direct klikken.
+- P-toets speelt/pauzeert geselecteerde track; B-toets keert terug naar menu.
+- Geselecteerde track wordt oranje gemarkeerd; spelende track krijgt groene achtergrond.
+- Per-track voortgangsbalk (oranje invul, grijze achtergrond) toont speelpositie onderaan spelende track-button.
+- Tracks in twee kolommen gelayout: level 1-6 linkerkolom, level 7-11 (inclusief credits) rechterkolom.
+- Grote poster-afbeelding links toont visueel element van geselecteerde track (assets/dj-level-visuals/dj-image-level-N.png).
+
+#### 5.5.3 Auto-Advance
+
+- Bij bereiken 100% speelpositie gaat de DJ automatisch naar volgende track.
+- Na laatste track stopt de DJ de afspeling.
+- Gebruiker kan manual selecteren/P te drukken, of wachten op auto-advance.
+
+#### 5.5.4 Track-lengte Detectie
+
+- Track-lengtes worden eenmaal geladen via `mixer.Sound.get_length()` en gecachet in `DJ_TRACK_LENGTHS_MS`.
+- Fallback op 0 ms bij load-fouten; afspeling werkt nog wel, maar geen progress-bar.
+
 ## 6. Software Architecture
 
 ### 6.1 Web Runtime en Packaging
