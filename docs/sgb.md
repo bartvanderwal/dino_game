@@ -261,7 +261,9 @@ Waarom:
 - De opening van level 9 is geen vlakke runnerstrook meer: voordat de speler de auto bereikt, hoort de grond tijdens ongeveer `10` tot `15` seconden scrollen geleidelijk omhoog te lopen.
 - Die run-up hoort niet als een volledig zichtbare driehoek of complete heuvel in beeld te staan. De camera blijft een runner-camera; de speler ziet dus alleen het lokale stuk grond rondom het karakter langzaam stijgen terwijl de wereld naar links scrollt.
 - Tijdens deze run-up blijft de speler exact op dezelfde getekende grondlijn staan; de collision- en renderhoogte van de speler mogen dus niet onder de zichtbare heuvel zakken.
+- Tijdens deze run-up blijft de gewone runnerdruk actief: tussen startpunt en auto blijven er dus ook springobstakels op de helling langskomen in plaats van een lege aanloop.
 - Tegen het einde van deze run-up staat de auto hoog op de helling, ongeveer rond de middenhoogte van het scherm, zodat de overgang naar car mode als een klim naar boven voelt.
+- De auto zelf moet ook in deze minimalistische stijl direct leesbaar zijn als auto: zichtbare wielen, een cabine en een duidelijke voorkant zijn onderdeel van die pickup- en overlay-presentatie.
 - Een sinus-passage hoort over de volledige schermpassage precies één hele golf te maken, zodat begin, midden en eind van de beweging voorspelbaar blijven.
 - In dit level staat ook de auto-instap: als de speler op de auto landt, stopt de sidescroll heel kort voor een instapsequence.
 - Tijdens die korte stilval speelt eerst `KoyRoilers-car-engine-fail-356001.mp3` als stotterende start/instapcue.

@@ -161,6 +161,13 @@ BADGER_SHOP_IMG = load_optional_image((
     "assets/npc/badger-shop.png",
     "assets/npc/badger_shop.png",
 ))
+BADGER_DJ_IMG = load_optional_image((
+    "assets/npc/badger-dj.png",
+    "assets/npc/badger_dj.png",
+    "assets/obstacles/badger-dj.png",
+    "assets/badger-dj.png",
+    "assets/badger_dj.png",
+))
 SHOP_ITEM_ICONS = {
     "extra_life": load_optional_image((
         "assets/shop-heart.png",
@@ -502,6 +509,16 @@ CAR_ENGINE_LOOP_SOUND_PATH = "assets/audio/pixabay-flutie8211-6-cylinder-car-sta
 FINAL_VICTORY_MUSIC_PATH = "assets/audio/finish-game-music-victory.mp3"
 VICTORY_MUSIC_PATH = "assets/audio/pixabay-mini-boss-tadaa.mp3"
 CREDITS_MUSIC_PATH = FINAL_VICTORY_MUSIC_PATH
+DJ_JUKEBOX_TRACKS = (
+    {"title": "Main Menu Theme", "level": "Menu / Splash", "path": MENU_MUSIC_PATH},
+    {"title": "Runner Theme", "level": "Main levels", "path": GAME_MUSIC_PATH},
+    {"title": "Pre-Boss Atmosphere", "level": "Before bosses", "path": PRE_BOSS_MUSIC_PATH},
+    {"title": "Bird Boss Theme", "level": "Boss L4", "path": BIRD_BOSS_MUSIC_PATH},
+    {"title": "Zeppelin Boss Theme", "level": "Boss L7", "path": AIR_BOSS_MUSIC_PATH},
+    {"title": "Coyote Boss Theme", "level": "Final boss L10", "path": COYOTE_BOSS_MUSIC_PATH},
+    {"title": "Victory Theme", "level": "Game complete", "path": VICTORY_MUSIC_PATH},
+    {"title": "Credits Theme", "level": "Credits", "path": CREDITS_MUSIC_PATH},
+)
 # Mini-boss stinger attribution lives in code and credits so the source stays
 # traceable even if asset filenames change later.
 MINI_BOSS_VICTORY_SOUND_PATH = "assets/audio/pixabay-mini-boss-tadaa.mp3"
@@ -877,6 +894,7 @@ OBSTACLE_CONFIG = {
 
 INFO_TEXT = [
     "i -> instructions screen",
+    "j -> DJ jukebox (in instructions)",
     "w -> play/stop welcome speech (in instructions)",
     "m -> music on/off",
     "s -> sound effects on/off",
@@ -1132,6 +1150,9 @@ bird_boss_exit_obstacles_remaining = 0
 current_music_mode = None
 current_music_path = None
 current_music_start_offset_seconds = 0.0
+info_screen_mode = "main"
+dj_selected_track_index = 0
+dj_preview_track_index = None
 player_max_hp = 1
 player_hp = 1
 player_damage_cooldown_until_ms = 0
@@ -1176,6 +1197,7 @@ def reset_game(show_splash=False):
     global is_ducking, game_paused, bird_duck_scored, duck_jump_expires_ms, is_fast_falling
     global debug_coin_pressed, debug_coin_repeat_until_ms
     global current_level, scroll_speed, obstacles_cleared, next_level_obstacle_goal, level_blink_until_ms
+    global info_screen_mode, dj_selected_track_index, dj_preview_track_index
     global obstacle_x, obstacle_spawn_x, obstacle_type
     global high_jump_warning_until_ms, high_jump_powerup_warning_until_ms
     global weapon_powerup_warning_until_ms, water_warning_until_ms
@@ -1234,6 +1256,9 @@ def reset_game(show_splash=False):
     game_over = False
     game_completed = False
     game_started = not show_splash
+    info_screen_mode = "main"
+    dj_selected_track_index = 0
+    dj_preview_track_index = None
     run_playtime_seconds = 0
     playtime_last_tick_ms = now
     death_recorded_this_run = False
@@ -1434,6 +1459,10 @@ def get_background_music_selection():
         return "credits", resolve_runtime_asset_path(CREDITS_MUSIC_PATH)
     if game_completed:
         return "victory", resolve_runtime_asset_path(VICTORY_MUSIC_PATH)
+    if shared.show_info and info_screen_mode == "dj" and dj_preview_track_index is not None:
+        if 0 <= dj_preview_track_index < len(DJ_JUKEBOX_TRACKS):
+            track = DJ_JUKEBOX_TRACKS[dj_preview_track_index]
+            return f"dj:{dj_preview_track_index}", resolve_runtime_asset_path(track["path"])
     if flight_crash_active or game_over:
         return None, None
     if boss_state is not None:
@@ -7595,7 +7624,8 @@ def get_info_screen_action_layout():
         {"key": "music", "label": "Music", "x": panel_x, "y": panel_y + (button_h + gap), "w": button_w, "h": button_h},
         {"key": "sfx", "label": "SFX", "x": panel_x, "y": panel_y + ((button_h + gap) * 2), "w": button_w, "h": button_h},
         {"key": "speech", "label": "Welcome speech", "x": panel_x, "y": panel_y + ((button_h + gap) * 3), "w": button_w, "h": button_h},
-        {"key": "back", "label": "Back", "x": panel_x, "y": panel_y + ((button_h + gap) * 4), "w": button_w, "h": button_h},
+        {"key": "dj", "label": "DJ jukebox", "x": panel_x, "y": panel_y + ((button_h + gap) * 4), "w": button_w, "h": button_h},
+        {"key": "back", "label": "Back", "x": panel_x, "y": panel_y + ((button_h + gap) * 5), "w": button_w, "h": button_h},
     ]
 
 
@@ -7608,7 +7638,140 @@ def get_info_screen_action_state(action_key):
         return shared.sound_enabled
     if action_key == "speech":
         return is_intro_speech_playing()
+    if action_key == "dj":
+        return info_screen_mode == "dj"
     return None
+
+
+def enter_dj_jukebox():
+    global info_screen_mode, dj_selected_track_index, dj_preview_track_index
+    info_screen_mode = "dj"
+    if dj_selected_track_index < 0 or dj_selected_track_index >= len(DJ_JUKEBOX_TRACKS):
+        dj_selected_track_index = 0
+    dj_preview_track_index = None
+    stop_intro_speech()
+    update_background_music(force=True)
+
+
+def exit_dj_jukebox():
+    global info_screen_mode, dj_preview_track_index
+    info_screen_mode = "main"
+    dj_preview_track_index = None
+    update_background_music(force=True)
+
+
+def play_dj_track_by_index(track_index):
+    global dj_selected_track_index, dj_preview_track_index
+    if track_index < 0 or track_index >= len(DJ_JUKEBOX_TRACKS):
+        return
+    dj_selected_track_index = track_index
+    dj_preview_track_index = track_index
+    update_background_music(force=True)
+
+
+def toggle_dj_track_playback():
+    global dj_preview_track_index
+    if dj_selected_track_index < 0 or dj_selected_track_index >= len(DJ_JUKEBOX_TRACKS):
+        return
+    if dj_preview_track_index == dj_selected_track_index:
+        dj_preview_track_index = None
+    else:
+        dj_preview_track_index = dj_selected_track_index
+    update_background_music(force=True)
+
+
+def get_dj_track_list_layout():
+    list_x = width - 430
+    list_y = 250
+    item_w = 392
+    item_h = 26
+    item_gap = 4
+    items = []
+    for idx in range(len(DJ_JUKEBOX_TRACKS)):
+        row_y = list_y + idx * (item_h + item_gap)
+        items.append((idx, list_x, row_y, item_w, item_h))
+    return items
+
+
+def get_dj_back_button_rect():
+    btn_w = 176
+    btn_h = 34
+    btn_x = width - 430
+    btn_y = 508
+    return btn_x, btn_y, btn_w, btn_h
+
+
+def draw_dj_jukebox_panel(theme):
+    panel_x = width - 430
+    panel_w = 392
+
+    fill(255, 255, 255)
+    no_stroke()
+    rect(panel_x, 86, panel_w, 156)
+    draw_rounded_rect_outline(panel_x, 86, panel_w, 156, 12, theme["accent"], 2)
+
+    poster_img = BADGER_DJ_IMG if BADGER_DJ_IMG is not None else BADGER_SHOP_IMG
+    if poster_img is not None:
+        image(poster_img, panel_x + 8, 94, panel_w - 16, 140)
+    else:
+        fill(*theme["accent"])
+        rect(panel_x + 12, 96, panel_w - 24, 136)
+        fill(255, 255, 255)
+        text_size(20)
+        text("DJ poster not found", panel_x + 98, 170)
+
+    fill(*theme["accent"])
+    text_size(22)
+    text("DJ Jukebox", panel_x, 30)
+    fill(*theme["text"])
+    text_size(15)
+    text("Press 1-8 or click a song. P = play/stop.", panel_x, 52)
+    text("B = back to instructions", panel_x, 72)
+
+    for idx, row_x, row_y, row_w, row_h in get_dj_track_list_layout():
+        track = DJ_JUKEBOX_TRACKS[idx]
+        is_selected = (idx == dj_selected_track_index)
+        is_playing = (idx == dj_preview_track_index)
+
+        if is_playing:
+            fill(206, 255, 220)
+        elif is_selected:
+            fill(236, 247, 255)
+        else:
+            fill(255, 255, 255)
+        no_stroke()
+        rect(row_x, row_y, row_w, row_h)
+        draw_rounded_rect_outline(row_x, row_y, row_w, row_h, 8, theme["accent"], 2)
+
+        fill(*theme["text"])
+        text_size(13)
+        text(f"{idx + 1}. {track['title']}", row_x + 10, row_y + 16)
+        fill(*theme.get("menu_meta", theme["text"]))
+        text_size(12)
+        text(track["level"], row_x + 238, row_y + 16)
+
+    back_x, back_y, back_w, back_h = get_dj_back_button_rect()
+    fill(255, 255, 255)
+    no_stroke()
+    rect(back_x, back_y, back_w, back_h)
+    draw_rounded_rect_outline(back_x, back_y, back_w, back_h, 10, theme["accent"], 2)
+    fill(*theme["accent"])
+    text_size(20)
+    text("Back (B)", back_x + 46, back_y + 24)
+
+
+def handle_dj_screen_click(x, y):
+    back_x, back_y, back_w, back_h = get_dj_back_button_rect()
+    if point_in_rect(x, y, back_x, back_y, back_w, back_h):
+        exit_dj_jukebox()
+        return True
+
+    for idx, row_x, row_y, row_w, row_h in get_dj_track_list_layout():
+        if point_in_rect(x, y, row_x, row_y, row_w, row_h):
+            play_dj_track_by_index(idx)
+            return True
+
+    return False
 
 
 def draw_info_screen_actions(theme):
@@ -7658,9 +7821,14 @@ def handle_info_screen_click(x, y):
 
         action_key = action["key"]
         if action_key == "back":
+            exit_dj_jukebox()
             shared.show_info = False
             stop_intro_speech()
             update_background_music(force=True)
+            return True
+
+        if action_key == "dj":
+            enter_dj_jukebox()
             return True
 
         if action_key == "debug":
@@ -8099,6 +8267,13 @@ def draw():
 
     if shared.show_info:
         shared.draw_info_screen(INFO_TEXT)
+        if info_screen_mode == "dj":
+            draw_dj_jukebox_panel(theme)
+            if millis() < screenshot_notice_until_ms:
+                fill(30, 110, 30)
+                text_size(14)
+                text(screenshot_notice_text, 30, height - 24)
+            return
         fill(20)
         text_size(20)
         speed_mult = scroll_speed / BASE_SCROLL_SPEED
@@ -8871,6 +9046,7 @@ def key_pressed():
     global fly_left_pressed, fly_right_pressed, fly_up_pressed
     global fly_down_pressed
     global boss_left_pressed, boss_right_pressed
+    global info_screen_mode, dj_preview_track_index
     global quit_confirm_active, is_fullscreen, coin_count
     global debug_coin_pressed, debug_coin_repeat_until_ms
     unlock_web_audio_if_needed()
@@ -8886,6 +9062,8 @@ def key_pressed():
         allow_quit=False,
     )
     if pressed_key == "i":
+        info_screen_mode = "main"
+        dj_preview_track_index = None
         stop_intro_speech()
         update_background_music(force=True)
         return
@@ -8924,6 +9102,9 @@ def key_pressed():
         return
 
     if pressed_key == "q" or effective_key_code == K_ESCAPE:
+        if shared.show_info and info_screen_mode == "dj" and effective_key_code == K_ESCAPE:
+            exit_dj_jukebox()
+            return
         if game_started:
             save_character_checkpoint()
             if active_character_key in CHARACTER_ORDER:
@@ -8938,6 +9119,23 @@ def key_pressed():
         return
 
     if shared.show_info:
+        if info_screen_mode == "dj":
+            if pressed_key == "b" or effective_key_code == K_ESCAPE:
+                exit_dj_jukebox()
+                return
+            if pressed_key == "p":
+                toggle_dj_track_playback()
+                return
+            if isinstance(pressed_key, str) and pressed_key.isdigit():
+                selected_idx = int(pressed_key) - 1
+                if 0 <= selected_idx < len(DJ_JUKEBOX_TRACKS):
+                    play_dj_track_by_index(selected_idx)
+                return
+            return
+
+        if pressed_key == "j":
+            enter_dj_jukebox()
+            return
         if pressed_key == "w":
             toggle_intro_speech_playback()
             return
@@ -9124,13 +9322,15 @@ def mouse_released(x, y, button):
 
 def mouse_clicked(x, y, button):
     global selected_character_idx, shop_active, shop_selected_index, quit_confirm_active
-    global touch_ignore_next_click
+    global touch_ignore_next_click, info_screen_mode, dj_preview_track_index
     if touch_ignore_next_click:
         touch_ignore_next_click = False
         return
     if button != 1:
         return
     if shared.show_info:
+        if info_screen_mode == "dj" and handle_dj_screen_click(x, y):
+            return
         handle_info_screen_click(x, y)
         return
 
@@ -9160,6 +9360,8 @@ def mouse_clicked(x, y, button):
 
     explain_x, explain_y, explain_w, explain_h = get_explain_button_rect()
     if point_in_rect(x, y, explain_x, explain_y, explain_w, explain_h):
+        info_screen_mode = "main"
+        dj_preview_track_index = None
         shared.show_info = True
         stop_intro_speech()
         update_background_music(force=True)

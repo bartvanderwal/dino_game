@@ -33,8 +33,8 @@ game_over = False
 
 ### Misverstanden voorkomen
 
-- Ga er niet vanuit dat Java Processing functies (zoals `saveFrame()`, `beginShape()`, `endShape()`, enz.) automatisch werken.
-- Controleer altijd in [api.md](api.md) of de functie bestaat, of kijk in de code onder `processing/`.
+- Ga er niet vanuit dat Java Processing functies (zoals `saveFrame()`, `beginShape()`, `endShape()`, enz.) automatisch werken in de Python Processing port.
+- Controleer daarom altijd in [api.md](api.md) documentatie van Python processing of de functie bestaat, of kijk in de code onder `processing/`.
 
 ## Zie ook
 
