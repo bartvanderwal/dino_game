@@ -705,6 +705,8 @@ Voor audio-assets in web builds (pygbag) geldt:
 
 - Deze game is ontwikkeld in Python 3 met als editor VS Code met gebruikmaking van CoPilot extensie voor agentic development. Zie verder de AGENTS.md voor hints voor AI/LLM agents en meer details.
 - De game kan lokaal native of als webpreview worden gedraaid.
+- **Native desktop venstergrootte:** `800 × 500` pixels (BASE_GAME_WIDTH / BASE_GAME_HEIGHT). Voor betere zichtbaarheid van detailrijke assets (bijv. DJ level visuals) zie issue #7 voor upscaling.
+- Web-build gebruikt dezelfde logical resolution maar renderopschaling in browser; visuals zijn daar groter en scherper.
 - Relevante scripts zijn onder meer `scripts/web/build_web.sh`, `scripts/web/run_web.sh` en `python3 -m py_compile dino_game.py`.
 - Smalle regressietests horen dicht op de gewijzigde slice te zitten.
 

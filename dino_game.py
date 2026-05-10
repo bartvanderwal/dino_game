@@ -540,7 +540,7 @@ DJ_JUKEBOX_TRACKS = (
 # Mini-boss stinger attribution lives in code and credits so the source stays
 # traceable even if asset filenames change later.
 MINI_BOSS_VICTORY_SOUND_PATH = "assets/audio/pixabay-mini-boss-tadaa.mp3"
-APP_VERSION = "0.5.0"
+APP_VERSION = "0.6.0"
 MUSIC_VOLUME = 0.35
 INTRO_SPEECH_PATH = "assets/audio/welcome-to-the-dino-game.mp3"
 CREDITS_DURATION_MS = 66000
