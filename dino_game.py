@@ -153,6 +153,13 @@ ZEPPELIN_IMG = load_optional_image((
     "assets/zeppelin.png",
     "assets/npc/zeppelin.png",
 ))
+COYOTE_BOSS_IMG = load_optional_image((
+    "assets/npc/coyote-endbos/coyote-transparant.png",
+    "assets/npc/coyote-endbos/coyote.png",
+))
+COYOTE_THROW_SPRITE_SHEET = load_optional_image((
+    "assets/npc/coyote-endbos/coyote-sprite-sheet.png",
+))
 BADGER_SHOP_IMG = load_optional_image((
     "assets/obstacles/badger-shop-crop.png",
     "assets/obstacles/badger-shop.png",
@@ -171,6 +178,149 @@ BADGER_DJ_IMG = load_optional_image((
     "assets/badger-dj.png",
     "assets/badger_dj.png",
 ))
+
+RUNBIRD_RUN_SPRITE_SHEET = load_optional_image((
+    "assets/pc/run-bird-run-cycle.png",
+    "assets/pc/runbird-run-cycle.png",
+    "assets/pc/runbird-sprite-sheet.png",
+    "assets/pc/runbird-spritesheet.png",
+    "assets/pc/roadrunner-run-cycle.png",
+))
+
+
+def extract_runbird_run_frames(sheet, cols=4, rows=2):
+    if sheet is None:
+        return []
+    sw, sh = sheet.get_width(), sheet.get_height()
+    frames = []
+    for row in range(rows):
+        y0 = int((row * sh) / rows)
+        y1 = int(((row + 1) * sh) / rows)
+        for col in range(cols):
+            x0 = int((col * sw) / cols)
+            x1 = int(((col + 1) * sw) / cols)
+            tile_w = max(1, x1 - x0)
+            tile_h = max(1, y1 - y0)
+            tile = sheet.subsurface((x0, y0, tile_w, tile_h)).copy()
+            bounds = tile.get_bounding_rect(min_alpha=8)
+            if bounds.width <= 0 or bounds.height <= 0:
+                continue
+            frames.append(tile.subsurface(bounds).copy())
+    return frames
+
+
+def make_dark_pixels_transparent(surface, darkness_threshold=40):
+    if surface is None:
+        return None
+    processed = surface.copy().convert_alpha()
+    surf_w = processed.get_width()
+    surf_h = processed.get_height()
+    for px in range(surf_w):
+        for py in range(surf_h):
+            red, green, blue, alpha = processed.get_at((px, py))
+            if alpha <= 0:
+                continue
+            if red <= darkness_threshold and green <= darkness_threshold and blue <= darkness_threshold:
+                processed.set_at((px, py), (red, green, blue, 0))
+    return processed
+
+
+def extract_coyote_throw_assets(sheet, cols=3, rows=2):
+    assets = {
+        "stand_right": [],
+        "stand_left": [],
+        "crouch_right": [],
+        "crouch_left": [],
+        "dynamite_right": None,
+        "dynamite_left": None,
+    }
+    if sheet is None:
+        return assets
+
+    sw = sheet.get_width()
+    sh = sheet.get_height()
+    row_frames = []
+
+    for row in range(rows):
+        frames = []
+        y0 = int((row * sh) / rows)
+        y1 = int(((row + 1) * sh) / rows)
+        for col in range(cols):
+            x0 = int((col * sw) / cols)
+            x1 = int(((col + 1) * sw) / cols)
+            tile_w = max(1, x1 - x0)
+            tile_h = max(1, y1 - y0)
+            tile = sheet.subsurface((x0, y0, tile_w, tile_h)).copy()
+            tile = make_dark_pixels_transparent(tile, darkness_threshold=42)
+            bounds = tile.get_bounding_rect(min_alpha=8)
+            if bounds.width <= 0 or bounds.height <= 0:
+                continue
+            frames.append(tile.subsurface(bounds).copy())
+        row_frames.append(frames)
+
+    if row_frames and row_frames[0]:
+        assets["stand_right"] = row_frames[0]
+        assets["stand_left"] = [transform.flip(frame, True, False) for frame in row_frames[0]]
+    if len(row_frames) > 1 and row_frames[1]:
+        assets["crouch_right"] = row_frames[1]
+        assets["crouch_left"] = [transform.flip(frame, True, False) for frame in row_frames[1]]
+
+    # Extract right-facing dynamite from the top-right throw tile, then create mirrored variant.
+    throw_tile_x0 = int((2 * sw) / cols)
+    throw_tile_x1 = int((3 * sw) / cols)
+    throw_tile_y0 = 0
+    throw_tile_y1 = int(sh / rows)
+    throw_tile = sheet.subsurface((
+        throw_tile_x0,
+        throw_tile_y0,
+        max(1, throw_tile_x1 - throw_tile_x0),
+        max(1, throw_tile_y1 - throw_tile_y0),
+    )).copy().convert_alpha()
+
+    tile_w = throw_tile.get_width()
+    tile_h = throw_tile.get_height()
+    min_x = tile_w
+    min_y = tile_h
+    max_x = -1
+    max_y = -1
+    for px in range(int(tile_w * 0.55), tile_w):
+        for py in range(tile_h):
+            red, green, blue, alpha = throw_tile.get_at((px, py))
+            if alpha <= 0:
+                continue
+            is_dynamite_red = red > 118 and green < 132 and blue < 120
+            is_fuse_fire = red > 180 and green > 110 and blue < 120
+            if not (is_dynamite_red or is_fuse_fire):
+                continue
+            min_x = min(min_x, px)
+            min_y = min(min_y, py)
+            max_x = max(max_x, px)
+            max_y = max(max_y, py)
+
+    if max_x >= min_x and max_y >= min_y:
+        pad = 6
+        crop_x = max(0, min_x - pad)
+        crop_y = max(0, min_y - pad)
+        crop_w = min(tile_w - crop_x, (max_x - min_x) + (pad * 2) + 1)
+        crop_h = min(tile_h - crop_y, (max_y - min_y) + (pad * 2) + 1)
+        dynamite = throw_tile.subsurface((crop_x, crop_y, max(1, crop_w), max(1, crop_h))).copy()
+        dynamite = make_dark_pixels_transparent(dynamite, darkness_threshold=56)
+        dyn_bounds = dynamite.get_bounding_rect(min_alpha=8)
+        if dyn_bounds.width > 0 and dyn_bounds.height > 0:
+            assets["dynamite_right"] = dynamite.subsurface(dyn_bounds).copy()
+            assets["dynamite_left"] = transform.flip(assets["dynamite_right"], True, False)
+
+    return assets
+
+
+RUNBIRD_RUN_FRAMES = extract_runbird_run_frames(RUNBIRD_RUN_SPRITE_SHEET, cols=4, rows=2)
+COYOTE_THROW_ASSETS = extract_coyote_throw_assets(COYOTE_THROW_SPRITE_SHEET, cols=3, rows=2)
+COYOTE_THROW_STAND_RIGHT_FRAMES = COYOTE_THROW_ASSETS["stand_right"]
+COYOTE_THROW_STAND_LEFT_FRAMES = COYOTE_THROW_ASSETS["stand_left"]
+COYOTE_THROW_CROUCH_RIGHT_FRAMES = COYOTE_THROW_ASSETS["crouch_right"]
+COYOTE_THROW_CROUCH_LEFT_FRAMES = COYOTE_THROW_ASSETS["crouch_left"]
+COYOTE_DYNAMITE_RIGHT_IMG = COYOTE_THROW_ASSETS["dynamite_right"]
+COYOTE_DYNAMITE_LEFT_IMG = COYOTE_THROW_ASSETS["dynamite_left"]
 DJ_TRACK_VISUAL_CACHE = {}
 DJ_TRACK_LENGTHS_MS = {}  # Cache track lengths in ms
 dj_playback_start_time_ms = None  # When current track started playing (relative to millis())
@@ -264,6 +414,12 @@ BIRD_RIGHT_IMG = transform.flip(BIRD_IMG, True, False)
 GIANT_DINO_RIGHT_IMG = transform.flip(DINO_IMG, True, False)
 GIANT_COWBOY_RIGHT_IMG = transform.flip(COWBOY_IMG, True, False)
 GIANT_COWBOY_CROUCH_RIGHT_IMG = transform.flip(COWBOY_CROUCH_SPRITE, True, False)
+
+
+def sc(pixel_value):
+    """Scale a pixel coordinate or size by SCALE_FACTOR."""
+    return int(pixel_value * SCALE_FACTOR)
+
 
 # Dino properties
 BASE_GAME_WIDTH = 800
@@ -440,6 +596,7 @@ FLIGHT_PLANE_SMOKE_INTERVAL_MS = {
 CACTUS_MINIBOSS_HITS_REQUIRED = 15
 COYOTE_TNT_THROW_SPEED = 6.8
 COYOTE_TNT_THROW_GRAVITY = 0.34
+COYOTE_TNT_GROUND_FUSE_MS = 700
 COYOTE_TNT_BLAST_MS = 260
 COYOTE_BIG_BOMB_CHANCE_PCT = 34
 COYOTE_BIG_BOMB_THROW_SPEED = 5.1
@@ -579,11 +736,6 @@ def log_soft_exception(context, exc, *, once_key=None):
         _logged_soft_exception_keys.add(once_key)
     print(f"[dino_game] {context}: {exc.__class__.__name__}: {exc}", file=sys.stderr)
     traceback.print_exception(type(exc), exc, exc.__traceback__)
-
-
-def sc(pixel_value):
-    """Scale a pixel coordinate or size by SCALE_FACTOR. Shorthand for inline scaling."""
-    return int(pixel_value * SCALE_FACTOR)
 
 
 def get_runtime_asset_path_candidates(path):
@@ -979,7 +1131,7 @@ CHARACTER_CONFIG = {
     },
     "roadrunner": {
         "label": "Roadrunner",
-        "stand": ROADRUNNER_IMG,
+        "stand": RUNBIRD_RUN_FRAMES[0] if RUNBIRD_RUN_FRAMES else ROADRUNNER_IMG,
         "crouch_sprite": ROADRUNNER_CROUCH_SPRITE,
         "pipe_crouch_path": "assets/roadrunner-crouch-pipe-transparant.png",
         "oops": ROADRUNNER_OOPS_IMG,
@@ -5289,6 +5441,18 @@ def draw_projectile(projectile):
         rect(x + w - 2, y - 3, 2, 3)
         return
 
+    if kind == "enemy_tnt_ground":
+        time_left = projectile.get("explode_at", 0) - millis()
+        if time_left <= COYOTE_BIG_BOMB_SHAKE_WARNING_MS:
+            shake_strength = max(0.4, 1.0 - (time_left / max(1, COYOTE_BIG_BOMB_SHAKE_WARNING_MS)))
+            shake_phase = int(millis() / 30)
+            x += int((1 if shake_phase % 2 == 0 else -1) * max(1, COYOTE_BIG_BOMB_SHAKE_PX - 2) * shake_strength)
+        fill(196, 30, 30)
+        rect(x, y, w, h)
+        fill(255, 220, 90)
+        rect(x + w - 2, y - 3, 2, 3)
+        return
+
     if kind in ("enemy_big_tnt", "enemy_big_tnt_ground", "returned_big_tnt"):
         if kind == "enemy_big_tnt_ground":
             time_left = projectile.get("explode_at", 0) - millis()
@@ -5639,7 +5803,15 @@ def get_boss_hitbox(boss):
             )
         return hitbox_from_sprite(GIANT_COWBOY_RIGHT_IMG, boss["x"], boss["y"], boss["w"], boss["h"], pad_x=12, pad_y=11)
 
-    # ReuzenCoyote (shape-based render): keep manual tuned hitbox.
+    if COYOTE_BOSS_IMG is not None:
+        draw_y = boss["y"]
+        draw_h = boss["h"]
+        if boss.get("is_crouching", False) and not boss.get("jumping", False):
+            draw_h = int(boss["h"] * 0.78)
+            draw_y = boss["y"] + (boss["h"] - draw_h)
+        return hitbox_from_sprite(COYOTE_BOSS_IMG, boss["x"], draw_y, boss["w"], draw_h, pad_x=18, pad_y=14)
+
+    # ReuzenCoyote fallback (shape-based render).
     draw_y = boss["y"]
     draw_h = boss["h"]
     if boss.get("is_crouching", False) and not boss.get("jumping", False):
@@ -5837,25 +6009,44 @@ def spawn_boss_for_level(level):
     elif active_character_key == "roadrunner":
         form_name = "ReuzenCoyote"
         form_display_name = "Giant Coyote"
+    boss_w = 190
+    boss_h = 230
     spawn_y = 162.0
     min_y = 120.0
     max_y = 220.0
+    spawn_x = float(width - 220)
+    min_x = float(width - 320)
+    max_x = float(width - 68)
+    boss_vy = 1.35
+    boss_vx = 1.5 if form_name == "ReuzenCoyote" else 0.0
     if form_name == "ReuzenCowboy":
         # Keep giant cowboy closer to the ground so straight shots can hit ground-level player.
         spawn_y = 214.0
         min_y = 188.0
         max_y = 252.0
+    elif form_name == "ReuzenCoyote":
+        # Make coyote dominant and always grounded instead of floating.
+        boss_w = 380
+        boss_h = 460
+        spawn_y = float(GROUND_Y - boss_h)
+        min_y = spawn_y
+        max_y = spawn_y
+        spawn_x = float(width - boss_w - 26)
+        min_x = float(width - boss_w - 236)
+        max_x = float(width - boss_w - 18)
+        boss_vy = 0.0
+        boss_vx = 1.9
 
     return {
         "type": "final_boss",
         "level": 10,
         "name": f"Final Boss L10: {form_display_name}",
         "form": form_name,
-        "x": float(width - 220),
+        "x": spawn_x,
         "y": spawn_y,
-        "w": 190,
-        "h": 230,
-        "vy": 1.35,
+        "w": boss_w,
+        "h": boss_h,
+        "vy": boss_vy,
         "min_y": min_y,
         "max_y": max_y,
         "hits_taken": 0,
@@ -5865,10 +6056,11 @@ def spawn_boss_for_level(level):
         "attack_interval_ms": 760,
         "phase": "laugh",
         "pit_traps": [],
-        "vx": 1.5 if form_name == "ReuzenCoyote" else 0.0,
-        "min_x": float(width - 320),
-        "max_x": float(width - 68),
+        "vx": boss_vx,
+        "min_x": min_x,
+        "max_x": max_x,
         "last_attack_ms": now,
+        "throw_right": True,
         "enemy_weapon_kind": profile["kind"],
         "is_crouching": False,
         "crouch_until_ms": 0,
@@ -6471,6 +6663,37 @@ def draw_boss_entity(boss):
             image(GIANT_COWBOY_RIGHT_IMG, x, y, w, h)
         return
 
+    throw_right = bool(boss.get("throw_right", True))
+    standing_frames = COYOTE_THROW_STAND_RIGHT_FRAMES if throw_right else COYOTE_THROW_STAND_LEFT_FRAMES
+    crouch_frames = COYOTE_THROW_CROUCH_RIGHT_FRAMES if throw_right else COYOTE_THROW_CROUCH_LEFT_FRAMES
+    if standing_frames:
+        attack_age_ms = millis() - int(boss.get("last_attack_ms", 0))
+        if attack_age_ms < 110:
+            throw_frame_idx = 2
+        elif attack_age_ms < 240:
+            throw_frame_idx = 1
+        else:
+            throw_frame_idx = 0
+
+        source_frames = crouch_frames if (crouching and crouch_frames) else standing_frames
+        chosen_frame = source_frames[min(max(0, throw_frame_idx), len(source_frames) - 1)]
+        draw_y = y
+        draw_h = h
+        if crouching:
+            draw_h = int(h * 0.78)
+            draw_y = y + (h - draw_h)
+        image(chosen_frame, x, draw_y, w, draw_h)
+        return
+
+    if COYOTE_BOSS_IMG is not None:
+        draw_y = y
+        draw_h = h
+        if crouching:
+            draw_h = int(h * 0.78)
+            draw_y = y + (h - draw_h)
+        image(COYOTE_BOSS_IMG, x, draw_y, w, draw_h)
+        return
+
     # ReuzenCoyote without dedicated sprite: stylized silhouette with mood phases.
     if crouching:
         crouch_h = int(h * 0.74)
@@ -6634,6 +6857,23 @@ def update_enemy_projectiles(boss):
                 apply_player_hit()
                 return
             if projectile["y"] + projectile["h"] >= GROUND_Y:
+                projectile.update({
+                    "kind": "enemy_tnt_ground",
+                    "x": projectile["x"],
+                    "y": GROUND_Y - projectile["h"],
+                    "w": projectile["w"],
+                    "h": projectile["h"],
+                    "vx": 0.0,
+                    "vy": 0.0,
+                    "explode_at": millis() + COYOTE_TNT_GROUND_FUSE_MS,
+                })
+                continue
+            if projectile["x"] + projectile["w"] < -40:
+                projectile["active"] = False
+            continue
+
+        if projectile["kind"] == "enemy_tnt_ground":
+            if millis() >= projectile.get("explode_at", 0):
                 spawn_coyote_pit(boss, projectile["x"] + (projectile["w"] / 2))
                 projectile.update({
                     "kind": "tnt_blast",
@@ -6645,8 +6885,6 @@ def update_enemy_projectiles(boss):
                     "blast_until": millis() + COYOTE_TNT_BLAST_MS,
                 })
                 continue
-            if projectile["x"] + projectile["w"] < -40:
-                projectile["active"] = False
             continue
 
         if projectile["kind"] == "enemy_big_tnt":
@@ -6893,8 +7131,9 @@ def spawn_boss_attack_if_needed(boss):
         throw_big_bomb = int(random(0, 100)) < COYOTE_BIG_BOMB_CHANCE_PCT
         proj_w = 24 if throw_big_bomb else 14
         proj_h = 24 if throw_big_bomb else 28
-        origin_x = boss["x"] - 6
-        origin_y = boss["y"] + (108 if throw_big_bomb else 112)
+        throw_right = bool(boss.get("throw_right", True))
+        origin_x = boss["x"] + int(boss["w"] * (0.78 if throw_right else 0.22))
+        origin_y = boss["y"] + int(boss["h"] * (0.46 if throw_big_bomb else 0.50))
         bomb_speed = COYOTE_BIG_BOMB_THROW_SPEED if throw_big_bomb else COYOTE_TNT_THROW_SPEED
         travel_px = max(28.0, origin_x - player_center_x)
         travel_time = travel_px / max(0.1, bomb_speed)
@@ -6908,7 +7147,7 @@ def spawn_boss_attack_if_needed(boss):
             "y": origin_y,
             "w": proj_w,
             "h": proj_h,
-            "vx": -bomb_speed,
+            "vx": bomb_speed if throw_right else -bomb_speed,
             "vy": throw_vy,
             "kind": "enemy_big_tnt" if throw_big_bomb else "enemy_tnt",
             "color": (210, 35, 30),
@@ -8518,11 +8757,15 @@ def draw_menu_character_card(idx, x, card_y, card_w, card_h, character_key, char
     draw_rounded_rect_outline(x, card_y, card_w, card_h, 14, theme["ground_line"], 2)
 
     preview = character["stand"]
-    image(preview, x + 28, card_y + 16, 114, 96)
+    preview_w = int(card_w * 0.62)
+    preview_h = int(card_h * 0.58)
+    preview_x = int(x + ((card_w - preview_w) * 0.5))
+    preview_y = int(card_y + (card_h * 0.08))
+    image(preview, preview_x, preview_y, preview_w, preview_h)
 
     fill(*theme["text"])
-    text_size(20)
-    text(character["label"], x + 46, card_y + 140)
+    text_size(sc(10))
+    text(character["label"], int(x + (card_w * 0.25)), int(card_y + (card_h * 0.82)))
 
 
 def draw_character_select(theme):
@@ -9992,6 +10235,15 @@ def draw_main_character():
         # Simple walk cycle for cowboy: alternate stand/run frames.
         run_phase = int(millis() / 150) % 2
         dino_sprite = character["run"] if run_phase else character["stand"]
+    elif (
+        current_character_key == "roadrunner" and
+        game_started and
+        not game_paused and
+        on_ground and
+        RUNBIRD_RUN_FRAMES
+    ):
+        frame_idx = int(millis() / 95) % len(RUNBIRD_RUN_FRAMES)
+        dino_sprite = RUNBIRD_RUN_FRAMES[frame_idx]
     else:
         dino_sprite = character["stand"]
     image(dino_sprite, draw_x, dino_y_draw, draw_w, draw_h)
