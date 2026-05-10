@@ -338,6 +338,13 @@ CLIFF_GAP_W_BY_TARGET_TIER = (188, 228, 268, 320)
 LEVEL9_HILL_RUNUP_SECONDS = 12.0
 LEVEL9_HILL_VISIBLE_SLOPE_PX = 64.0
 LEVEL9_HILL_VARIATION_PX = 5.0
+LEVEL9_HILL_RUNUP_OBSTACLE_LAYOUT = (
+    (0.16, "cactus_low"),
+    (0.31, "cactus_low"),
+    (0.47, "cactus_high"),
+    (0.63, "cactus_low"),
+    (0.79, "cactus_low"),
+)
 BIRD_VERTICAL_TRAVEL_PX = 78
 BIRD_DIVE_ENTRY_Y = 92
 BIRD_DIVE_VERTICAL_TRAVEL_PX = 248
@@ -414,6 +421,8 @@ COYOTE_BIG_BOMB_CHANCE_PCT = 34
 COYOTE_BIG_BOMB_THROW_SPEED = 5.1
 COYOTE_BIG_BOMB_FUSE_MS = 1250
 COYOTE_BIG_BOMB_BLAST_MS = 420
+COYOTE_BIG_BOMB_SHAKE_WARNING_MS = 320
+COYOTE_BIG_BOMB_SHAKE_PX = 4
 COYOTE_BIG_BOMB_RETURN_SPEED = 9.4
 COYOTE_BIG_BOMB_RETURN_VY = -8.6
 COYOTE_BIG_BOMB_RETURN_GRAVITY = 0.28
@@ -481,6 +490,12 @@ GAME_MUSIC_PATH = "assets/audio/pixel-leap.wav"
 BIRD_BOSS_MUSIC_PATH = "assets/audio/Bigbird-in-the-tree-high-energy.mp3"
 AIR_BOSS_MUSIC_PATH = "assets/audio/Bigbird-in-the-tree-2.mp3"
 COYOTE_BOSS_MUSIC_PATH = "assets/audio/big-coyote-in-the-tree-1.mp3"
+MUSIC_PLAYBACK_RULES = {
+    "boss:coyote": {
+        "start_seconds": 0.0,
+        "loop_end_seconds": 189.12,
+    },
+}
 LANDING_WARNING_SOUND_PATH = "assets/audio/pixabay-arunangshubanerjee-cockpit-sound-of-landing-gear-deployment-aviation-audio-328162.mp3"
 CAR_ENTRY_SOUND_PATH = "assets/audio/KoyRoilers-car-engine-fail-356001.mp3"
 CAR_ENGINE_LOOP_SOUND_PATH = "assets/audio/pixabay-flutie8211-6-cylinder-car-starting-in-garage-399661.mp3"
@@ -490,7 +505,7 @@ CREDITS_MUSIC_PATH = FINAL_VICTORY_MUSIC_PATH
 # Mini-boss stinger attribution lives in code and credits so the source stays
 # traceable even if asset filenames change later.
 MINI_BOSS_VICTORY_SOUND_PATH = "assets/audio/pixabay-mini-boss-tadaa.mp3"
-APP_VERSION = "0.4.0"
+APP_VERSION = "0.5.0"
 MUSIC_VOLUME = 0.35
 INTRO_SPEECH_PATH = "assets/audio/welcome-to-the-dino-game.mp3"
 CREDITS_DURATION_MS = 66000
@@ -1010,10 +1025,19 @@ checkpoint_level_by_character = {
 character_completed = {
     character_key: False for character_key in CHARACTER_ORDER
 }
+character_total_playtime_seconds = {
+    character_key: 0 for character_key in CHARACTER_ORDER
+}
+character_deaths = {
+    character_key: 0 for character_key in CHARACTER_ORDER
+}
 pipe_crouch_sprite_cache = {}
 duck_jump_expires_ms = 0
 is_fast_falling = False
 current_level = 1
+run_playtime_seconds = 0
+playtime_last_tick_ms = 0
+death_recorded_this_run = False
 scroll_speed = BASE_SCROLL_SPEED
 obstacles_cleared = 0
 next_level_obstacle_goal = LEVEL_OBSTACLE_TOTAL_THRESHOLDS[0]
@@ -1107,6 +1131,7 @@ boss_completed = {
 bird_boss_exit_obstacles_remaining = 0
 current_music_mode = None
 current_music_path = None
+current_music_start_offset_seconds = 0.0
 player_max_hp = 1
 player_hp = 1
 player_damage_cooldown_until_ms = 0
@@ -1198,7 +1223,9 @@ def reset_game(show_splash=False):
     global pipe_crouch_sprite_cache
     global touch_active_button, touch_ignore_next_click
     global pending_high_jump_landing_roar
+    global run_playtime_seconds, playtime_last_tick_ms, death_recorded_this_run
     stop_intro_speech()
+    now = millis()
     dino_y = DINO_Y
     velocity_y = 0
     on_ground = True
@@ -1207,6 +1234,9 @@ def reset_game(show_splash=False):
     game_over = False
     game_completed = False
     game_started = not show_splash
+    run_playtime_seconds = 0
+    playtime_last_tick_ms = now
+    death_recorded_this_run = False
     if show_splash:
         shop_active = False
     shop_selected_index = 0
@@ -1417,8 +1447,57 @@ def get_background_music_selection():
     return "game", resolve_runtime_asset_path(GAME_MUSIC_PATH)
 
 
+def play_music_compatible(loops, start_seconds=0.0):
+    """Play music with optional start offset across pygame and proxy backends."""
+    start_seconds = max(0.0, float(start_seconds))
+    if start_seconds <= 0.0:
+        mixer.music.play(loops)
+        return 0.0
+    try:
+        mixer.music.play(loops, start_seconds)
+        return start_seconds
+    except TypeError as exc:
+        log_soft_exception(
+            "Music backend does not support start offsets; playing from track start",
+            exc,
+            once_key="music_play_start_unsupported",
+        )
+        mixer.music.play(loops)
+        return 0.0
+
+
+def music_is_busy_compatible():
+    get_busy = getattr(mixer.music, "get_busy", None)
+    if not callable(get_busy):
+        return False
+    try:
+        return bool(get_busy())
+    except Exception as exc:
+        log_soft_exception(
+            "Failed to query music busy state from backend",
+            exc,
+            once_key="music_get_busy_failed",
+        )
+        return False
+
+
+def music_get_pos_ms_compatible():
+    get_pos = getattr(mixer.music, "get_pos", None)
+    if not callable(get_pos):
+        return -1
+    try:
+        return int(get_pos())
+    except Exception as exc:
+        log_soft_exception(
+            "Failed to query music position from backend",
+            exc,
+            once_key="music_get_pos_failed",
+        )
+        return -1
+
+
 def update_background_music(force=False):
-    global current_music_mode, current_music_path
+    global current_music_mode, current_music_path, current_music_start_offset_seconds
     if IS_WEB and not web_audio_unlocked:
         return
     if not mixer.get_init():
@@ -1436,6 +1515,7 @@ def update_background_music(force=False):
                 )
             current_music_mode = None
             current_music_path = None
+            current_music_start_offset_seconds = 0.0
         return
 
     target_mode, target_path = get_background_music_selection()
@@ -1451,22 +1531,28 @@ def update_background_music(force=False):
                 )
             current_music_mode = None
             current_music_path = None
+            current_music_start_offset_seconds = 0.0
         return
 
     if not force and target_mode == current_music_mode:
         return
 
-    if target_path == current_music_path and mixer.music.get_busy():
+    if target_path == current_music_path and music_is_busy_compatible():
         current_music_mode = target_mode
         return
 
     try:
         # Pygbag/web audio can leave the previous music track audible unless we
         # stop it explicitly before loading the next background track.
+        playback_rule = MUSIC_PLAYBACK_RULES.get(target_mode, {})
+        start_seconds = max(0.0, float(playback_rule.get("start_seconds", 0.0)))
         mixer.music.stop()
         mixer.music.load(target_path)
         mixer.music.set_volume(MUSIC_VOLUME)
-        mixer.music.play(0 if target_mode == "victory" else -1)
+        if target_mode == "victory":
+            current_music_start_offset_seconds = play_music_compatible(0, start_seconds)
+        else:
+            current_music_start_offset_seconds = play_music_compatible(-1, start_seconds)
         current_music_mode = target_mode
         current_music_path = target_path
     except Exception as exc:
@@ -1478,6 +1564,7 @@ def update_background_music(force=False):
         # Keep the game running even when a track cannot be loaded.
         current_music_mode = None
         current_music_path = None
+        current_music_start_offset_seconds = 0.0
 
 
 def unlock_web_audio_if_needed():
@@ -1492,7 +1579,7 @@ def unlock_web_audio_if_needed():
 
 
 def stop_background_music():
-    global current_music_mode, current_music_path
+    global current_music_mode, current_music_path, current_music_start_offset_seconds
     if not mixer.get_init():
         return
     if current_music_mode is None:
@@ -1507,6 +1594,39 @@ def stop_background_music():
         )
     current_music_mode = None
     current_music_path = None
+    current_music_start_offset_seconds = 0.0
+
+
+def maintain_trimmed_music_loop():
+    global current_music_start_offset_seconds
+    if not mixer.get_init() or current_music_mode is None:
+        return
+
+    playback_rule = MUSIC_PLAYBACK_RULES.get(current_music_mode)
+    if not playback_rule or not music_is_busy_compatible():
+        return
+
+    loop_end_seconds = playback_rule.get("loop_end_seconds")
+    if loop_end_seconds is None:
+        return
+
+    track_pos_ms = music_get_pos_ms_compatible()
+    if track_pos_ms < 0:
+        return
+
+    absolute_pos_seconds = current_music_start_offset_seconds + (track_pos_ms / 1000.0)
+    if absolute_pos_seconds < float(loop_end_seconds):
+        return
+
+    restart_seconds = max(0.0, float(playback_rule.get("start_seconds", 0.0)))
+    try:
+        current_music_start_offset_seconds = play_music_compatible(-1, restart_seconds)
+    except Exception as exc:
+        log_soft_exception(
+            f"Failed to maintain trimmed loop for music mode '{current_music_mode}'",
+            exc,
+            once_key=f"music_trim_loop:{current_music_mode}",
+        )
 
 
 def get_credits_font(size, mono=False, bold=False):
@@ -2391,7 +2511,25 @@ def maybe_spawn_extra_obstacle_pack(base_type, base_x):
 
 def get_extra_obstacle_draw_rect(obstacle):
     cfg = OBSTACLE_CONFIG[obstacle["type"]]
-    return obstacle["x"], cfg["y"], cfg["w"], cfg["h"]
+    draw_x = obstacle["x"]
+    draw_y = cfg["y"]
+    draw_w = cfg["w"]
+    draw_h = cfg["h"]
+    if current_level == 9 and is_runner_ground_profile_active() and is_runner_ground_aligned_obstacle_type(obstacle["type"]):
+        draw_y = get_runner_ground_y_at_x(draw_x + (draw_w * 0.5)) - draw_h
+    return draw_x, draw_y, draw_w, draw_h
+
+
+def spawn_level9_hill_runup_obstacles(car_pickup_x):
+    runup_length = max(1.0, float(car_pickup_x) - float(width))
+    for progress_ratio, obstacle_kind in LEVEL9_HILL_RUNUP_OBSTACLE_LAYOUT:
+        obstacle_x_local = float(width) + (runup_length * progress_ratio)
+        extra_obstacles.append({
+            "type": obstacle_kind,
+            "x": obstacle_x_local,
+            "bird_duck_scored": False,
+            "snake_hiss_played": False,
+        })
 
 
 def get_extra_obstacle_hitbox(obstacle):
@@ -2428,6 +2566,8 @@ def spawn_obstacle(force_type=None):
     if obstacle_type == "car_pickup":
         pending_car_spawn = False
         airplane_warning_until_ms = millis() + AIRPLANE_WARNING_DURATION_MS
+        if current_level == 9:
+            spawn_level9_hill_runup_obstacles(obstacle_x)
     if obstacle_type == "pipe_pair":
         # Ground pipe pair: gap tuned for normal jump/duck traversal.
         ground_pipe_gap_top = int(random(168, 262))
@@ -3384,7 +3524,7 @@ def get_obstacle_draw_rect():
 
     if obstacle_type == "cliff_gap" and current_level == 9:
         draw_w = get_current_cliff_gap_width()
-    elif obstacle_type == "car_pickup" and current_level == 9:
+    elif current_level == 9 and is_runner_ground_profile_active() and is_runner_ground_aligned_obstacle_type(obstacle_type):
         draw_y = get_runner_ground_y_at_x(draw_x + (draw_w * 0.5)) - draw_h
 
     if obstacle_type == "snake" and is_snake_extended():
@@ -3477,8 +3617,8 @@ def get_runner_ground_y_at_x(screen_x):
     return sample_runner_ground_profile(profile, screen_x)
 
 
-def get_level9_hill_runup_distance():
-    return max(width * 2.0, scroll_speed * 60.0 * LEVEL9_HILL_RUNUP_SECONDS)
+def is_runner_ground_aligned_obstacle_type(current_obstacle_type):
+    return current_obstacle_type in ("cactus_low", "cactus_high", "cactus_tower", "car_pickup")
 
 
 def get_current_player_ground_y():
@@ -3579,6 +3719,52 @@ def get_current_character_key():
     if game_started:
         return active_character_key
     return get_selected_character_key()
+
+
+def format_duration_hms(total_seconds):
+    total_seconds = max(0, int(total_seconds))
+    hours = total_seconds // 3600
+    minutes = (total_seconds % 3600) // 60
+    seconds = total_seconds % 60
+    return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+
+
+def get_menu_stats_character_key():
+    return get_selected_character_key()
+
+
+def update_playtime_tracking():
+    global run_playtime_seconds, playtime_last_tick_ms
+
+    now = millis()
+    should_track = (
+        game_started and
+        not game_over and
+        not game_paused and
+        not shop_active and
+        not shared.show_info and
+        not credits_active
+    )
+    if not should_track:
+        playtime_last_tick_ms = now
+        return
+
+    elapsed_ms = now - playtime_last_tick_ms
+    if elapsed_ms < 1000:
+        return
+
+    elapsed_seconds = int(elapsed_ms // 1000)
+    run_playtime_seconds += elapsed_seconds
+    character_total_playtime_seconds[active_character_key] += elapsed_seconds
+    playtime_last_tick_ms += elapsed_seconds * 1000
+
+
+def register_character_death():
+    global death_recorded_this_run
+    if death_recorded_this_run:
+        return
+    character_deaths[active_character_key] += 1
+    death_recorded_this_run = True
 
 
 def get_pipe_crouch_sprite(character_key):
@@ -4411,6 +4597,7 @@ def apply_player_hit(hit_sound=None, play_sound=True):
             play_sfx(non_lethal_hit_sound)
         return
 
+    register_character_death()
     game_over = True
     if car_mode and current_level == 9 and not flight_mode:
         start_car_crash_wreck()
@@ -4657,28 +4844,43 @@ def build_level9_car_surface(car_w, car_h, cactus_count=0, crashed=False):
     car_w = max(32, int(car_w))
     car_h = max(20, int(car_h))
     surface = pygame_native.Surface((car_w, car_h), pygame_native.SRCALPHA)
-    wheel_y = car_h - 9
-    body_y = 12
-    body_h = car_h - 22
-    top_h = max(12, int(body_h * 0.58))
+    wheel_d = max(18, int(car_h * 0.3))
+    wheel_y = car_h - wheel_d - 1
+    wheel_front_x = 10
+    wheel_back_x = car_w - wheel_d - 10
+    body_y = max(8, int(car_h * 0.2))
+    body_h = max(14, car_h - wheel_d - 8)
+    cabin_h = max(12, int(body_h * 0.62))
     body_color = (18, 62, 126) if not crashed else (54, 68, 92)
     body_highlight = (38, 94, 176) if not crashed else (92, 102, 120)
+    body_shadow = (10, 34, 78) if not crashed else (38, 44, 58)
     window_color = (182, 216, 236) if not crashed else (132, 144, 156)
 
-    pygame_native.draw.ellipse(surface, (26, 26, 30), (12, wheel_y, 18, 18))
-    pygame_native.draw.ellipse(surface, (26, 26, 30), (car_w - 30, wheel_y, 18, 18))
-    pygame_native.draw.ellipse(surface, (118, 118, 124), (16, wheel_y + 4, 10, 10))
-    pygame_native.draw.ellipse(surface, (118, 118, 124), (car_w - 26, wheel_y + 4, 10, 10))
+    pygame_native.draw.ellipse(surface, (18, 18, 22), (wheel_front_x, wheel_y, wheel_d, wheel_d))
+    pygame_native.draw.ellipse(surface, (18, 18, 22), (wheel_back_x, wheel_y, wheel_d, wheel_d))
+    pygame_native.draw.ellipse(surface, (132, 136, 144), (wheel_front_x + 4, wheel_y + 4, wheel_d - 8, wheel_d - 8))
+    pygame_native.draw.ellipse(surface, (132, 136, 144), (wheel_back_x + 4, wheel_y + 4, wheel_d - 8, wheel_d - 8))
+    pygame_native.draw.ellipse(surface, body_shadow, (wheel_front_x - 2, wheel_y - 5, wheel_d + 6, 12))
+    pygame_native.draw.ellipse(surface, body_shadow, (wheel_back_x - 2, wheel_y - 5, wheel_d + 6, 12))
 
-    pygame_native.draw.rect(surface, body_color, (6, body_y + 10, car_w - 12, body_h), border_radius=8)
-    pygame_native.draw.rect(surface, body_highlight, (16, body_y, car_w - 34, top_h), border_radius=8)
-    pygame_native.draw.rect(surface, window_color, (24, body_y + 3, 18, top_h - 6), border_radius=4)
-    pygame_native.draw.rect(surface, window_color, (46, body_y + 3, 18, top_h - 6), border_radius=4)
-    pygame_native.draw.rect(surface, (235, 224, 164), (car_w - 10, body_y + 16, 4, 6), border_radius=2)
-    pygame_native.draw.rect(surface, (182, 42, 36), (4, body_y + 16, 4, 6), border_radius=2)
-    pygame_native.draw.line(surface, (8, 8, 8), (36, body_y + 8), (43, body_y + 13), 2)
-    pygame_native.draw.circle(surface, (8, 8, 8), (36, body_y + 9), 4, 1)
-    pygame_native.draw.line(surface, (14, 14, 14), (10, body_y + body_h + 4), (car_w - 10, body_y + body_h + 4), 2)
+    pygame_native.draw.rect(surface, body_color, (6, body_y + 8, car_w - 12, body_h - 2), border_radius=10)
+    pygame_native.draw.polygon(surface, body_highlight, (
+        (18, body_y + 10),
+        (28, body_y + 2),
+        (car_w - 34, body_y + 2),
+        (car_w - 18, body_y + 10),
+        (car_w - 12, body_y + 18),
+        (14, body_y + 18),
+    ))
+    pygame_native.draw.rect(surface, body_shadow, (10, body_y + body_h - 4, car_w - 20, 6), border_radius=4)
+    pygame_native.draw.rect(surface, window_color, (28, body_y + 5, 18, cabin_h - 6), border_radius=4)
+    pygame_native.draw.rect(surface, window_color, (50, body_y + 5, 20, cabin_h - 6), border_radius=4)
+    pygame_native.draw.line(surface, (12, 18, 28), (48, body_y + 4), (48, body_y + cabin_h - 2), 2)
+    pygame_native.draw.line(surface, (12, 18, 28), (74, body_y + 10), (74, body_y + body_h + 2), 2)
+    pygame_native.draw.rect(surface, (235, 224, 164), (car_w - 12, body_y + 19, 6, 7), border_radius=2)
+    pygame_native.draw.rect(surface, (182, 42, 36), (4, body_y + 18, 6, 8), border_radius=2)
+    pygame_native.draw.line(surface, (218, 230, 244), (26, body_y + 22), (car_w - 24, body_y + 22), 2)
+    pygame_native.draw.line(surface, (12, 18, 28), (14, body_y + body_h + 2), (car_w - 14, body_y + body_h + 2), 2)
 
     if crashed:
         pygame_native.draw.line(surface, (24, 24, 24), (car_w - 18, body_y + 2), (car_w - 4, body_y + 16), 3)
@@ -4738,6 +4940,7 @@ def start_car_cliff_fall():
     car_crash_wreck_visible = True
     car_cliff_fall_active = True
     car_cliff_fall_velocity_y = 4.8
+    register_character_death()
     game_over = True
     car_mode = False
     is_ducking = False
@@ -4867,6 +5070,13 @@ def draw_projectile(projectile):
         return
 
     if kind in ("enemy_big_tnt", "enemy_big_tnt_ground", "returned_big_tnt"):
+        if kind == "enemy_big_tnt_ground":
+            time_left = projectile.get("explode_at", 0) - millis()
+            if time_left <= COYOTE_BIG_BOMB_SHAKE_WARNING_MS:
+                shake_strength = max(1.0, 1.0 - (time_left / max(1, COYOTE_BIG_BOMB_SHAKE_WARNING_MS)))
+                shake_phase = int(millis() / 28)
+                x += int((1 if shake_phase % 2 == 0 else -1) * COYOTE_BIG_BOMB_SHAKE_PX * shake_strength)
+                y += int((1 if (shake_phase // 2) % 2 == 0 else -1) * max(1, COYOTE_BIG_BOMB_SHAKE_PX - 1) * shake_strength)
         if kind == "enemy_big_tnt":
             glow_w = w + 28
             glow_x = x - ((glow_w - w) // 2)
@@ -7858,6 +8068,7 @@ def draw():
     global player_x
     theme = get_theme()
     update_background_music()
+    maintain_trimmed_music_loop()
     sync_car_engine_audio()
     if score > high_score:
         high_score = int(score)
