@@ -276,15 +276,15 @@ DINO_Y = int(400 * SCALE_FACTOR)
 DINO_W = int(60 * SCALE_FACTOR)
 DINO_H = int(60 * SCALE_FACTOR)
 DUCK_H = int(30 * SCALE_FACTOR)
-GRAVITY = 1.2
-JUMP_VELOCITY = -18
-HIGH_JUMP_VELOCITY = -22
-POWERUP_HIGH_JUMP_VELOCITY = -26
+GRAVITY = 1.2 * SCALE_FACTOR
+JUMP_VELOCITY = -18 * SCALE_FACTOR
+HIGH_JUMP_VELOCITY = -22 * SCALE_FACTOR
+POWERUP_HIGH_JUMP_VELOCITY = -26 * SCALE_FACTOR
 STACKED_POWER_HIGH_JUMP_VELOCITY = POWERUP_HIGH_JUMP_VELOCITY + (HIGH_JUMP_VELOCITY - JUMP_VELOCITY)
 HIGH_JUMP_POWERUP_MAX_CHARGES = 3
 HIGH_JUMP_WINDOW_MS = 500
-FAST_FALL_EXTRA_GRAVITY = 2.0
-BASE_SCROLL_SPEED = 6.0
+FAST_FALL_EXTRA_GRAVITY = 2.0 * SCALE_FACTOR
+BASE_SCROLL_SPEED = 6.0 * SCALE_FACTOR
 LEVEL_SPEED_FACTOR = 1.1
 LEVEL_BLINK_DURATION_MS = 1200
 LEVEL_BLINK_INTERVAL_MS = 120
@@ -302,33 +302,33 @@ JUMP_BLOCK_DROPLET_COUNT = 14
 JUMP_BLOCK_FLOWER_COUNT = 18
 LEVEL_NAME_NOTICE_MS = 2200
 WIND_SWIRL_EFFECT_MS = 1800
-WIND_SWIRL_SLOW_GRAVITY = 0.18
-WIND_SWIRL_MAX_FALL_SPEED = 1.6
+WIND_SWIRL_SLOW_GRAVITY = 0.18 * SCALE_FACTOR
+WIND_SWIRL_MAX_FALL_SPEED = 1.6 * SCALE_FACTOR
 FLIGHT_PIPE_GAP_H = int(150 * SCALE_FACTOR)
 FLIGHT_PIPE_WIDTH = int(72 * SCALE_FACTOR)
 FLIGHT_PIPE_SPAWN_BASE_MS = 1500
 FLIGHT_PIPE_MIN_GAP_DELTA = int(34 * SCALE_FACTOR)
-FLIGHT_PLANE_SPEED = 5.0
+FLIGHT_PLANE_SPEED = 5.0 * SCALE_FACTOR
 FLIGHT_PIPE_POINTS = 2
 FLIGHT_BIRD_W = int(54 * SCALE_FACTOR)
 FLIGHT_BIRD_H = int(30 * SCALE_FACTOR)
 FLIGHT_LEVEL5_BIRD_CHANCE_PCT = 42
-FLIGHT_LEVEL5_BIRD_EXTRA_SPEED = 1.35
-FLIGHT_CAVE_GAP_SWAY_SPEED = 0.48
+FLIGHT_LEVEL5_BIRD_EXTRA_SPEED = 1.35 * SCALE_FACTOR
+FLIGHT_CAVE_GAP_SWAY_SPEED = 0.48 * SCALE_FACTOR
 FLIGHT_CAVE_GAP_SWAY_RANGE = int(42 * SCALE_FACTOR)
 FLIGHT_CAVE_DROP_CHANCE_PCT = 50
 FLIGHT_CAVE_TREMOR_MS = 1180
 FLIGHT_CAVE_FALL_CHUNK_W = int(28 * SCALE_FACTOR)
 FLIGHT_CAVE_FALL_CHUNK_H = int(28 * SCALE_FACTOR)
-FLIGHT_CAVE_FALL_CHUNK_GRAVITY = 0.34
+FLIGHT_CAVE_FALL_CHUNK_GRAVITY = 0.34 * SCALE_FACTOR
 FLIGHT_CAVE_WARNING_MS = 2200
-FLIGHT_CAVE_BOTTOM_LAUNCH_SPEED = -6.4
+FLIGHT_CAVE_BOTTOM_LAUNCH_SPEED = -6.4 * SCALE_FACTOR
 FLIGHT_LANDING_STRIP_W = int(220 * SCALE_FACTOR)
 FLIGHT_LANDING_STRIP_H = int(24 * SCALE_FACTOR)
 FLIGHT_LANDING_STRIP_X = int(404 * SCALE_FACTOR)
 FLIGHT_LANDING_STRIP_GROUND_OFFSET = int(28 * SCALE_FACTOR)
-FLIGHT_LANDING_SINK_SPEED = 0.34
-FLIGHT_LANDING_EXTRA_DROP_SPEED = 1.05
+FLIGHT_LANDING_SINK_SPEED = 0.34 * SCALE_FACTOR
+FLIGHT_LANDING_EXTRA_DROP_SPEED = 1.05 * SCALE_FACTOR
 FLIGHT_LANDING_WARNING_NOTICE_MS = 3400
 FLIGHT_LANDING_WARNING_LEAD_OBSTACLES = 3
 FLIGHT_LANDING_ENGINE_FAIL_INTERVAL_MS = 680
@@ -344,13 +344,13 @@ CAR_RAMP_W = int(74 * SCALE_FACTOR)
 CAR_RAMP_H = int(38 * SCALE_FACTOR)
 CLIFF_GAP_W = int(268 * SCALE_FACTOR)
 CLIFF_GAP_H = int(42 * SCALE_FACTOR)
-CAR_RAMP_LAUNCH_VELOCITY = -30
+CAR_RAMP_LAUNCH_VELOCITY = -30 * SCALE_FACTOR
 CAR_CACTUS_MAX_STACK = 3
 CAR_VISIBILITY_WARNING_MS = 1700
 CAR_SPEED_STEP_NOTICE_MS = 1200
 CAR_SPEED_TIER_LABELS = ("low", "medium", "high", "super high")
 CAR_SPEED_TIER_SCROLL_RATIOS = (1.15, 1.45, 1.8, 2.2)
-CAR_SPEED_TIER_JUMP_VELOCITIES = (-24, -30, -36, -42)
+CAR_SPEED_TIER_JUMP_VELOCITIES = tuple(int(v * SCALE_FACTOR) for v in (-24, -30, -36, -42))
 CAR_JUMP_TARGET_SEQUENCE = (1, 2, 3)
 CLIFF_GAP_W_BY_TARGET_TIER = tuple(int(x * SCALE_FACTOR) for x in (188, 228, 268, 320))
 LEVEL9_HILL_RUNUP_SECONDS = 12.0
@@ -579,6 +579,11 @@ def log_soft_exception(context, exc, *, once_key=None):
         _logged_soft_exception_keys.add(once_key)
     print(f"[dino_game] {context}: {exc.__class__.__name__}: {exc}", file=sys.stderr)
     traceback.print_exception(type(exc), exc, exc.__traceback__)
+
+
+def sc(pixel_value):
+    """Scale a pixel coordinate or size by SCALE_FACTOR. Shorthand for inline scaling."""
+    return int(pixel_value * SCALE_FACTOR)
 
 
 def get_runtime_asset_path_candidates(path):
@@ -1633,7 +1638,7 @@ def update_background_music(force=False):
         current_music_start_offset_seconds = play_music_compatible(-1 if should_loop else 0, start_seconds)
         current_music_mode = target_mode
         current_music_path = target_path
-        
+
         # Track DJ playback timing for progress bar
         if str(target_mode).startswith("dj:") and dj_preview_track_index is not None:
             global dj_playback_start_time_ms, dj_playback_track_index
@@ -7316,43 +7321,43 @@ def draw_hud(theme, force_visible=False):
         level_progress = max(0, obstacles_cleared - level_start_obstacles)
         level_progress = min(level_goal, level_progress)
         fill(*theme["text"])
-        text_size(24)
-        text(f"Score: {score}", 20, 40)
-        text_size(18)
-        text(f"Coins: {coin_count}/{MAX_COIN_POUCH}", 20, 66)
-        status_y = 88
+        text_size(sc(12))
+        text(f"Score: {score}", sc(20), sc(40))
+        text_size(sc(9))
+        text(f"Coins: {coin_count}/{MAX_COIN_POUCH}", sc(20), sc(66))
+        status_y = sc(88)
         if is_shield_active():
             shield_left = max(0.0, (shield_until_ms - millis()) / 1000.0)
-            draw_shop_item_icon("shield", 18, status_y - 14, 18, theme)
-            text(f"Shield: {shield_left:.1f}s", 42, status_y)
-            status_y += 20
+            draw_shop_item_icon("shield", sc(18), status_y - sc(14), sc(18), theme)
+            text(f"Shield: {shield_left:.1f}s", sc(42), status_y)
+            status_y += sc(20)
         if is_coin_boost_active():
             coin_left = max(0.0, (coin_boost_until_ms - millis()) / 1000.0)
-            draw_shop_item_icon("coin_boost", 18, status_y - 14, 18, theme)
-            text(f"Coin x2: {coin_left:.0f}s", 42, status_y)
-            status_y += 20
+            draw_shop_item_icon("coin_boost", sc(18), status_y - sc(14), sc(18), theme)
+            text(f"Coin x2: {coin_left:.0f}s", sc(42), status_y)
+            status_y += sc(20)
         if is_jump_shoes_active():
             shoes_left = max(0.0, (jump_shoes_until_ms - millis()) / 1000.0)
-            draw_shop_item_icon("jump_shoes", 18, status_y - 14, 18, theme)
-            text(f"Jump shoes: {shoes_left:.0f}s", 42, status_y)
-            status_y += 20
+            draw_shop_item_icon("jump_shoes", sc(18), status_y - sc(14), sc(18), theme)
+            text(f"Jump shoes: {shoes_left:.0f}s", sc(42), status_y)
+            status_y += sc(20)
         if shop_extra_life_count > 0:
-            draw_shop_item_icon("extra_life", 18, status_y - 14, 18, theme)
-            text(f"Extra lives: {shop_extra_life_count}", 42, status_y)
-        text_size(24)
-        text(f"Level: {current_level}", width - 150, 40)
-        text_size(16)
-        text(f"Obstacles: {level_progress}/{level_goal}", width - 190, 66)
+            draw_shop_item_icon("extra_life", sc(18), status_y - sc(14), sc(18), theme)
+            text(f"Extra lives: {shop_extra_life_count}", sc(42), status_y)
+        text_size(sc(12))
+        text(f"Level: {current_level}", width - sc(150), sc(40))
+        text_size(sc(8))
+        text(f"Obstacles: {level_progress}/{level_goal}", width - sc(190), sc(66))
         if car_mode:
-            text(f"Roof cacti: {car_cactus_stack_count}/{CAR_CACTUS_MAX_STACK}", width - 190, 88)
+            text(f"Roof cacti: {car_cactus_stack_count}/{CAR_CACTUS_MAX_STACK}", width - sc(190), sc(88))
             # Speed meter with ← / → arrows and required-speed indicator
-            draw_car_speed_meter(width - 188, 100)
+            draw_car_speed_meter(width - sc(188), sc(100))
 
     # During blink, briefly show level-up cue in accent color.
     if is_level_blink_active() and should_show_blink_phase():
         fill(*theme["accent"])
-        text_size(20)
-        text(f"Level Up! x{LEVEL_SPEED_FACTOR}", width // 2 - 90, 40)
+        text_size(sc(10))
+        text(f"Level Up! x{LEVEL_SPEED_FACTOR}", width // 2 - sc(90), sc(40))
 
 
 def draw_level6_cave_flight_backdrop():
@@ -7645,20 +7650,20 @@ def draw_clean_3d_button(x, y, w, h, theme, selected=False):
 
     fill(*shadow_color)
     no_stroke()
-    rect(x + 4, y + 4, w, h)
+    rect(x + sc(2), y + sc(2), w, h)
 
     fill(*base_color)
     rect(x, y, w, h)
 
     fill(255, 255, 255)
-    rect(x + 3, y + 3, max(1, w - 6), max(3, int(h * 0.34)))
+    rect(x + sc(2), y + sc(2), max(1, w - sc(4)), max(sc(2), int(h * 0.34)))
 
     if selected:
         fill(246, 214, 124)
-        rect(x + 3, y + h - 6, max(1, w - 6), 3)
+        rect(x + sc(2), y + h - sc(4), max(1, w - sc(4)), sc(2))
 
     stroke(*border_color)
-    stroke_weight(2)
+    stroke_weight(sc(1))
     no_fill()
     rect(x, y, w, h)
     no_stroke()
@@ -7829,11 +7834,11 @@ def point_in_rect(px, py, x, y, w, h):
 
 
 def get_character_select_layout():
-    card_w = 170
-    card_h = 165
-    gap = 26
+    card_w = sc(170)
+    card_h = sc(165)
+    gap = sc(26)
     start_x = (width - (card_w * 3 + gap * 2)) // 2
-    card_y = height // 2 + 92
+    card_y = height // 2 + sc(92)
     cards = []
     for idx in range(len(CHARACTER_ORDER)):
         x = start_x + idx * (card_w + gap)
@@ -7842,31 +7847,31 @@ def get_character_select_layout():
 
 
 def get_start_button_rect():
-    btn_w = 150
-    btn_h = 44
-    btn_x = 36
+    btn_w = sc(150)
+    btn_h = sc(44)
+    btn_x = sc(36)
     _, _, card_y, _, _ = get_character_select_layout()[0]
-    total_stack_h = btn_h * 3 + 12 * 2
-    btn_y = card_y - total_stack_h - 34
+    total_stack_h = btn_h * 3 + sc(12) * 2
+    btn_y = card_y - total_stack_h - sc(34)
     return btn_x, btn_y, btn_w, btn_h
 
 
 def get_explain_button_rect():
     btn_x, btn_y, btn_w, btn_h = get_start_button_rect()
-    return btn_x, btn_y + btn_h + 12, btn_w, btn_h
+    return btn_x, btn_y + btn_h + sc(12), btn_w, btn_h
 
 
 def get_shop_button_rect():
     btn_x, btn_y, btn_w, btn_h = get_explain_button_rect()
-    return btn_x, btn_y + btn_h + 12, btn_w, btn_h
+    return btn_x, btn_y + btn_h + sc(12), btn_w, btn_h
 
 
 def get_info_screen_action_layout():
-    panel_x = width - 322
-    panel_y = 192
-    button_w = 300
-    button_h = 46
-    gap = 12
+    panel_x = width - sc(322)
+    panel_y = sc(192)
+    button_w = sc(300)
+    button_h = sc(46)
+    gap = sc(12)
     return [
         {"key": "debug", "label": "Debug mode (D)", "x": panel_x, "y": panel_y, "w": button_w, "h": button_h},
         {"key": "music", "label": "Music (M)", "x": panel_x, "y": panel_y + (button_h + gap), "w": button_w, "h": button_h},
@@ -7940,13 +7945,13 @@ def get_dj_track_length_ms(track_index):
     """Get cached track length in ms, or load it from audio file."""
     if track_index in DJ_TRACK_LENGTHS_MS:
         return DJ_TRACK_LENGTHS_MS[track_index]
-    
+
     if track_index < 0 or track_index >= len(DJ_JUKEBOX_TRACKS):
         return 0
-    
+
     track = DJ_JUKEBOX_TRACKS[track_index]
     track_path = resolve_runtime_asset_path(track["path"])
-    
+
     try:
         sound = mixer.Sound(track_path)
         length_ms = int(sound.get_length() * 1000)
@@ -7964,22 +7969,22 @@ def get_dj_track_length_ms(track_index):
 def get_dj_track_progress_percent():
     """Return playback progress (0.0-1.0) for currently playing track, or 0 if not playing."""
     global dj_playback_track_index, dj_playback_start_time_ms
-    
+
     if dj_playback_track_index is None or dj_playback_start_time_ms is None:
         return 0.0
-    
+
     track_length_ms = get_dj_track_length_ms(dj_playback_track_index)
     if track_length_ms <= 0:
         return 0.0
-    
+
     elapsed_ms = millis() - dj_playback_start_time_ms
     progress = min(1.0, max(0.0, elapsed_ms / track_length_ms))
-    
+
     # If track has finished, stop tracking
     if progress >= 1.0:
         dj_playback_track_index = None
         dj_playback_start_time_ms = None
-    
+
     return progress
 
 
@@ -8019,21 +8024,21 @@ def get_selected_dj_visual_image():
 
 def get_dj_track_list_layout():
     # Keep both columns as wide as possible by aligning right panel tightly to the poster.
-    left_x = 34
-    left_w = int(width * 0.5) - 52
-    list_x = left_x + left_w + 28
-    list_y = 156
-    list_w = width - list_x - 20
-    col_w = int((list_w - 12) / 2)
-    item_gap_h = 8
-    item_gap_w = 12
+    left_x = sc(34)
+    left_w = int(width * 0.5) - sc(52)
+    list_x = left_x + left_w + sc(28)
+    list_y = sc(156)
+    list_w = width - list_x - sc(20)
+    col_w = int((list_w - sc(12)) / 2)
+    item_gap_h = sc(8)
+    item_gap_w = sc(12)
     cols = 2
     track_count = max(1, len(DJ_JUKEBOX_TRACKS))
     # Vertical split: first column gets ceiling half, second column gets rest
     items_per_col = (track_count + cols - 1) // cols
-    available_h = max(220, height - list_y - 130)
+    available_h = max(sc(220), height - list_y - sc(130))
     item_h = int((available_h - ((items_per_col - 1) * item_gap_h)) / items_per_col)
-    item_h = max(40, min(52, item_h))
+    item_h = max(sc(40), min(sc(52), item_h))
     items = []
     for idx in range(len(DJ_JUKEBOX_TRACKS)):
         # Vertical grouping: first 'items_per_col' go to col 0, rest to col 1
@@ -8046,16 +8051,16 @@ def get_dj_track_list_layout():
 
 
 def get_dj_back_button_rect():
-    btn_w = 240
-    btn_h = 52
+    btn_w = sc(240)
+    btn_h = sc(52)
     btn_x = int(width * 0.56)
     min_btn_y = 0
     track_layout = get_dj_track_list_layout()
     if track_layout:
         _idx, _x, row_y, _w, row_h = track_layout[-1]
-        min_btn_y = row_y + row_h + 14
-    btn_y = max(min_btn_y, height - btn_h - 24)
-    btn_y = min(btn_y, height - btn_h - 8)
+        min_btn_y = row_y + row_h + sc(14)
+    btn_y = max(min_btn_y, height - btn_h - sc(24))
+    btn_y = min(btn_y, height - btn_h - sc(8))
     return btn_x, btn_y, btn_w, btn_h
 
 
@@ -8082,37 +8087,37 @@ def draw_dj_jukebox_panel(theme):
         progress = get_dj_track_progress_percent()
         if progress >= 1.0:
             advance_dj_track_to_next()
-    
+
     background(238, 244, 250)
     fill(221, 232, 243)
     no_stroke()
-    rect(0, 0, width, 118)
-    draw_rounded_rect_outline(0, 0, width, 118, 0, theme["accent"], 2)
+    rect(0, 0, width, sc(118))
+    draw_rounded_rect_outline(0, 0, width, sc(118), 0, theme["accent"], 2)
 
-    left_x = 34
-    left_y = 136
-    left_w = int(width * 0.5) - 52
-    left_h = height - 188
+    left_x = sc(34)
+    left_y = sc(136)
+    left_w = int(width * 0.5) - sc(52)
+    left_h = height - sc(188)
 
     fill(255, 255, 255)
     no_stroke()
     rect(left_x, left_y, left_w, left_h)
-    draw_rounded_rect_outline(left_x, left_y, left_w, left_h, 14, theme["accent"], 3)
+    draw_rounded_rect_outline(left_x, left_y, left_w, left_h, sc(14), theme["accent"], 3)
 
     poster_img = get_selected_dj_visual_image()
     if poster_img is not None:
-        image(poster_img, left_x + 12, left_y + 12, left_w - 24, left_h - 24)
+        image(poster_img, left_x + sc(12), left_y + sc(12), left_w - sc(24), left_h - sc(24))
     else:
         fill(*theme["accent"])
-        rect(left_x + 12, left_y + 12, left_w - 24, left_h - 24)
-        draw_dj_label("DJ poster not found", left_x + 42, left_y + 42, size=34, color=(255, 255, 255), bold=True)
+        rect(left_x + sc(12), left_y + sc(12), left_w - sc(24), left_h - sc(24))
+        draw_dj_label("DJ poster not found", left_x + sc(42), left_y + sc(42), size=sc(17), color=(255, 255, 255), bold=True)
 
-    draw_dj_label("DJ Jukebox", 36, 22, size=44, color=theme["accent"], bold=True)
+    draw_dj_label("DJ Jukebox", sc(36), sc(22), size=sc(22), color=theme["accent"], bold=True)
     draw_dj_label(
         f"Press 1-{len(DJ_JUKEBOX_TRACKS)}, use UP/DOWN, or click a song  •  P = play/stop  •  B = back",
-        38,
-        78,
-        size=22,
+        sc(38),
+        sc(78),
+        size=sc(11),
         color=theme["text"],
     )
 
@@ -8124,32 +8129,32 @@ def draw_dj_jukebox_panel(theme):
         if is_playing:
             draw_clean_3d_button(row_x, row_y, row_w, row_h, theme, selected=True)
             fill(216, 246, 224)
-            rect(row_x + 3, row_y + 3, row_w - 6, row_h - 6)
+            rect(row_x + sc(3), row_y + sc(3), row_w - sc(6), row_h - sc(6))
         else:
             draw_clean_3d_button(row_x, row_y, row_w, row_h, theme, selected=is_selected)
 
-        title_size = 16
-        title_y = row_y + 9
-        draw_dj_label(f"{idx + 1}. {track['title']}", row_x + 10, title_y, size=title_size, color=theme["text"], bold=True)
-        
+        title_size = sc(8)
+        title_y = row_y + sc(9)
+        draw_dj_label(f"{idx + 1}. {track['title']}", row_x + sc(10), title_y, size=title_size, color=theme["text"], bold=True)
+
         # Draw progress bar for playing track
         if is_playing:
             progress = get_dj_track_progress_percent()
             if progress > 0:
-                prog_bar_h = 4
-                prog_bar_y = row_y + row_h - prog_bar_h - 1
+                prog_bar_h = sc(4)
+                prog_bar_y = row_y + row_h - prog_bar_h - sc(1)
                 # Background (gray)
                 fill(200, 200, 200)
                 no_stroke()
-                rect(row_x + 3, prog_bar_y, row_w - 6, prog_bar_h)
+                rect(row_x + sc(3), prog_bar_y, row_w - sc(6), prog_bar_h)
                 # Progress fill (orange)
                 fill(255, 165, 0)  # Orange
-                prog_width = (row_w - 6) * progress
-                rect(row_x + 3, prog_bar_y, prog_width, prog_bar_h)
+                prog_width = (row_w - sc(6)) * progress
+                rect(row_x + sc(3), prog_bar_y, prog_width, prog_bar_h)
 
     back_x, back_y, back_w, back_h = get_dj_back_button_rect()
     draw_clean_3d_button(back_x, back_y, back_w, back_h, theme, selected=True)
-    draw_dj_label("Back (B)", back_x + 64, back_y + 12, size=26, color=theme["accent"], bold=True)
+    draw_dj_label("Back (B)", back_x + sc(64), back_y + sc(12), size=sc(13), color=theme["accent"], bold=True)
 
 
 def handle_dj_screen_click(x, y):
@@ -8168,8 +8173,8 @@ def handle_dj_screen_click(x, y):
 
 def draw_compact_controls_guide(theme):
     fill(18)
-    text_size(30)
-    text("Controls Guide", 88, 44)
+    text_size(sc(15))
+    text("Controls Guide", sc(88), sc(44))
 
     # Keep the left side compact; toggles are handled by right-side buttons.
     guide_lines = [
@@ -8184,26 +8189,26 @@ def draw_compact_controls_guide(theme):
         ("V", "start credits (debug mode)"),
     ]
 
-    y = 92
+    y = sc(92)
     for key_txt, action_txt in guide_lines:
         fill(30, 30, 30)
-        text_size(18)
-        text(key_txt, 84, y)
+        text_size(sc(9))
+        text(key_txt, sc(84), y)
         fill(78, 78, 78)
-        text("->", 214, y)
+        text("->", sc(214), y)
         fill(22, 22, 22)
-        text(action_txt, 252, y)
-        y += 38
+        text(action_txt, sc(252), y)
+        y += sc(38)
 
     fill(34, 34, 34)
-    text_size(17)
-    text("Tip: use the right-side buttons for Music/SFX/Speech/DJ.", 84, y + 14)
+    text_size(sc(9))
+    text("Tip: use the right-side buttons for Music/SFX/Speech/DJ.", sc(84), y + sc(14))
 
 
 def draw_info_screen_actions(theme):
     fill(*theme["accent"])
-    text_size(18)
-    text("Quick actions", width - 318, 166)
+    text_size(sc(9))
+    text("Quick actions", width - sc(318), sc(166))
 
     for action in get_info_screen_action_layout():
         x = int(action["x"])
@@ -8215,15 +8220,15 @@ def draw_info_screen_actions(theme):
         draw_clean_3d_button(x, y, w, h, theme, selected=bool(state))
 
         fill(*theme["text"])
-        text_size(19)
-        text(action["label"], x + 16, y + 30)
+        text_size(sc(10))
+        text(action["label"], x + sc(16), y + sc(30))
 
         if state is None:
             continue
 
-        pill_w = 86
-        pill_h = 26
-        pill_x = x + w - pill_w - 12
+        pill_w = sc(86)
+        pill_h = sc(26)
+        pill_x = x + w - pill_w - sc(12)
         pill_y = y + ((h - pill_h) // 2)
         if state:
             fill(96, 180, 110)
@@ -8231,8 +8236,8 @@ def draw_info_screen_actions(theme):
             fill(186, 194, 206)
         rect(pill_x, pill_y, pill_w, pill_h)
         fill(255 if state else 42, 255 if state else 50, 255 if state else 64)
-        text_size(15)
-        text("ON" if state else "OFF", pill_x + 28, pill_y + 17)
+        text_size(sc(8))
+        text("ON" if state else "OFF", pill_x + sc(28), pill_y + sc(17))
 
 
 def handle_info_screen_click(x, y):
@@ -8284,8 +8289,8 @@ def draw_start_button(theme):
     btn_x, btn_y, btn_w, btn_h = get_start_button_rect()
     draw_clean_3d_button(btn_x, btn_y, btn_w, btn_h, theme, selected=True)
     fill(*theme["accent"])
-    text_size(24)
-    text("Start", btn_x + 40, btn_y + 30)
+    text_size(sc(12))
+    text("Start", btn_x + sc(40), btn_y + sc(30))
 
 
 def draw_explain_button(theme):
@@ -8293,22 +8298,22 @@ def draw_explain_button(theme):
     draw_clean_3d_button(btn_x, btn_y, btn_w, btn_h, theme, selected=True)
 
     fill(*theme["accent"])
-    rect(btn_x + 10, btn_y + 10, 24, 24)
+    rect(btn_x + sc(10), btn_y + sc(10), sc(24), sc(24))
     fill(255, 255, 255)
-    text_size(22)
-    text("i", btn_x + 19, btn_y + 28)
+    text_size(sc(11))
+    text("i", btn_x + sc(19), btn_y + sc(28))
 
     fill(*theme["accent"])
-    text_size(22)
-    text("Explain", btn_x + 44, btn_y + 29)
+    text_size(sc(11))
+    text("Explain", btn_x + sc(44), btn_y + sc(29))
 
 
 def draw_shop_button(theme):
     btn_x, btn_y, btn_w, btn_h = get_shop_button_rect()
     draw_clean_3d_button(btn_x, btn_y, btn_w, btn_h, theme, selected=True)
     fill(*theme["accent"])
-    text_size(22)
-    text("Shop", btn_x + 48, btn_y + 29)
+    text_size(sc(11))
+    text("Shop", btn_x + sc(48), btn_y + sc(29))
 
 
 def get_shop_buy_button_rect(card_x, card_y, card_w, card_h):
